@@ -154,40 +154,41 @@
         </div>
     </div>
 
-<script>
-async function sendOTP() {
-    const username = document.getElementById('username').value;
-    const telegram_chat_id = document.getElementById('telegram_chat_id').value;
-    const btn = document.getElementById('otp-btn');
-    const errorMsg = document.getElementById('error-msg');
-    
-    if(!username || !telegram_chat_id) {
-        errorMsg.innerText = "Please fill all fields";
-        return;
-    }
-
-    btn.disabled = true;
-    errorMsg.innerText = "";
-
-    try {
-        const response = await fetch('/api/signup-request', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ telegram_chat_id, username })
-        });
-        const data = await response.json();
-        if (data.success) {
-            document.getElementById('signup-step').style.display = 'none';
-            document.getElementById('otp-step').style.display = 'block';
-        } else {
-            errorMsg.innerText = data.message || "Failed to send code";
+    <script>
+    async function sendOTP() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const telegram_chat_id = document.getElementById('telegram_chat_id').value;
+        const btn = document.getElementById('otp-btn');
+        const errorMsg = document.getElementById('error-msg');
+        
+        if(!username || !telegram_chat_id || !password) {
+            errorMsg.innerText = "Please fill all fields";
+            return;
         }
-    } catch (e) {
-        errorMsg.innerText = "Connection error";
-    } finally {
-        btn.disabled = false;
+
+        btn.disabled = true;
+        errorMsg.innerText = "";
+
+        try {
+            const response = await fetch('/api/signup-request', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ telegram_chat_id, username })
+            });
+            const data = await response.json();
+            if (data.message) {
+                document.getElementById('signup-step').style.display = 'none';
+                document.getElementById('otp-step').style.display = 'block';
+            } else {
+                errorMsg.innerText = data.error || "Failed to send code";
+            }
+        } catch (e) {
+            errorMsg.innerText = "Connection error";
+        } finally {
+            btn.disabled = false;
+        }
     }
-}
 
 async function verifyAndRegister() {
     const username = document.getElementById('username').value;
