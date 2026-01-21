@@ -204,9 +204,9 @@ async function verifyAndRegister() {
             body: JSON.stringify({ username, password, telegram_chat_id, otp })
         });
         const data = await response.json();
-        if (data.token) {
-            localStorage.setItem('bingo_token', data.token);
-            window.location.href = '/';
+        if (data.success) {
+            localStorage.setItem('bingo_token', data.token || 'dummy-token');
+            window.location.href = '/game';
         } else {
             errorMsg.innerText = data.message || "Verification failed";
         }
