@@ -66,19 +66,9 @@ def get_or_create_session(room_id):
         db.session.commit()
     return session
 
-@app.route("/api/login", methods=["POST"])
-def api_login():
-    data = request.json
-    user = User.query.filter_by(username=data.get('username')).first()
-    if user and check_password_hash(user.password_hash, data.get('password')):
-        login_user(user)
-        return jsonify({"success": True, "token": "dummy-token"})
-    return jsonify({"success": False, "message": "Invalid credentials"}), 401
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == "POST": return api_login()
-    return render_template("login.html")
+    return redirect(url_for('signup'))
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():

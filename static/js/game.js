@@ -531,6 +531,13 @@ if (verifyOtpBtn) {
 }
 
 // Initialize App
+window.showCardSelection = (stake, name, price) => {
+    currentRoom = stake;
+    document.getElementById('selection-room-name').innerText = name;
+    document.getElementById('card-selection-screen').style.display = 'flex';
+    createAvailableCards();
+};
+
 function initApp() {
     const token = localStorage.getItem("bingo_token");
     if (token) {
@@ -898,6 +905,13 @@ window.joinStake = (amount) => {
     if (selectionScreen) selectionScreen.classList.add('active');
     const mainContent = document.getElementById('main-content');
     if (mainContent) mainContent.style.display = 'block';
+};
+
+window.showCardSelection = (stake, name, price) => {
+    currentRoom = stake;
+    document.getElementById('selection-room-name').innerText = name;
+    document.getElementById('card-selection-screen').style.display = 'flex';
+    createAvailableCards();
 };
 
 function initApp() {
