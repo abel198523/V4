@@ -453,7 +453,7 @@ app.post('/sms-webhook', async (req, res) => {
 
 // Set Webhook on startup
 async function setTelegramWebhook() {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const botToken = process.env.BOT_TOKEN;
     const webUrl = process.env.WEB_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : process.env.RENDER_EXTERNAL_URL);
     
     if (botToken && webUrl) {
@@ -492,7 +492,7 @@ app.post('/api/signup-request', async (req, res) => {
     try {
         const otp = Math.floor(1000 + Math.random() * 9000).toString();
         pendingOTP[telegram_chat_id] = { otp, referredBy: referred_by, timestamp: Date.now() };
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const botToken = process.env.BOT_TOKEN;
         if (!botToken) return res.status(500).json({ error: "የቴሌግራም ቦት አልተዋቀረም" });
         const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
         const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
@@ -541,7 +541,7 @@ app.post('/api/signup-verify', async (req, res) => {
                     [referredBy, 'referral_bonus', bonus, referrer.rows[0].balance, `Referral bonus for inviting ${finalPhone}`]);
                 
                 // Notify referrer via Telegram
-                const botToken = process.env.TELEGRAM_BOT_TOKEN;
+                const botToken = process.env.BOT_TOKEN;
                 if (botToken) {
                     const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
                     fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
