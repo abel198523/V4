@@ -904,10 +904,16 @@ function initApp() {
     if (token) {
         // We might want to verify token or fetch user data here
         // For now, let's assume it's valid if present
-        document.getElementById('auth-screen').classList.remove('active');
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('main-content').style.display = 'block';
-        navTo('stake');
+    const authScreen = document.getElementById('auth-screen');
+    if (authScreen) {
+        authScreen.classList.remove('active');
+        authScreen.style.display = 'none';
+    }
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+        mainContent.style.display = 'block';
+    }
+    navTo('stake');
     }
 
     const menuTriggers = document.querySelectorAll('.menu-trigger');

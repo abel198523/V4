@@ -19,19 +19,22 @@ def load_user(user_id):
 @app.route("/")
 def landing():
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('game_page'))
     return render_template("landing.html")
 
 @app.route("/game")
 @login_required
-def index():
+def game_page():
     try:
+        from models import Room
         rooms = Room.query.all()
     except Exception:
         db.create_all()
+        from models import Room
         rooms = Room.query.all()
         
     if not rooms:
+        from models import Room
         room1 = Room(name="Room 1", card_price=10.0)
         room2 = Room(name="Room 2", card_price=20.0)
         db.session.add_all([room1, room2])
