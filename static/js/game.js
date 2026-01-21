@@ -828,19 +828,23 @@ function createCardPreview(cardData) {
     return container;
 }
 
-closePreview.onclick = () => {
-    previewOverlay.classList.remove('active');
-    const state = getRoomState(currentRoom);
-    state.currentSelectedCard = null;
-    state.currentCardData = null;
-};
+if (closePreview) {
+    closePreview.onclick = () => {
+        previewOverlay.classList.remove('active');
+        const state = getRoomState(currentRoom);
+        state.currentSelectedCard = null;
+        state.currentCardData = null;
+    };
+}
 
-rejectCard.onclick = () => {
-    previewOverlay.classList.remove('active');
-    const state = getRoomState(currentRoom);
-    state.currentSelectedCard = null;
-    state.currentCardData = null;
-};
+if (rejectCard) {
+    rejectCard.onclick = () => {
+        previewOverlay.classList.remove('active');
+        const state = getRoomState(currentRoom);
+        state.currentSelectedCard = null;
+        state.currentCardData = null;
+    };
+}
 
 confirmCard.onclick = () => {
     const state = getRoomState(currentRoom);
