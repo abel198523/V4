@@ -91,6 +91,7 @@ const PORT = process.env.PORT || 5000;
 const STAKES = [5, 10, 20, 30, 40, 50, 100, 200, 500];
 
 app.use(express.json());
+app.use('/static', express.static(path.join(__dirname, 'static')));
 app.use(express.static(__dirname));
 
 // Trust proxy for Render/Replit
