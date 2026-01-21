@@ -52,6 +52,11 @@ def webhook():
 OTPS = {}
 
 def get_or_create_session(room_id):
+    room = Room.query.get(room_id)
+    if not room: return None
+    session = None
+    if room.active_session_id:
+        session = GameSession.query.get(room.active_session_id)
         if session and session.status != 'active': session = None
     if not session:
         session = GameSession(room_id=room_id, status='active')
