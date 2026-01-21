@@ -846,20 +846,22 @@ if (rejectCard) {
     };
 }
 
-confirmCard.onclick = () => {
-    const state = getRoomState(currentRoom);
-    if (!state.currentSelectedCard || !state.currentCardData) return;
-    state.myGameCard = state.currentCardData;
-    socket.send(JSON.stringify({ 
-        type: 'BUY_CARD', 
-        room: currentRoom,
-        cardNumber: state.currentSelectedCard, 
-        cardData: state.currentCardData 
-    }));
-    const myBoardLabel = document.getElementById('sel-my-board');
-    if (myBoardLabel) myBoardLabel.innerText = `#${state.currentSelectedCard}`;
-    previewOverlay.classList.remove('active');
-};
+if (confirmCard) {
+    confirmCard.onclick = () => {
+        const state = getRoomState(currentRoom);
+        if (!state.currentSelectedCard || !state.currentCardData) return;
+        state.myGameCard = state.currentCardData;
+        socket.send(JSON.stringify({ 
+            type: 'BUY_CARD', 
+            room: currentRoom,
+            cardNumber: state.currentSelectedCard, 
+            cardData: state.currentCardData 
+        }));
+        const myBoardLabel = document.getElementById('sel-my-board');
+        if (myBoardLabel) myBoardLabel.innerText = `#${state.currentSelectedCard}`;
+        previewOverlay.classList.remove('active');
+    };
+}
 
 function createStakeList() {
     const list = document.getElementById('stake-list');
