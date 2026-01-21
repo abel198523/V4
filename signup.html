@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+<div id="main-content" class="d-flex flex-column justify-content-center">
+    <div class="card p-4 mx-auto w-100 shadow-2xl animate-in" id="signup-container" style="max-width: 400px;">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-white mb-1">Join the Club</h2>
+            <p class="text-muted small">Step 2: Complete your registration</p>
+        </div>
+
+        <div id="signup-step">
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Username</label>
+                <input type="text" id="username" class="form-input w-100" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Password</label>
+                <input type="password" id="password" class="form-input w-100" required>
+            </div>
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-muted text-uppercase">Telegram ID</label>
+                <input type="text" id="telegram_chat_id" class="form-input w-100" placeholder="e.g. 12345678" required>
+                <small class="text-muted" style="font-size: 0.65rem;">Type <strong>/id</strong> in @hhkhdfyc_bot</small>
+            </div>
+            <button onclick="sendOTP()" id="otp-btn" class="btn btn-primary w-100 shadow">Get Verification Code</button>
+        </div>
+
+        <div id="otp-step" style="display:none;">
+            <div class="alert alert-primary bg-primary bg-opacity-10 border-primary border-opacity-20 text-center py-2 mb-4">
+                <i class="bi bi-send-check me-2"></i>Code sent to Telegram!
+            </div>
+            <div class="mb-4 text-center">
+                <input type="text" id="otp" class="form-input text-center fw-bold fs-3" maxlength="6" style="letter-spacing: 10px; width: 200px;">
+            </div>
+            <button onclick="verifyAndRegister()" class="btn btn-success w-100 py-3 mb-2 shadow">Verify & Create</button>
+            <button onclick="backToSignup()" class="btn btn-link text-muted w-100 btn-sm">Edit Details</button>
+        </div>
+        
+        <div id="error-msg" class="text-danger mt-3 text-center small fw-bold"></div>
+    </div>
+</div>
+
+<script>
+async function sendOTP() {
+    const username = document.getElementById('username').value;
+    const telegram_chat_id = document.getElementById('telegram_chat_id').value;
+    const btn = document.getElementById('otp-btn');
+    const errorMsg = document.getElementById('error-msg');
+    
+    if(!username || !telegram_chat_id) {
+        errorMsg.innerText = "Please fill all fields";
+        return;
+    }
+
+    btn.disabled = true;
+    errorMsg.innerText = "";
+
+    try {
+        const response = await fetch('/send-otp', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ telegram_chat_id, username })
+        });
+        const data = await response.json();
+        if (data.success) {
+            document.getElementById('signup-step').style.display = 'none';
+            document.getElementById('otp-step').style.display = 'block';
+        } else {
+            errorMsg.innerText = data.message;
+        }
+    } catch (e) {
+        errorMsg.innerText = "Connection error";
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function verifyAndRegister() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const telegram_chat_id = document.getElementById('telegram_chat_id').value;
+    const otp = document.getElementById('otp').value;
+    const errorMsg = document.getElementById('error-msg');
+
+    try {
+        const response = await fetch('/verify-otp', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ username, password, telegram_chat_id, otp })
+        });
+        const data = await response.json();
+        if (data.success) {
+            // After registration, redirect to rooms page
+            window.location.href = '/';
+        } else {
+            errorMsg.innerText = data.message;
+        }
+    } catch (e) {
+        errorMsg.innerText = "Verification failed";
+    }
+}
+
+function backToSignup() {
+    document.getElementById('otp-step').style.display = 'none';
+    document.getElementById('signup-step').style.display = 'block';
+}
+</script>
+{% endblock %}

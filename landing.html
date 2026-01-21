@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div id="main-content" class="d-flex flex-column justify-content-center align-items-center text-center">
+    <div class="animate-in">
+        <div class="mb-4">
+            <div class="d-inline-flex p-4 rounded-circle bg-primary bg-opacity-10 shadow-lg border border-primary border-opacity-20 floating">
+                <i class="bi bi-trophy-fill text-primary display-3"></i>
+            </div>
+        </div>
+        <h1 class="display-4 fw-bold mb-2 tracking-tight text-white">ROYAL BINGO</h1>
+        <p class="lead text-muted mb-5 px-3">Premium Gaming. Instant Rewards.</p>
+    </div>
+    
+    <div class="d-grid gap-3 w-100 px-4" style="max-width: 360px;">
+        <a href="https://t.me/hhkhdfyc_bot" target="_blank" class="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center">
+            <i class="bi bi-telegram fs-4 me-2"></i> Join Telegram First
+        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('login') }}" class="btn btn-outline-light flex-grow-1">Login</a>
+            <a href="{{ url_for('signup') }}" class="btn btn-outline-success flex-grow-1">Sign Up</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    .floating { animation: float 3s ease-in-out infinite; }
+    .animate-in { animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
+{% endblock %}

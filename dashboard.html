@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bingo Dashboard</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        .card { background: #2a2a2a; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: center; }
+        .balance { font-size: 2rem; color: #22c55e; margin: 1rem 0; }
+        a { color: #3b82f6; text-decoration: none; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Welcome, {{ user.name }}</h1>
+        <p>Current Balance</p>
+        <div class="balance">{{ user.balance }} ETB</div>
+        <a href="/logout">Logout</a>
+    </div>
+</body>
+</html>
