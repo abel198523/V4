@@ -327,9 +327,19 @@
         function checkAuth() {
             const token = getToken();
             if (token) {
-                document.getElementById('landing-screen').style.display = 'none';
-                document.getElementById('game-screen').style.display = 'block';
-                document.getElementById('auth-buttons').innerHTML = '<button onclick="logout()" class="btn btn-outline-danger btn-sm">Logout</button>';
+                const landingScreen = document.getElementById('landing-screen');
+                if (landingScreen) landingScreen.style.display = 'none';
+                
+                const gameScreen = document.getElementById('game-screen');
+                if (gameScreen) gameScreen.style.display = 'block';
+                
+                const authButtons = document.getElementById('auth-buttons');
+                if (authButtons) {
+                    authButtons.innerHTML = `
+                        <span class="text-white small me-3 d-none d-sm-inline">Welcome, {{ current_user.username }}</span>
+                        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
+                    `;
+                }
                 initRooms();
                 refreshBalance();
             }

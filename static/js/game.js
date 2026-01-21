@@ -922,7 +922,10 @@ function initApp() {
     const token = localStorage.getItem('bingo_token');
     if (token) {
         const gameScreen = document.getElementById('game-screen');
-        if (gameScreen) gameScreen.style.display = 'block';
+        if (gameScreen) {
+            gameScreen.style.display = 'block';
+            gameScreen.classList.add('active');
+        }
         navTo('stake');
     }
 
