@@ -919,21 +919,11 @@ function initApp() {
     createStakeList();
     createAvailableCards();
 
-    // Check if user is already logged in
     const token = localStorage.getItem('bingo_token');
     if (token) {
-        // We might want to verify token or fetch user data here
-        // For now, let's assume it's valid if present
-    const authScreen = document.getElementById('auth-screen');
-    if (authScreen) {
-        authScreen.classList.remove('active');
-        authScreen.style.display = 'none';
-    }
-    const mainContent = document.getElementById('main-content');
-    if (mainContent) {
-        mainContent.style.display = 'block';
-    }
-    navTo('stake');
+        const gameScreen = document.getElementById('game-screen');
+        if (gameScreen) gameScreen.style.display = 'block';
+        navTo('stake');
     }
 
     const menuTriggers = document.querySelectorAll('.menu-trigger');

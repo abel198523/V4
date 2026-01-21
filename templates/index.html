@@ -238,36 +238,14 @@
         <div class="container-fluid px-3 h-100 d-flex align-items-center">
             <a class="navbar-brand fw-bold" href="/">ROYAL BINGO</a>
             <div class="ms-auto d-flex align-items-center" id="auth-buttons">
-                <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-sm me-2">Login</a>
-                <a href="{{ url_for('signup') }}" class="btn btn-primary btn-sm">Sign Up</a>
+                <span class="text-white small me-3 d-none d-sm-inline">Welcome, {{ current_user.username }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
             </div>
         </div>
     </nav>
     <div class="content-wrapper">
         <div id="main-content">
-            <div id="landing-screen" class="d-flex flex-column justify-content-center align-items-center text-center flex-grow-1">
-                <div class="animate-in">
-                    <div class="mb-4">
-                        <div class="d-inline-flex p-4 rounded-circle bg-primary bg-opacity-10 shadow-lg border border-primary border-opacity-20 floating">
-                            <i class="bi bi-trophy-fill text-primary display-3"></i>
-                        </div>
-                    </div>
-                    <h1 class="display-4 fw-bold mb-2 tracking-tight text-white">ROYAL BINGO</h1>
-                    <p class="lead text-muted mb-5 px-3">Premium Gaming. Instant Rewards.</p>
-                </div>
-                
-                <div class="d-grid gap-3 w-100 px-4" style="max-width: 360px;">
-                    <a href="https://t.me/hhkhdfyc_bot" target="_blank" class="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center">
-                        <i class="bi bi-telegram fs-4 me-2"></i> Join Telegram First
-                    </a>
-                    <div class="d-flex gap-2">
-                        <a href="{{ url_for('login') }}" class="btn btn-outline-light flex-grow-1">Login</a>
-                        <a href="{{ url_for('signup') }}" class="btn btn-outline-success flex-grow-1">Sign Up</a>
-                    </div>
-                </div>
-            </div>
-
-            <div id="game-screen" style="display: none;">
+            <div id="game-screen">
                 <div id="rooms-view">
                     <div class="row mb-3 align-items-center flex-shrink-0">
                         <div class="col-12 mb-3">
