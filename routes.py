@@ -117,9 +117,10 @@ def verify_otp():
                     telegram_chat_id=data.get('telegram_chat_id'))
         db.session.add(user)
         db.session.commit()
-        login_user(user)
+        # Ensure the user is logged in properly with session persistence
+        login_user(user, remember=True)
         del OTPS[data.get('telegram_chat_id')]
-        return jsonify({"success": True, "token": "dummy"})
+        return jsonify({"success": True, "token": "dummy-token-for-auth"})
     return jsonify({"success": False, "message": "Invalid code"}), 400
 
 @app.route("/api/user/balance")
