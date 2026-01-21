@@ -15,10 +15,15 @@ if BOT_TOKEN:
 
     @bot.message_handler(commands=['start'])
     def send_welcome(message):
+        import random
+        from routes import OTPS
+        otp = str(random.randint(100000, 999999))
+        OTPS[str(message.chat.id)] = otp
+        
         welcome_text = (
             "🎮 እንኳን ወደ ROYAL BINGO በደህና መጡ!\n\n"
-            "በዌብሳይታችን ላይ ለመመዝገብ የእርስዎን Chat ID ማወቅ ይኖርብዎታል።\n"
-            f"የእርስዎ Chat ID: `{message.chat.id}`\n\n"
+            f"የእርስዎ መለያ ማረጋገጫ ኮድ፡ `{otp}`\n"
+            f"Your verification code is: `{otp}`\n\n"
             "ይህንን ቁጥር በመያዝ ወደ ዌብሳይቱ ተመልሰው ምዝገባዎን ያጠናቅቁ።"
         )
         
