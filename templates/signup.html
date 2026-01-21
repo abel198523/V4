@@ -103,56 +103,56 @@
     <nav class="navbar navbar-dark bg-dark">
         <div class="container-fluid px-3 h-100 d-flex align-items-center">
             <a class="navbar-brand fw-bold" href="/">ROYAL BINGO</a>
-            <div class="ms-auto d-flex align-items-center">
-                <a href="login.html" class="btn btn-outline-light btn-sm me-2">Login</a>
-                <a href="signup.html" class="btn btn-primary btn-sm">Sign Up</a>
-            </div>
-        </div>
-    </nav>
-    <div class="content-wrapper">
-        <div id="main-content">
-            <div class="card p-4 mx-auto w-100 shadow-2xl animate-in" id="signup-container" style="max-width: 400px;">
-                <div class="text-center mb-4">
-                    <h2 class="fw-bold text-white mb-1">Join the Club</h2>
-                    <p class="text-muted small">Complete your registration</p>
-                </div>
-
-                <div id="signup-step">
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted text-uppercase">Username</label>
-                        <input type="text" id="username" class="form-input w-100" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted text-uppercase">Password</label>
-                        <input type="password" id="password" class="form-input w-100" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label small fw-bold text-muted text-uppercase">Telegram ID</label>
-                        <input type="text" id="telegram_chat_id" class="form-input w-100" placeholder="e.g. 12345678" required>
-                        <small class="text-muted" style="font-size: 0.65rem;">Type <strong>/id</strong> in @hhkhdfyc_bot</small>
-                    </div>
-                    <button onclick="sendOTP()" id="otp-btn" class="btn btn-primary w-100 shadow">Get Verification Code</button>
-                </div>
-
-                <div id="otp-step" style="display:none;">
-                    <div class="alert alert-primary bg-primary bg-opacity-10 border-primary border-opacity-20 text-center py-2 mb-4">
-                        <i class="bi bi-send-check me-2"></i>Code sent to Telegram!
-                    </div>
-                    <div class="mb-4 text-center">
-                        <input type="text" id="otp" class="form-input text-center fw-bold fs-3" maxlength="6" style="letter-spacing: 10px; width: 200px;">
-                    </div>
-                    <button onclick="verifyAndRegister()" class="btn btn-success w-100 py-3 mb-2 shadow">Verify & Create</button>
-                    <button onclick="backToSignup()" class="btn btn-link text-muted w-100 btn-sm">Edit Details</button>
-                </div>
-                
-                <div id="error-msg" class="text-danger mt-3 text-center small fw-bold"></div>
-
-                <div class="text-center mt-4">
-                    <p class="text-muted small mb-0">Already have an account? <a href="login.html" class="text-primary text-decoration-none fw-bold">Login</a></p>
+                <div class="ms-auto d-flex align-items-center">
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-sm me-2">Login</a>
+                    <a href="{{ url_for('signup') }}" class="btn btn-primary btn-sm">Sign Up</a>
                 </div>
             </div>
+        </nav>
+        <div class="content-wrapper">
+            <div id="main-content">
+                <div class="card p-4 mx-auto w-100 shadow-2xl animate-in" id="signup-container" style="max-width: 400px;">
+                    <div class="text-center mb-4">
+                        <h2 class="fw-bold text-white mb-1">Join the Club</h2>
+                        <p class="text-muted small">Complete your registration</p>
+                    </div>
+
+                    <div id="signup-step">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Username</label>
+                            <input type="text" id="username" class="form-input w-100" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Password</label>
+                            <input type="password" id="password" class="form-input w-100" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">Telegram ID</label>
+                            <input type="text" id="telegram_chat_id" class="form-input w-100" placeholder="e.g. 12345678" required>
+                            <small class="text-muted" style="font-size: 0.65rem;">Type <strong>/id</strong> in your bot</small>
+                        </div>
+                        <button onclick="sendOTP()" id="otp-btn" class="btn btn-primary w-100 shadow">Get Verification Code</button>
+                    </div>
+
+                    <div id="otp-step" style="display:none;">
+                        <div class="alert alert-primary bg-primary bg-opacity-10 border-primary border-opacity-20 text-center py-2 mb-4">
+                            <i class="bi bi-send-check me-2"></i>Code sent to Telegram!
+                        </div>
+                        <div class="mb-4 text-center">
+                            <input type="text" id="otp" class="form-input text-center fw-bold fs-3" maxlength="6" style="letter-spacing: 10px; width: 200px;">
+                        </div>
+                        <button onclick="verifyAndRegister()" class="btn btn-success w-100 py-3 mb-2 shadow">Verify & Create</button>
+                        <button onclick="backToSignup()" class="btn btn-link text-muted w-100 btn-sm">Edit Details</button>
+                    </div>
+                    
+                    <div id="error-msg" class="text-danger mt-3 text-center small fw-bold"></div>
+
+                    <div class="text-center mt-4">
+                        <p class="text-muted small mb-0">Already have an account? <a href="{{ url_for('login') }}" class="text-primary text-decoration-none fw-bold">Login</a></p>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
 
     <script>
     async function sendOTP() {
