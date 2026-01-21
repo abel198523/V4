@@ -1,25 +1,52 @@
-# Flask Website Project
+# Royal Bingo - WebSocket Game Application
 
 ## Overview
-This is a Flask web application migrated to the Replit environment. It is primarily built with the intention of being deployed on Render. All architectural decisions and configurations should remain compatible with Render's hosting environment.
+This is a real-time Bingo game application built with Node.js, Express, and WebSocket. Players can join rooms with different stake amounts, select bingo cards, and play against other players in real-time.
 
-## Deployment on Render
-To deploy this application on Render:
-1. **Build Command**: `pip install -r requirements.txt` (ensure a requirements.txt is maintained or use the environment's package manager export).
-2. **Start Command**: `gunicorn main:app`
-3. **Environment Variables**:
-   - `DATABASE_URL`: Your PostgreSQL connection string (Render provides this for their managed databases).
-   - `SESSION_SECRET`: A secure random string for session encryption.
-   - `PYTHON_VERSION`: 3.11.x
-   - `PORT`: Render automatically sets this, but our app should be flexible (defaulting to 5000 if not set).
+## Tech Stack
+- **Backend**: Node.js with Express
+- **Real-time Communication**: WebSocket (ws library)
+- **Database**: PostgreSQL
+- **Authentication**: JWT tokens with bcrypt password hashing
+- **Frontend**: Vanilla JavaScript with Bootstrap 5
 
-## User Preferences
-- **Deployment Platform**: Render (Primary target). All development must be Render-compatible.
-- **Database**: PostgreSQL.
-- **WSGI Server**: Gunicorn.
+## Project Structure
+- `server.js` - Main Express server with WebSocket, API endpoints, and game logic
+- `db.js` - PostgreSQL database connection
+- `game.js` - Client-side game logic and WebSocket handling
+- `index.html` - Main landing page and game interface
+- `login.html` - Login page
+- `signup.html` - Registration page with Telegram OTP verification
+- `admin.html` - Admin panel for managing users and transactions
+- `cards.json` - Bingo card configurations
+- `style.css` - Custom styling
+
+## Database Schema
+- `users` - User accounts with balance, telegram integration
+- `deposit_requests` - User deposit requests
+- `withdraw_requests` - User withdrawal requests  
+- `balance_history` - Transaction history
+
+## Environment Variables
+- `DATABASE_URL` - PostgreSQL connection string (automatically set by Replit)
+- `SESSION_SECRET` or `JWT_SECRET` - Secret key for JWT tokens
+- `BOT_TOKEN` - Telegram bot token for notifications (optional)
+
+## Running the Application
+The application runs on port 5000 using:
+```
+node server.js
+```
+
+## Features
+- Multiple stake rooms (5, 10, 20, 30, 40, 50, 100, 200, 500 ETB)
+- Real-time bingo gameplay via WebSocket
+- User registration with Telegram OTP verification
+- Balance management (deposits/withdrawals)
+- Admin panel for user management
+- Telegram bot integration for notifications
 
 ## Recent Changes
-- Migrated project from Replit Agent to Replit.
-- Configured PostgreSQL database.
-- Added Render deployment considerations.
-- Set up Gunicorn as the WSGI server.
+- Converted Jinja2 templates to standalone HTML files for Node.js compatibility
+- Configured PostgreSQL database for Replit environment
+- Set up Express server to serve static files and handle API routes
