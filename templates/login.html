@@ -92,6 +92,17 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+    <style>
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+            transform: translate3d(0, 0, 0);
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
     </style>
 </head>
 <body>
@@ -134,11 +145,20 @@
     </div>
 
 <script>
-document.getElementById('login-form').onsubmit = async (e) => {
+const loginForm = document.getElementById('login-form');
+const loginBtn = loginForm.querySelector('button[type="submit"]');
+const errorMsg = document.getElementById('error-msg');
+
+loginForm.onsubmit = async (e) => {
     e.preventDefault();
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
-    const errorMsg = document.getElementById('error-msg');
+    
+    // Reset states
+    errorMsg.innerText = "";
+    loginBtn.disabled = true;
+    const originalText = loginBtn.innerHTML;
+    loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Logging in...';
     
     try {
         const response = await fetch('/api/login', {
@@ -151,10 +171,15 @@ document.getElementById('login-form').onsubmit = async (e) => {
             localStorage.setItem('bingo_token', data.token || 'dummy-token-for-auth');
             window.location.href = '/game';
         } else {
-            errorMsg.innerText = data.message || "Login failed";
+            errorMsg.innerText = data.message || "Invalid username or password";
+            loginForm.classList.add('shake');
+            setTimeout(() => loginForm.classList.remove('shake'), 500);
         }
     } catch (e) {
-        errorMsg.innerText = "Login failed";
+        errorMsg.innerText = "Connection error. Please try again.";
+    } finally {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = originalText;
     }
 };
 </script>
