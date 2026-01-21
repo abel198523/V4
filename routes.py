@@ -58,18 +58,22 @@ def landing():
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    user = User.query.filter_by(username=username).first()
+    if user and check_password_hash(user.password_hash, password):
+        login_user(user)
+        return jsonify({"success": True, "token": "dummy-token-for-compatibility"})
+    return jsonify({"success": False, "message": "Invalid username or password"}), 401
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        data = request.json
-        username = data.get('username')
-        password = data.get('password')
-        
-        user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password_hash, password):
-            login_user(user)
-            return jsonify({"success": True, "redirect": url_for('index')})
-        return jsonify({"success": False, "message": "Invalid username or password"}), 401
+        return api_login()
     return render_template("login.html")
 
 @app.route("/signup", methods=["GET", "POST"])
