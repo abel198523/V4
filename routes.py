@@ -10,22 +10,22 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from bot import bot, BOT_TOKEN
 
 
-@app.errorhandler(500)
-def internal_error(e):
-    db.session.rollback()
-    tb = traceback.format_exc()
-    return render_template("error.html", error=e, traceback=tb, code=500), 500
+from werkzeug.exceptions import HTTPException
 
-
-@app.errorhandler(404)
-def not_found(e):
-    return render_template("error.html", error=e, traceback=None, code=404), 404
-
+@app.errorhandler(HTTPException)
+def http_error(e):
+    if e.code == 404:
+        return render_template("error.html", error=e, traceback=None, code=404), 404
+    return render_template("error.html", error=e, traceback=None, code=e.code), e.code
 
 @app.errorhandler(Exception)
 def handle_exception(e):
+    if isinstance(e, HTTPException):
+        return http_error(e)
     db.session.rollback()
     tb = traceback.format_exc()
+    import logging
+    logging.error(f"Unhandled exception: {e}\n{tb}")
     return render_template("error.html", error=e, traceback=tb, code=500), 500
 
 
@@ -130,6 +130,7 @@ def signup():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         error = None
+        error_type = None
 
         if not username or not password:
             error = "Username and password are required."
@@ -141,14 +142,21 @@ def signup():
             error = "This username is already registered."
             error_type = "taken"
         else:
-            user = User(
-                username=username,
-                password_hash=generate_password_hash(password)
-            )
-            db.session.add(user)
-            db.session.commit()
-            login_user(user, remember=True)
-            return redirect(url_for('game_page'))
+            try:
+                user = User(
+                    username=username,
+                    password_hash=generate_password_hash(password)
+                )
+                db.session.add(user)
+                db.session.commit()
+                login_user(user, remember=True)
+                return redirect(url_for('game_page'))
+            except Exception as e:
+                db.session.rollback()
+                tb = traceback.format_exc()
+                import logging
+                logging.error(f"Signup error for '{username}': {e}\n{tb}")
+                return render_template("error.html", error=e, traceback=tb, code=500), 500
 
         return render_template("signup.html", error=error, error_type=error_type, username=username)
 
