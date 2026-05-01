@@ -49,10 +49,10 @@
             font-size: 1rem;
             width: 100%;
             color: #fff;
-            transition: all 0.3s;
+            cursor: pointer;
+            transition: opacity 0.3s;
         }
         .btn-signup:hover { opacity: 0.9; }
-        .btn-signup:disabled { opacity: 0.6; cursor: not-allowed; }
         .text-muted { color: #a0aab8 !important; }
         .label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; color: #a0aab8; text-transform: uppercase; margin-bottom: 6px; display: block; }
         .animate-in { animation: fadeInUp 0.5s cubic-bezier(0.4,0,0.2,1); }
@@ -60,7 +60,6 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        #error-msg { min-height: 20px; }
     </style>
 </head>
 <body>
@@ -81,70 +80,32 @@
                 <p class="text-muted small mb-0">Create your account to start playing</p>
             </div>
 
-            <div class="mb-3">
-                <label class="label">Username</label>
-                <input type="text" id="username" class="form-input" placeholder="Choose a username" autocomplete="off">
+            {% if error %}
+            <div class="alert alert-danger text-center py-2 mb-3" style="border-radius:10px; font-size:0.9rem;">
+                {{ error }}
             </div>
-            <div class="mb-4">
-                <label class="label">Password</label>
-                <input type="password" id="password" class="form-input" placeholder="At least 6 characters">
-            </div>
+            {% endif %}
 
-            <button class="btn-signup" id="signup-btn" onclick="doSignup()">Create Account</button>
-
-            <div id="error-msg" class="text-danger mt-3 text-center small fw-bold"></div>
+            <form method="POST" action="{{ url_for('signup') }}">
+                <div class="mb-3">
+                    <label class="label">Username</label>
+                    <input type="text" name="username" class="form-input"
+                           placeholder="Choose a username"
+                           value="{{ username or '' }}"
+                           autocomplete="off" required>
+                </div>
+                <div class="mb-4">
+                    <label class="label">Password</label>
+                    <input type="password" name="password" class="form-input"
+                           placeholder="At least 6 characters" required>
+                </div>
+                <button type="submit" class="btn-signup">Create Account</button>
+            </form>
 
             <div class="text-center mt-4">
                 <p class="text-muted small mb-0">Already have an account? <a href="{{ url_for('login') }}" class="text-primary text-decoration-none fw-bold">Login</a></p>
             </div>
         </div>
     </div>
-
-    <script>
-    async function doSignup() {
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
-        const btn = document.getElementById('signup-btn');
-        const errorMsg = document.getElementById('error-msg');
-
-        errorMsg.innerText = '';
-
-        if (!username || !password) {
-            errorMsg.innerText = 'Please fill in all fields.';
-            return;
-        }
-        if (password.length < 6) {
-            errorMsg.innerText = 'Password must be at least 6 characters.';
-            return;
-        }
-
-        btn.disabled = true;
-        btn.innerText = 'Creating account...';
-
-        try {
-            const res = await fetch('/api/signup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.href = '/game';
-            } else {
-                errorMsg.innerText = data.message || 'Registration failed.';
-                btn.disabled = false;
-                btn.innerText = 'Create Account';
-            }
-        } catch (e) {
-            errorMsg.innerText = 'Connection error. Please try again.';
-            btn.disabled = false;
-            btn.innerText = 'Create Account';
-        }
-    }
-
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') doSignup();
-    });
-    </script>
 </body>
 </html>

@@ -107,7 +107,28 @@ def login():
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        return redirect(url_for('index'))
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        error = None
+
+        if not username or not password:
+            error = "Username and password are required."
+        elif len(password) < 6:
+            error = "Password must be at least 6 characters."
+        elif User.query.filter_by(username=username).first():
+            error = "Username already taken."
+        else:
+            user = User(
+                username=username,
+                password_hash=generate_password_hash(password)
+            )
+            db.session.add(user)
+            db.session.commit()
+            login_user(user, remember=True)
+            return redirect(url_for('game_page'))
+
+        return render_template("signup.html", error=error, username=username)
+
     return render_template("signup.html")
 
 
