@@ -1,6 +1,7 @@
 modules = ["nodejs-20", "web", "python-3.11", "postgresql-16"]
 [agent]
 expertMode = true
+stack = "FLASK_VANILLA_JS"
 
 [nix]
 channel = "stable-25_05"

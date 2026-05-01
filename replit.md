@@ -1,52 +1,45 @@
-# Royal Bingo - WebSocket Game Application
+# Royal Bingo
 
 ## Overview
-This is a real-time Bingo game application built with Node.js, Express, and WebSocket. Players can join rooms with different stake amounts, select bingo cards, and play against other players in real-time.
+A multiplayer bingo game web application built with Flask. Users register via Telegram OTP, join stake rooms, and play real-time bingo games. Supports an admin interface for balance management.
 
-## Tech Stack
-- **Backend**: Node.js with Express
-- **Real-time Communication**: WebSocket (ws library)
-- **Database**: PostgreSQL
-- **Authentication**: JWT tokens with bcrypt password hashing
-- **Frontend**: Vanilla JavaScript with Bootstrap 5
+## Architecture
 
-## Project Structure
-- `server.js` - Main Express server with WebSocket, API endpoints, and game logic
-- `db.js` - PostgreSQL database connection
-- `game.js` - Client-side game logic and WebSocket handling
-- `index.html` - Main landing page and game interface
-- `login.html` - Login page
-- `signup.html` - Registration page with Telegram OTP verification
-- `admin.html` - Admin panel for managing users and transactions
-- `cards.json` - Bingo card configurations
-- `style.css` - Custom styling
+### Backend
+- **Framework**: Python Flask
+- **Database**: PostgreSQL via Flask-SQLAlchemy (Replit built-in DB)
+- **Auth**: Flask-Login with session-based authentication
+- **Telegram Bot**: pyTelegramBotAPI for OTP-based signup verification
 
-## Database Schema
-- `users` - User accounts with balance, telegram integration
-- `deposit_requests` - User deposit requests
-- `withdraw_requests` - User withdrawal requests  
-- `balance_history` - Transaction history
+### Frontend
+- **Templates**: Jinja2 HTML templates with Bootstrap
+- **Real-time**: WebSocket-driven game UI (`static/js/game.js`)
+- **Pages**: landing, login, signup, game (rooms), admin, dashboard
 
-## Environment Variables
-- `DATABASE_URL` - PostgreSQL connection string (automatically set by Replit)
-- `SESSION_SECRET` or `JWT_SECRET` - Secret key for JWT tokens
-- `BOT_TOKEN` - Telegram bot token for notifications (optional)
+### Key Files
+- `main.py` — App entrypoint; starts the Flask app via gunicorn and optionally the Telegram bot
+- `app.py` — Flask app factory, SQLAlchemy config, LoginManager setup
+- `routes.py` — All route handlers and API endpoints
+- `models.py` — SQLAlchemy models: User, Room, GameSession, Transaction
+- `bot.py` — Telegram bot definition with OTP and /id command handlers
+- `static/js/game.js` — WebSocket game client logic
+- `templates/` — Jinja2 HTML templates
+- `cards.json` — Predefined bingo card data
 
-## Running the Application
-The application runs on port 5000 using:
+## Running the App
+The app runs via gunicorn on port 5000:
 ```
-node server.js
+gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app
 ```
 
-## Features
-- Multiple stake rooms (5, 10, 20, 30, 40, 50, 100, 200, 500 ETB)
-- Real-time bingo gameplay via WebSocket
-- User registration with Telegram OTP verification
-- Balance management (deposits/withdrawals)
-- Admin panel for user management
-- Telegram bot integration for notifications
+## Environment Variables / Secrets
+- `DATABASE_URL` — PostgreSQL connection string (auto-set by Replit DB)
+- `SESSION_SECRET` — Flask session secret key
+- `TELEGRAM_BOT_TOKEN` — (Optional) Telegram bot token for OTP signup flow
 
-## Recent Changes
-- Converted Jinja2 templates to standalone HTML files for Node.js compatibility
-- Configured PostgreSQL database for Replit environment
-- Set up Express server to serve static files and handle API routes
+## User Flow
+1. User visits the landing page
+2. User opens Telegram and sends `/start` to the bot to get an OTP
+3. User signs up on the website using their Telegram chat ID + OTP
+4. User logs in and enters bingo rooms to buy cards and play
+5. Admin can manage user balances via `/admin`
