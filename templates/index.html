@@ -2,408 +2,540 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Royal Bingo</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        .shake {
-            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-            transform: translate3d(0, 0, 0);
-        }
-        @keyframes shake {
-            10%, 90% { transform: translate3d(-1px, 0, 0); }
-            20%, 80% { transform: translate3d(2px, 0, 0); }
-            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-            40%, 60% { transform: translate3d(4px, 0, 0); }
-        }
-        html, body {
-            background-color: #0b0e14 !important;
-            color: #ffffff !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            display: flex !important;
-            flex-direction: column !important;
-            overflow: hidden !important;
-            position: fixed !important;
-            inset: 0 !important;
-        }
-
-        .navbar {
-            flex: 0 0 auto;
-            background-color: #161b22 !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            height: 60px;
-            margin-bottom: 0 !important;
-            z-index: 1000;
-        }
-
-        .content-wrapper {
-            flex: 1;
-            overflow: hidden;
-            padding: 0;
+        .top-header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 56px;
+            background: #161b22;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 2000;
+        }
+        .top-header .logo {
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: #3b82f6;
+            letter-spacing: 1px;
+            cursor: pointer;
+        }
+        .top-header .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .top-header .balance-chip {
+            background: rgba(34,197,94,0.12);
+            border: 1px solid rgba(34,197,94,0.3);
+            color: #22c55e;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 0.85rem;
+        }
+        .menu-trigger-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 8px;
+        }
+        .menu-trigger-btn:hover { background: rgba(255,255,255,0.08); }
+        .screen-wrapper {
+            padding-top: 56px;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
             position: relative;
         }
-
-        #main-content {
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 60px;
+            background: #161b22;
+            border-top: 1px solid rgba(255,255,255,0.07);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            z-index: 1500;
+        }
+        .nav-btn {
             flex: 1;
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            padding: 15px;
-        }
-
-        .card {
-            background-color: #1a1f29;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-        }
-
-        .form-input {
-            background-color: #0d1117;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #ffffff;
-            border-radius: 12px;
-            padding: 12px 16px;
-            transition: all 0.3s;
-        }
-
-        .form-input:focus {
-            border-color: #0d6efd;
-            background-color: #161b22;
-            box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15);
-        }
-
-        .btn {
-            border-radius: 12px;
-            padding: 12px 20px;
-            font-weight: 600;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+            align-items: center;
+            justify-content: center;
+            background: none;
             border: none;
-        }
-
-        .btn-primary:active {
-            transform: scale(0.96);
-        }
-
-        .text-muted {
-            color: #a0aab8 !important;
-        }
-        
-        .room-card {
-            background-color: #1a1f29 !important;
-            color: #ffffff !important;
-            transition: all 0.3s ease;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
-        }
-        
-        .room-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3) !important;
-        }
-
-        .buy-btn {
-            border-radius: 8px;
+            color: #64748b;
+            font-size: 0.6rem;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            transition: all 0.2s;
+            cursor: pointer;
+            gap: 3px;
+            padding: 8px 0;
+            transition: color 0.2s;
         }
-
-        .buy-btn:active {
-            transform: scale(0.95);
+        .nav-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; }
+        .nav-btn.active { color: #3b82f6; }
+        /* Main content padding for bottom nav */
+        .stake-screen, .profile-screen, .wallet-screen, .admin-screen {
+            padding-bottom: 70px !important;
         }
-
-        #card-selection-screen {
-            position: fixed;
-            inset: 0;
-            background: #0b0e14;
-            z-index: 2000;
-            display: flex;
-            flex-direction: column;
-            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @keyframes slideUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
-        }
-
-        .selection-header {
-            padding: env(safe-area-inset-top, 20px) 20px 15px;
-            background: rgba(22, 27, 34, 0.95);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .card-grid-container {
-            flex: 1;
-            overflow: hidden;
-            padding: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: calc(100vh - 120px);
-        }
-
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            gap: 2px;
-            width: 100%;
-            max-width: 380px;
-            margin: auto;
-        }
-
-        .card-number-btn {
-            aspect-ratio: 1/1;
-            background: #1c2128;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            color: #ffffff;
-            font-weight: 700;
-            font-size: min(4vw, 1rem);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            padding: 0;
-            min-width: 0;
-            width: 100%;
-            height: auto;
-            line-height: 1;
-        }
-
-        .card-number-btn:active {
-            transform: scale(0.92);
-            background: #0d6efd;
-        }
-
-        .card-number-btn.taken {
-            opacity: 0.2;
-            background: #0d1117;
-            border-color: transparent;
-            pointer-events: none;
-        }
-
-        .selection-footer {
-            padding: 15px 20px env(safe-area-inset-bottom, 20px);
-            background: rgba(22, 27, 34, 0.95);
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            text-align: center;
-        }
-
-        .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-        .animate-in { animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        .floating { animation: float 3s ease-in-out infinite; }
-
-        .bingo-cell {
-            aspect-ratio: 1/1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #1c2128;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            font-weight: bold;
+        .selection-screen {
+            padding-bottom: 0 !important;
         }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-dark">
-        <div class="container-fluid px-3 h-100 d-flex align-items-center">
-            <a class="navbar-brand fw-bold" href="/">ROYAL BINGO</a>
-            <div class="ms-auto d-flex align-items-center" id="auth-buttons">
-                <span class="text-white small me-3 d-none d-sm-inline">Welcome, {{ current_user.username }}</span>
-                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
+    <!-- Top Header -->
+    <header class="top-header">
+        <span class="logo" id="menu-logo-trigger">ROYAL BINGO</span>
+        <div class="header-right">
+            <div class="balance-chip"><span id="sel-balance">{{ "%.2f"|format(current_user.balance) }}</span> ETB</div>
+            <span id="stake-username" style="font-size:0.8rem;color:#94a3b8;font-weight:600;">{{ current_user.username }}</span>
+            <button class="menu-trigger-btn menu-trigger" title="Menu">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Hidden elements required by game.js -->
+    <div id="auth-screen" style="display:none;"></div>
+    <div id="main-content" style="display:none;"></div>
+    <span id="username" style="display:none;">{{ current_user.username }}</span>
+    <span id="profile-username-top" style="display:none;">{{ current_user.username }}</span>
+
+    <div class="screen-wrapper">
+
+        <!-- STAKE SCREEN -->
+        <div id="stake-screen" class="stake-screen active">
+            <div style="padding:15px 15px 0; flex-shrink:0;">
+                <h2 style="font-size:1.1rem;font-weight:800;margin:0 0 4px;">🎮 የጌም ክፍሎች</h2>
+                <p style="color:#64748b;font-size:0.8rem;margin:0 0 12px;">ክፍል ይምረጡ • Select a Room</p>
+            </div>
+            <div id="stake-list" class="stake-list" style="padding:0 15px;flex:1;overflow-y:auto;"></div>
+        </div>
+
+        <!-- CARD SELECTION SCREEN -->
+        <div id="selection-screen" class="selection-screen">
+            <div class="selection-header" style="padding:12px 15px;flex-shrink:0;">
+                <button class="back-btn" onclick="navTo('stake')">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <div style="flex:1;text-align:center;">
+                    <div class="selection-title" id="sel-stake-amount">Room</div>
+                    <div style="font-size:0.75rem;color:#64748b;">ካርድ ይምረጡ • Pick a Card</div>
+                </div>
+                <div id="selection-timer" style="font-size:0.85rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,0.1);padding:4px 10px;border-radius:10px;">--</div>
+            </div>
+
+            <div class="selection-stats" style="padding:0 15px 10px;flex-shrink:0;">
+                <div class="sel-stat-box highlight">
+                    <span class="sel-stat-label">ስም</span>
+                    <span class="sel-stat-value" id="sel-username" style="font-size:13px;">{{ current_user.username }}</span>
+                </div>
+                <div class="sel-stat-box">
+                    <span class="sel-stat-label">ባላንስ</span>
+                    <span class="sel-stat-value" style="color:#22c55e;font-size:13px;"><span id="sel-balance-2">{{ "%.2f"|format(current_user.balance) }}</span></span>
+                </div>
+                <div class="sel-stat-box">
+                    <span class="sel-stat-label">ካርዴ</span>
+                    <span class="sel-stat-value" id="sel-my-board" style="color:#f59e0b;">--</span>
+                </div>
+            </div>
+
+            <div class="cards-container" style="margin:0 15px;flex:1;overflow:hidden;display:flex;flex-direction:column;">
+                <div class="cards-header" style="flex-shrink:0;">
+                    <span style="font-weight:700;font-size:0.9rem;">ካርዶች</span>
+                    <div class="legend">
+                        <div class="legend-item"><div class="dot green"></div> <span>ነፃ</span></div>
+                        <div class="legend-item"><div class="dot red"></div> <span>ተወሰደ</span></div>
+                    </div>
+                </div>
+                <div id="cards-grid" class="cards-grid" style="overflow-y:auto;flex:1;padding:5px 0;"></div>
             </div>
         </div>
-    </nav>
-    <div class="content-wrapper">
-        <div id="main-content">
-            <div id="game-screen">
-                <div id="rooms-view">
-                    <div class="row mb-3 align-items-center flex-shrink-0">
-                        <div class="col-12 mb-3">
-                            <div class="card bg-gradient-dark border-0 shadow-lg">
-                                <div class="card-body p-3 d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="text-uppercase text-muted small fw-bold mb-0" style="font-size: 0.6rem;">Balance</h6>
-                                        <h4 class="mb-0 fw-bold text-success" style="font-size: 1.1rem;"><span id="walletBalance">0.00</span> <span class="small" style="font-size: 0.7rem;">ETB</span></h4>
-                                    </div>
-                                    <button onclick="refreshBalance()" class="btn btn-sm btn-outline-success border-0 p-2">
-                                        <i class="bi bi-arrow-clockwise fs-5"></i>
-                                    </button>
-                                </div>
+
+        <!-- GAME SCREEN -->
+        <div id="game-screen" class="game-screen">
+            <!-- Top stats bar -->
+            <div class="game-header-stats" style="padding:8px 10px 0;flex-shrink:0;">
+                <div class="stats-row">
+                    <div class="stat-box-dark">
+                        <span class="stat-label">ደርሽ / Prize</span>
+                        <span class="stat-value" id="derash" style="color:#f59e0b;">0</span>
+                    </div>
+                    <div class="stat-box-dark">
+                        <span class="stat-label">ተጫዋቾች</span>
+                        <span class="stat-value" id="players" style="color:#3b82f6;">0</span>
+                    </div>
+                    <div class="stat-box-dark">
+                        <span class="stat-label">ቦርድ</span>
+                        <span class="stat-value" id="sel-my-board-game" style="color:#22c55e;">--</span>
+                    </div>
+                    <div class="stat-box-dark">
+                        <span class="stat-label">ቁጥር</span>
+                        <span class="stat-value" id="call-count" style="color:#ef4444;">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="game-main-layout" style="flex:1;overflow:hidden;padding:8px 10px;">
+                <!-- Left: Master grid -->
+                <div class="master-grid-container">
+                    <div class="bingo-header-labels">
+                        <span class="h-B" data-count="0" style="color:#3b82f6;">B</span>
+                        <span class="h-I" data-count="0" style="color:#8b5cf6;">I</span>
+                        <span class="h-N" data-count="0" style="color:#22c55e;">N</span>
+                        <span class="h-G" data-count="0" style="color:#f59e0b;">G</span>
+                        <span class="h-O" data-count="0" style="color:#ef4444;">O</span>
+                    </div>
+                    <div class="master-grid-scroll">
+                        <div id="master-grid" class="master-grid"></div>
+                    </div>
+                    <div class="total-called-bar">
+                        <div class="progress-info"><span id="progress-text">0/75</span></div>
+                        <div class="progress-container">
+                            <div id="progress-bar" class="progress-bar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Current call + my card -->
+                <div class="right-panel">
+                    <div class="current-call-card">
+                        <div style="font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;">ወቅታዊ ቁጥር</div>
+                        <div class="active-ball-display">
+                            <div id="active-ball"><span>--</span></div>
+                        </div>
+                        <div class="recent-balls-row" id="recent-balls"></div>
+                    </div>
+
+                    <div class="auto-marking-row">
+                        <span class="auto-label">Auto Mark</span>
+                        <div id="auto-toggle" class="toggle-switch">
+                            <div class="toggle-handle"></div>
+                        </div>
+                        <span id="selection-timer" style="font-size:0.75rem;font-weight:800;color:#f59e0b;margin-left:auto;">--</span>
+                    </div>
+
+                    <div class="my-card-container">
+                        <div class="card-title-header" style="width:100%;box-sizing:border-box;">
+                            <span id="my-card-label">ካርድ አልተመረጠም</span>
+                        </div>
+                        <div id="bingo-board" style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;width:100%;"></div>
+                        <button id="bingo-btn" class="bingo-btn">🎉 BINGO!</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROFILE SCREEN -->
+        <div id="profile-screen" class="profile-screen">
+            <div style="padding:15px;overflow-y:auto;flex:1;">
+                <div class="profile-info-card">
+                    <div class="profile-avatar">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                    </div>
+                    <h2 id="profile-full-name">{{ current_user.username }}</h2>
+                    <p id="profile-player-id" style="color:#64748b;">ID: {{ current_user.id }}</p>
+                    <p id="profile-phone-number" style="color:#64748b;margin-top:4px;">{{ current_user.telegram_chat_id or '—' }}</p>
+                </div>
+                <div class="profile-stats-grid">
+                    <div class="profile-stat-item">
+                        <div style="font-size:0.75rem;color:#64748b;font-weight:700;text-transform:uppercase;">ባላንስ</div>
+                        <div style="font-size:1.4rem;font-weight:800;color:#22c55e;margin-top:5px;"><span id="profile-balance">{{ "%.2f"|format(current_user.balance) }}</span> <span style="font-size:0.7rem;">ETB</span></div>
+                    </div>
+                    <div class="profile-stat-item">
+                        <div style="font-size:0.75rem;color:#64748b;font-weight:700;text-transform:uppercase;">ሁኔታ</div>
+                        <div style="font-size:1rem;font-weight:800;color:#3b82f6;margin-top:5px;">{% if current_user.is_admin %}Admin{% else %}Player{% endif %}</div>
+                    </div>
+                </div>
+                <div style="margin-top:20px;">
+                    <a href="{{ url_for('logout') }}" class="auth-btn" style="display:block;text-align:center;background:#ef4444;padding:12px;border-radius:10px;color:white;font-weight:700;text-decoration:none;">ወጣ / Logout</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- WALLET SCREEN -->
+        <div id="wallet-screen" class="wallet-screen">
+            <div style="padding:15px;overflow-y:auto;flex:1;">
+                <div class="wallet-card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div class="wallet-label">ጠቅላላ ባላንስ</div>
+                        <button onclick="manualRefreshBalance()" class="refresh-btn-wallet" style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:1.2rem;opacity:0.8;">↻</button>
+                    </div>
+                    <div class="wallet-balance-row">
+                        <span class="wallet-currency">ETB</span>
+                        <span class="wallet-balance" id="wallet-balance-value">{{ "%.2f"|format(current_user.balance) }}</span>
+                    </div>
+                </div>
+                <div class="wallet-actions">
+                    <button class="wallet-btn deposit" onclick="navTo('deposit')">+ ገቢ</button>
+                    <button class="wallet-btn withdraw" onclick="navTo('withdraw')">- ወጪ</button>
+                </div>
+                <div class="history-section">
+                    <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:15px;">የግብይት ታሪክ</h3>
+                    <div id="balance-history-list" class="history-list">
+                        <p class="empty-msg">እያስጫነ ነው...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DEPOSIT SCREEN -->
+        <div id="deposit-screen" class="deposit-screen">
+            <div style="padding:15px 15px 0;flex-shrink:0;display:flex;align-items:center;gap:12px;">
+                <button class="back-btn" onclick="navTo('wallet')">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <h2 style="font-size:1rem;font-weight:800;margin:0;">ገቢ / Deposit</h2>
+            </div>
+            <div style="padding:15px;overflow-y:auto;flex:1;">
+                <div class="deposit-section">
+                    <div class="input-group">
+                        <label>መጠን (ETB)</label>
+                        <input type="number" id="deposit-amount" class="form-input" placeholder="100" min="1">
+                    </div>
+                    <div class="input-group">
+                        <label>ዘዴ / Method</label>
+                        <select id="deposit-method" class="form-input">
+                            <option value="telebirr">TeleBirr</option>
+                            <option value="cbe">CBE</option>
+                            <option value="awash">Awash Bank</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Transaction Code</label>
+                        <input type="text" id="deposit-code" class="form-input" placeholder="Transaction reference code">
+                    </div>
+                    <button id="submit-deposit" class="auth-btn" style="background:#22c55e;">ጠይቅ / Request</button>
+                    <div id="deposit-status" style="margin-top:12px;text-align:center;font-weight:600;min-height:20px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- WITHDRAW SCREEN -->
+        <div id="withdraw-screen" class="withdraw-screen">
+            <div style="padding:15px 15px 0;flex-shrink:0;display:flex;align-items:center;gap:12px;">
+                <button class="back-btn" onclick="navTo('wallet')">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <h2 style="font-size:1rem;font-weight:800;margin:0;">ወጪ / Withdraw</h2>
+            </div>
+            <div style="padding:15px;overflow-y:auto;flex:1;">
+                <div class="deposit-section">
+                    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:12px;margin-bottom:15px;text-align:center;">
+                        <div style="font-size:0.75rem;color:#64748b;font-weight:700;">ያለዎት ባላንስ</div>
+                        <div style="font-size:1.5rem;font-weight:800;color:#22c55e;"><span id="withdraw-balance-value">{{ "%.2f"|format(current_user.balance) }}</span> ETB</div>
+                    </div>
+                    <div class="input-group">
+                        <label>መጠን (ETB, min 50)</label>
+                        <input type="number" id="withdraw-amount" class="form-input" placeholder="50" min="50">
+                    </div>
+                    <div class="input-group">
+                        <label>ዘዴ / Method</label>
+                        <select id="withdraw-method" class="form-input">
+                            <option value="telebirr">TeleBirr</option>
+                            <option value="cbe">CBE</option>
+                            <option value="awash">Awash Bank</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Account Number / Phone</label>
+                        <input type="text" id="withdraw-account" class="form-input" placeholder="0912345678">
+                    </div>
+                    <button id="submit-withdraw" class="auth-btn">ጠይቅ / Request</button>
+                    <div id="withdraw-status" style="margin-top:12px;text-align:center;font-weight:600;min-height:20px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN SCREEN -->
+        <div id="admin-screen" class="admin-screen" style="padding-top:70px;padding-bottom:70px;overflow-y:auto;">
+            <div class="admin-content" style="padding:0 15px;">
+                <h2 style="font-size:1.1rem;font-weight:800;margin-bottom:20px;">🔧 Admin Panel</h2>
+
+                <div class="admin-tabs">
+                    <button class="tab-btn active" onclick="switchAdminTab('users')">Users</button>
+                    <button class="tab-btn" onclick="switchAdminTab('deposits')">Deposits</button>
+                    <button class="tab-btn" onclick="switchAdminTab('withdrawals')">Withdrawals</button>
+                    <button class="tab-btn" onclick="switchAdminTab('broadcast')">Broadcast</button>
+                </div>
+
+                <div id="admin-users-tab" class="admin-tab-content active">
+                    <div class="admin-search-box">
+                        <input type="text" id="admin-search-phone" class="form-input" placeholder="Search by username">
+                        <button id="admin-search-btn" class="admin-btn">Search</button>
+                    </div>
+                    <div id="admin-user-result" style="display:none;" class="admin-user-card">
+                        <div class="user-info">
+                            <h3 id="admin-user-name"></h3>
+                            <p id="admin-user-phone"></p>
+                            <p id="admin-user-role" style="font-size:0.75rem;color:#f59e0b;font-weight:700;"></p>
+                        </div>
+                        <div class="current-balance">Balance: <span id="admin-user-balance"></span> ETB</div>
+                        <div class="balance-actions">
+                            <div class="input-group">
+                                <input type="number" id="admin-balance-amount" class="form-input" placeholder="Amount">
                             </div>
+                            <div class="btn-group">
+                                <button id="admin-add-balance" class="balance-btn add">+ Add</button>
+                                <button id="admin-sub-balance" class="balance-btn sub">- Sub</button>
+                            </div>
+                            <button id="admin-promote-btn" class="auth-btn" style="margin-top:10px;background:#f59e0b;display:none;">Promote to Admin</button>
                         </div>
-                    </div>
-                    <div class="row g-2 overflow-auto flex-grow-1 pb-3" id="rooms-container" style="scrollbar-width: none; -ms-overflow-style: none;">
                     </div>
                 </div>
-
-                <!-- Bingo Game View -->
-                <div id="bingo-game-view" style="display: none;">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <button onclick="exitGame()" class="btn btn-sm btn-outline-light"><i class="bi bi-arrow-left"></i></button>
-                        <div id="active-ball" class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-4" style="width: 50px; height: 50px;">--</div>
-                        <div id="selection-timer" class="text-warning fw-bold">--</div>
+                <div id="admin-deposits-tab" class="admin-tab-content">
+                    <div id="admin-deposits-list"><p class="empty-msg">Loading...</p></div>
+                </div>
+                <div id="admin-withdrawals-tab" class="admin-tab-content">
+                    <div id="admin-withdrawals-list"><p class="empty-msg">Loading...</p></div>
+                </div>
+                <div id="admin-broadcast-tab" class="admin-tab-content">
+                    <div class="input-group">
+                        <label>Broadcast Message (Telegram)</label>
+                        <textarea id="broadcast-message" class="form-input" rows="4" placeholder="Enter message..."></textarea>
                     </div>
-                    <div id="bingo-board" class="grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px;"></div>
-                    <div id="recent-balls" class="d-flex gap-2 mt-3 overflow-auto"></div>
-                    <div class="mt-3">
-                        <div class="progress">
-                            <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%"></div>
-                        </div>
-                        <small id="progress-text" class="text-muted">0/75</small>
-                    </div>
-                    <div id="call-count" class="text-center mt-2 small text-muted">Calls: 0</div>
-                    <button id="bingo-btn" class="btn btn-success w-100 py-3 mt-3 fw-bold fs-4 shadow">BINGO!</button>
+                    <button id="send-broadcast" class="auth-btn">Send Broadcast</button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Card Selection Modal Overlay -->
-    <div id="card-selection-screen" style="display: none;">
-        <div class="selection-header">
-            <button onclick="closeCardSelection()" class="btn btn-sm btn-outline-light border-0"><i class="bi bi-x-lg"></i></button>
-            <h5 class="mb-0 text-center" id="selection-room-name">Select Card</h5>
-            <div id="selection-timer-large" class="text-warning fw-bold">--</div>
+    </div><!-- end screen-wrapper -->
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-btn active" id="nav-stake" onclick="navTo('stake')">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            ክፍሎች
+        </button>
+        <button class="nav-btn" id="nav-wallet" onclick="navTo('wallet')">
+            <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 14a1 1 0 1 0 2 0 1 1 0 0 0-2 0z" fill="currentColor"/><path d="M2 10h20M6 7V5a2 2 0 0 1 4 0v2"/></svg>
+            ወለት
+        </button>
+        <button class="nav-btn" id="nav-profile" onclick="navTo('profile')">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            መገለጫ
+        </button>
+    </nav>
+
+    <!-- Side Menu -->
+    <div id="side-menu" class="side-menu">
+        <div class="menu-header">
+            <div class="menu-logo">ROYAL BINGO</div>
+            <button id="close-menu" class="close-menu-btn">✕</button>
         </div>
-        <div class="card-grid-container">
-            <div id="cards-grid" class="card-grid"></div>
-        </div>
-        <div class="selection-footer">
-            <div id="stake-selection-timer" class="mb-2 text-warning">--</div>
-            <button id="buy-card-btn" class="btn btn-primary w-100 py-3" disabled>BUY CARD</button>
+        <div class="menu-items">
+            <a class="menu-item" onclick="navTo('stake');return false;" href="#">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                ክፍሎች / Rooms
+            </a>
+            <a class="menu-item" onclick="navTo('wallet');return false;" href="#">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                ወለት / Wallet
+            </a>
+            <a class="menu-item" onclick="navTo('profile');return false;" href="#">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                መገለጫ / Profile
+            </a>
+            <div class="menu-divider"></div>
+            <a class="menu-item logout" href="{{ url_for('logout') }}">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                ወጣ / Logout
+            </a>
         </div>
     </div>
+    <div id="menu-overlay" class="menu-overlay"></div>
 
-    <!-- Notification Toast -->
-    <div id="notification-toast" class="position-fixed bottom-0 start-50 translate-middle-x mb-4 bg-dark text-white p-3 rounded shadow" style="display:none; z-index: 3000;">
-        <span id="toast-message"></span>
+    <!-- Card Preview Overlay -->
+    <div id="preview-overlay" class="preview-overlay">
+        <div class="preview-modal">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <span id="preview-card-number" style="font-size:1.1rem;font-weight:800;color:#f59e0b;">Card #</span>
+                <button id="close-preview" style="background:none;border:none;color:#64748b;font-size:1.5rem;cursor:pointer;">✕</button>
+            </div>
+            <div id="modal-card-content" class="modal-card-content"></div>
+            <div class="preview-actions">
+                <button id="reject-card" class="action-btn reject">ሰርዝ</button>
+                <button id="confirm-card" class="action-btn confirm">✓ ግዛ / Buy</button>
+            </div>
+        </div>
     </div>
 
     <!-- Winner Modal -->
-    <div id="winner-modal" class="position-fixed top-50 start-50 translate-middle bg-dark text-white p-4 rounded shadow-lg border border-primary" style="display:none; z-index: 4000; width: 90%; max-width: 400px;">
-        <h2 class="text-center text-primary mb-3">WINNER!</h2>
-        <h4 id="winner-display-name" class="text-center mb-4"></h4>
-        <div id="winner-card-container" class="grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px;"></div>
-        <button onclick="document.getElementById('winner-modal').style.display='none'" class="btn btn-primary w-100 mt-4">CLOSE</button>
+    <div id="winner-modal" class="winner-modal">
+        <div class="winner-content">
+            <div class="winner-icon">🏆</div>
+            <div id="winner-title">WINNER!</div>
+            <div class="winner-name-box">
+                <div id="winner-display-name"></div>
+            </div>
+            <div id="winner-card-container" class="winner-card-preview"></div>
+            <button class="modal-close-btn" onclick="document.getElementById('winner-modal').classList.remove('active')">ዝጋ / Close</button>
+        </div>
+    </div>
+
+    <!-- Custom Alert -->
+    <div id="custom-alert" class="custom-alert-overlay">
+        <div class="custom-alert-box">
+            <div class="alert-character">
+                <img id="alert-img" src="/static/card_confirm.png" alt="">
+            </div>
+            <div class="alert-content">
+                <h3 id="alert-title">ማስጠንቀቂያ</h3>
+                <p id="alert-msg"></p>
+                <button class="alert-btn" onclick="closeCustomAlert()">እሺ / OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="notification-toast">
+        <span id="toast-message"></span>
     </div>
 
     <script>
-        // STAKES is already declared in game.js
-        
-        function getToken() {
-            return localStorage.getItem('bingo_token');
+        // Bridge Flask session to localStorage token expected by game.js
+        if (!localStorage.getItem('bingo_token')) {
+            localStorage.setItem('bingo_token', 'flask-session');
+        }
+        if (!localStorage.getItem('bingo_user')) {
+            localStorage.setItem('bingo_user', JSON.stringify({
+                username: "{{ current_user.username }}",
+                name: "{{ current_user.username }}",
+                balance: {{ current_user.balance }},
+                player_id: {{ current_user.id }}
+            }));
         }
 
-        function checkAuth() {
-            const token = getToken();
-            if (token) {
-                const landingScreen = document.getElementById('landing-screen');
-                if (landingScreen) landingScreen.style.display = 'none';
-                
-                const gameScreen = document.getElementById('game-screen');
-                if (gameScreen) gameScreen.style.display = 'block';
-                
-                const authButtons = document.getElementById('auth-buttons');
-                if (authButtons) {
-                    authButtons.innerHTML = `
-                        <span class="text-white small me-3 d-none d-sm-inline">Welcome, {{ current_user.username }}</span>
-                        <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">Logout</a>
-                    `;
-                }
-                initRooms();
-                refreshBalance();
-            }
+        // Keep nav buttons in sync
+        const origNavTo = window.navTo;
+        function updateNavHighlight(screenId) {
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('nav-' + screenId);
+            if (btn) btn.classList.add('active');
         }
-
-        function logout() {
-            localStorage.removeItem('bingo_token');
-            window.location.reload();
-        }
-
-        function initRooms() {
-            const container = document.getElementById('rooms-container');
-            if (!container) return;
-            container.innerHTML = '';
-            STAKES.forEach((stake, index) => {
-                container.innerHTML += `
-                    <div class="col-6">
-                        <div class="card h-100 room-card border-0 shadow-sm">
-                            <div class="card-header bg-primary py-2 border-0 text-center">
-                                <span class="small text-white fw-bold text-uppercase" style="font-size: 0.65rem;">${stake} ETB Room</span>
-                            </div>
-                            <div class="card-body p-2 text-center d-flex flex-column justify-content-center">
-                                <h5 class="fw-bold mb-0 text-primary" style="font-size: 0.95rem;">${stake} <span class="small" style="font-size: 0.6rem;">ETB</span></h5>
-                                <p class="text-muted mb-1" style="font-size: 0.55rem;">Stake Amount</p>
-                                <p id="stake-count-${stake}" class="text-muted mb-1" style="font-size: 0.55rem;">0 Players</p>
-                                <p id="stake-timer-${stake}" class="text-warning mb-2" style="font-size: 0.55rem;">⏰ --</p>
-                                <button onclick="showCardSelection(${stake}, '${stake} ETB Room', ${stake})" class="btn btn-primary btn-sm w-100 py-2 fw-bold buy-btn" style="font-size: 0.65rem;">
-                                    Select Card
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        async function refreshBalance() {
-            const token = getToken();
-            if (!token) return;
-            try {
-                const response = await fetch('/api/user/balance', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                const data = await response.json();
-                if (data.balance !== undefined) {
-                    const balanceEl = document.getElementById('walletBalance');
-                    if (balanceEl) balanceEl.textContent = parseFloat(data.balance).toFixed(2);
-                }
-            } catch (e) {
-                console.error('Error fetching balance:', e);
-            }
-        }
-
-        function exitGame() {
-            document.getElementById('bingo-game-view').style.display = 'none';
-            document.getElementById('rooms-view').style.display = 'block';
-        }
-
-        function closeCardSelection() {
-            document.getElementById('card-selection-screen').style.display = 'none';
-        }
-
-        window.addEventListener('DOMContentLoaded', checkAuth);
+        // Patch navTo after game.js loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const _orig = window.navTo;
+            window.navTo = function(id) {
+                if (_orig) _orig(id);
+                updateNavHighlight(id);
+            };
+        });
     </script>
-    <script src="static/js/game.js"></script>
+    <script src="/static/js/game.js"></script>
 </body>
 </html>
