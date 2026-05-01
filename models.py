@@ -35,3 +35,10 @@ class Transaction(db.Model):
     amount = db.Column(db.Float, nullable=False)
     card_number = db.Column(db.Integer, nullable=True)
     timestamp = db.Column(db.DateTime, server_default=db.func.now())
+
+class OTPStore(db.Model):
+    __tablename__ = 'otp_store'
+    id = db.Column(db.Integer, primary_key=True)
+    telegram_chat_id = db.Column(db.String(64), unique=True, nullable=False)
+    otp = db.Column(db.String(6), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())

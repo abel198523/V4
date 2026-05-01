@@ -14,9 +14,9 @@ if BOT_TOKEN:
     @bot.message_handler(commands=['start'])
     def send_welcome(message):
         import random
-        from routes import OTPS
+        from routes import save_otp
         otp = str(random.randint(100000, 999999))
-        OTPS[str(message.chat.id)] = otp
+        save_otp(str(message.chat.id), otp)
 
         welcome_text = (
             "🎮 እንኳን ወደ ROYAL BINGO በደህና መጡ!\n\n"
