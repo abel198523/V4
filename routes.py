@@ -113,52 +113,39 @@ def signup():
 
 @app.route("/api/signup-request", methods=["POST"])
 def send_otp():
-    data = request.json
-    username = data.get('username')
-    telegram_chat_id = data.get('telegram_chat_id')
-    if not username or not telegram_chat_id:
-        return jsonify({"success": False, "message": "Missing info"}), 400
-
-    otp = str(random.randint(100000, 999999))
-    save_otp(telegram_chat_id, otp)
-    print(f"DEBUG OTP for {username} ({telegram_chat_id}): {otp}")
-
-    if bot:
-        try:
-            bot.send_message(telegram_chat_id, f"🔐 የእርስዎ ኮድ / Your code: *{otp}*", parse_mode='Markdown')
-            return jsonify({"success": True, "message": "OTP sent"})
-        except Exception as e:
-            print(f"Telegram send error: {e}")
-
-    return jsonify({"success": True, "message": f"OTP: {otp}"})
+    # Verification temporarily disabled
+    return jsonify({"success": True, "message": "OK"})
 
 
 @app.route("/api/signup-verify", methods=["POST"])
 def verify_otp():
+    # Verification temporarily disabled
+    return jsonify({"success": True, "message": "OK"})
+
+
+@app.route("/api/signup", methods=["POST"])
+def do_signup():
     data = request.json
-    telegram_chat_id = data.get('telegram_chat_id')
-    submitted_otp = data.get('otp')
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
 
-    stored_otp = get_otp(telegram_chat_id)
-    if not stored_otp or stored_otp != submitted_otp:
-        return jsonify({"success": False, "message": "Invalid code"}), 400
+    if not username or not password:
+        return jsonify({"success": False, "message": "Username and password are required"}), 400
 
-    if User.query.filter_by(username=data.get('username')).first():
+    if len(password) < 6:
+        return jsonify({"success": False, "message": "Password must be at least 6 characters"}), 400
+
+    if User.query.filter_by(username=username).first():
         return jsonify({"success": False, "message": "Username already taken"}), 400
 
-    if User.query.filter_by(telegram_chat_id=str(telegram_chat_id)).first():
-        return jsonify({"success": False, "message": "Telegram account already registered"}), 400
-
     user = User(
-        username=data.get('username'),
-        password_hash=generate_password_hash(data.get('password')),
-        telegram_chat_id=str(telegram_chat_id)
+        username=username,
+        password_hash=generate_password_hash(password)
     )
     db.session.add(user)
     db.session.commit()
-    delete_otp(telegram_chat_id)
     login_user(user, remember=True)
-    return jsonify({"success": True, "token": "dummy-token-for-auth"})
+    return jsonify({"success": True})
 
 
 @app.route("/api/user/balance")

@@ -5,220 +5,146 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - Royal Bingo</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
     <style>
         html, body {
-            background-color: #0b0e14 !important;
-            color: #ffffff !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            display: flex !important;
-            flex-direction: column !important;
-            overflow: hidden !important;
-            position: fixed !important;
-            inset: 0 !important;
-        }
-
-        .navbar {
-            flex: 0 0 auto;
-            background-color: #161b22 !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            height: 60px;
-            z-index: 1000;
-        }
-
-        .content-wrapper {
-            flex: 1;
-            overflow: hidden;
+            background-color: #0b0e14;
+            color: #ffffff;
+            min-height: 100vh;
+            margin: 0;
             padding: 0;
-            display: flex;
-            flex-direction: column;
         }
-
-        #main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            padding: 15px;
-            justify-content: center;
+        .navbar {
+            background-color: #161b22;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            height: 60px;
         }
-
         .card {
             background-color: #1a1f29;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255,255,255,0.05);
             border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
         }
-
         .form-input {
             background-color: #0d1117;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255,255,255,0.1);
             color: #ffffff;
             border-radius: 12px;
             padding: 12px 16px;
+            width: 100%;
             transition: all 0.3s;
         }
-
         .form-input:focus {
             border-color: #0d6efd;
             background-color: #161b22;
-            box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15);
+            box-shadow: 0 0 0 4px rgba(13,110,253,0.15);
             outline: none;
             color: #ffffff;
         }
-
-        .btn {
-            border-radius: 12px;
-            padding: 12px 20px;
-            font-weight: 600;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .btn-primary {
+        .btn-signup {
             background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
             border: none;
+            border-radius: 12px;
+            padding: 13px;
+            font-weight: 600;
+            font-size: 1rem;
+            width: 100%;
+            color: #fff;
+            transition: all 0.3s;
         }
-
-        .btn-success {
-            background-color: #198754;
-            border: none;
-        }
-
-        .text-muted {
-            color: #a0aab8 !important;
-        }
-
-        .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-        .animate-in { animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-signup:hover { opacity: 0.9; }
+        .btn-signup:disabled { opacity: 0.6; cursor: not-allowed; }
+        .text-muted { color: #a0aab8 !important; }
+        .label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; color: #a0aab8; text-transform: uppercase; margin-bottom: 6px; display: block; }
+        .animate-in { animation: fadeInUp 0.5s cubic-bezier(0.4,0,0.2,1); }
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        #error-msg { min-height: 20px; }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-dark">
+    <nav class="navbar navbar-dark">
         <div class="container-fluid px-3 h-100 d-flex align-items-center">
             <a class="navbar-brand fw-bold" href="/">ROYAL BINGO</a>
-                <div class="ms-auto d-flex align-items-center">
-                    <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-sm me-2">Login</a>
-                    <a href="{{ url_for('signup') }}" class="btn btn-primary btn-sm">Sign Up</a>
-                </div>
-            </div>
-        </nav>
-        <div class="content-wrapper">
-            <div id="main-content">
-                <div class="card p-4 mx-auto w-100 shadow-2xl animate-in" id="signup-container" style="max-width: 400px;">
-                    <div class="text-center mb-4">
-                        <h2 class="fw-bold text-white mb-1">Join the Club</h2>
-                        <p class="text-muted small">Complete your registration</p>
-                    </div>
-
-                    <div id="signup-step">
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Username</label>
-                            <input type="text" id="username" class="form-input w-100" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Password</label>
-                            <input type="password" id="password" class="form-input w-100" required>
-                        </div>
-                        <div class="mb-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Telegram ID</label>
-                            <input type="text" id="telegram_chat_id" class="form-input w-100" placeholder="e.g. 12345678" required>
-                            <small class="text-muted" style="font-size: 0.65rem;">Type <strong>/id</strong> in your bot</small>
-                        </div>
-                        <button onclick="sendOTP()" id="otp-btn" class="btn btn-primary w-100 shadow">Get Verification Code</button>
-                    </div>
-
-                    <div id="otp-step" style="display:none;">
-                        <div class="alert alert-primary bg-primary bg-opacity-10 border-primary border-opacity-20 text-center py-2 mb-4">
-                            <i class="bi bi-send-check me-2"></i>Code sent to Telegram!
-                        </div>
-                        <div class="mb-4 text-center">
-                            <input type="text" id="otp" class="form-input text-center fw-bold fs-3" maxlength="6" style="letter-spacing: 10px; width: 200px;">
-                        </div>
-                        <button onclick="verifyAndRegister()" class="btn btn-success w-100 py-3 mb-2 shadow">Verify & Create</button>
-                        <button onclick="backToSignup()" class="btn btn-link text-muted w-100 btn-sm">Edit Details</button>
-                    </div>
-                    
-                    <div id="error-msg" class="text-danger mt-3 text-center small fw-bold"></div>
-
-                    <div class="text-center mt-4">
-                        <p class="text-muted small mb-0">Already have an account? <a href="{{ url_for('login') }}" class="text-primary text-decoration-none fw-bold">Login</a></p>
-                    </div>
-                </div>
+            <div class="ms-auto d-flex gap-2">
+                <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-sm">Login</a>
+                <a href="{{ url_for('signup') }}" class="btn btn-primary btn-sm">Sign Up</a>
             </div>
         </div>
+    </nav>
+
+    <div class="d-flex justify-content-center align-items-center" style="min-height: calc(100vh - 60px); padding: 20px;">
+        <div class="card p-4 animate-in w-100" style="max-width: 400px;">
+            <div class="text-center mb-4">
+                <h2 class="fw-bold text-white mb-1">Join the Club</h2>
+                <p class="text-muted small mb-0">Create your account to start playing</p>
+            </div>
+
+            <div class="mb-3">
+                <label class="label">Username</label>
+                <input type="text" id="username" class="form-input" placeholder="Choose a username" autocomplete="off">
+            </div>
+            <div class="mb-4">
+                <label class="label">Password</label>
+                <input type="password" id="password" class="form-input" placeholder="At least 6 characters">
+            </div>
+
+            <button class="btn-signup" id="signup-btn" onclick="doSignup()">Create Account</button>
+
+            <div id="error-msg" class="text-danger mt-3 text-center small fw-bold"></div>
+
+            <div class="text-center mt-4">
+                <p class="text-muted small mb-0">Already have an account? <a href="{{ url_for('login') }}" class="text-primary text-decoration-none fw-bold">Login</a></p>
+            </div>
+        </div>
+    </div>
 
     <script>
-    async function sendOTP() {
-        const username = document.getElementById('username').value;
+    async function doSignup() {
+        const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
-        const telegram_chat_id = document.getElementById('telegram_chat_id').value;
-        const btn = document.getElementById('otp-btn');
+        const btn = document.getElementById('signup-btn');
         const errorMsg = document.getElementById('error-msg');
-        
-        if(!username || !telegram_chat_id || !password) {
-            errorMsg.innerText = "Please fill all fields";
+
+        errorMsg.innerText = '';
+
+        if (!username || !password) {
+            errorMsg.innerText = 'Please fill in all fields.';
+            return;
+        }
+        if (password.length < 6) {
+            errorMsg.innerText = 'Password must be at least 6 characters.';
             return;
         }
 
         btn.disabled = true;
-        errorMsg.innerText = "";
+        btn.innerText = 'Creating account...';
 
         try {
-            const response = await fetch('/api/signup-request', {
+            const res = await fetch('/api/signup', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ telegram_chat_id, username })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
             });
-            const data = await response.json();
-            if (data.message) {
-                document.getElementById('signup-step').style.display = 'none';
-                document.getElementById('otp-step').style.display = 'block';
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = '/game';
             } else {
-                errorMsg.innerText = data.error || "Failed to send code";
+                errorMsg.innerText = data.message || 'Registration failed.';
+                btn.disabled = false;
+                btn.innerText = 'Create Account';
             }
         } catch (e) {
-            errorMsg.innerText = "Connection error";
-        } finally {
+            errorMsg.innerText = 'Connection error. Please try again.';
             btn.disabled = false;
+            btn.innerText = 'Create Account';
         }
     }
 
-async function verifyAndRegister() {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const telegram_chat_id = document.getElementById('telegram_chat_id').value;
-    const otp = document.getElementById('otp').value;
-    const errorMsg = document.getElementById('error-msg');
-
-    try {
-        const response = await fetch('/api/signup-verify', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ username, password, telegram_chat_id, otp })
-        });
-        const data = await response.json();
-        if (data.success) {
-            localStorage.setItem('bingo_token', data.token || 'dummy-token');
-            window.location.href = '/game';
-        } else {
-            errorMsg.innerText = data.message || "Verification failed";
-        }
-    } catch (e) {
-        errorMsg.innerText = "Verification failed";
-    }
-}
-
-function backToSignup() {
-    document.getElementById('otp-step').style.display = 'none';
-    document.getElementById('signup-step').style.display = 'block';
-}
-</script>
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') doSignup();
+    });
+    </script>
 </body>
 </html>
