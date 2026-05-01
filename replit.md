@@ -33,9 +33,37 @@ gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app
 ```
 
 ## Environment Variables / Secrets
-- `DATABASE_URL` — PostgreSQL connection string (auto-set by Replit DB)
-- `SESSION_SECRET` — Flask session secret key
+- `DATABASE_URL` — PostgreSQL connection string (auto-set by Replit DB; on Render, set manually from your Render PostgreSQL service)
+- `SESSION_SECRET` — Flask session secret key (random string, keep it secret)
 - `TELEGRAM_BOT_TOKEN` — (Optional) Telegram bot token for OTP signup flow
+- `APP_URL` — (Optional, local dev only) Public URL fallback if not on Render or Replit
+
+## Render Deployment (Manual Setup — No Blueprint)
+
+### 1. Create a Render Web Service
+- Go to https://dashboard.render.com → **New → Web Service**
+- Connect your GitHub/GitLab repo
+- **Environment**: Python 3
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `gunicorn main:app --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120`
+
+### 2. Create a Render PostgreSQL Database
+- Go to **New → PostgreSQL** on Render dashboard
+- After creation, copy the **Internal Database URL**
+
+### 3. Set Environment Variables on Render
+In your Web Service → **Environment** tab, add:
+
+| Key | Value |
+|-----|-------|
+| `DATABASE_URL` | Internal Database URL from your Render PostgreSQL |
+| `SESSION_SECRET` | Any long random string (e.g. generate with `python -c "import secrets; print(secrets.token_hex(32))"`) |
+| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token from @BotFather (optional) |
+
+> Render automatically sets `RENDER=true` and `RENDER_EXTERNAL_URL` — **do not add these manually**.
+
+### 4. Deploy
+Click **Deploy** — the app will start automatically. Telegram webhook will be registered to `RENDER_EXTERNAL_URL/webhook/<token>` on startup.
 
 ## User Flow
 1. User visits the landing page

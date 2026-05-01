@@ -28,16 +28,18 @@ if BOT_TOKEN:
         )
         
         markup = types.InlineKeyboardMarkup()
-        domain = os.environ.get('REPLIT_DEV_DOMAIN')
-        if not domain:
-            # Get from domains list if dev domain is not specifically set
-            domains = os.environ.get('REPLIT_DOMAINS')
-            if domains:
-                domain = domains.split(',')[0]
-            else:
-                domain = "royal-bingo.replit.app"
-            
-        web_url = f"https://{domain}"
+        # Determine the public URL based on the environment
+        render_url = os.environ.get('RENDER_EXTERNAL_URL')
+        replit_domain = os.environ.get('REPLIT_DEV_DOMAIN') or (
+            os.environ.get('REPLIT_DOMAINS', '').split(',')[0]
+            if os.environ.get('REPLIT_DOMAINS') else None
+        )
+        if render_url:
+            web_url = render_url
+        elif replit_domain:
+            web_url = f"https://{replit_domain}"
+        else:
+            web_url = os.environ.get('APP_URL', 'http://localhost:5000')
         btn = types.InlineKeyboardButton("ወደ ዌብሳይቱ ይሂዱ / Go to Website", url=web_url)
         markup.add(btn)
         
