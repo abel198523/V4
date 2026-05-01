@@ -790,7 +790,8 @@ window.manualRefreshBalance = async function() {
 };
 
 function showCardPreview(num) {
-    if (userBalance < currentRoom) {
+    const roomPrice = getRoomPrice();
+    if (userBalance < roomPrice) {
         showCustomAlert("ባላንስ የሎትም", "ይቅርታ፣ ካርድ ለመግዛት በቂ ብር የለዎትም። እባክዎ መጀመሪያ አካውንትዎን ይሙሉ።", "low_balance");
         return;
     }
@@ -811,6 +812,13 @@ function showCardPreview(num) {
     
     modalCardContent.appendChild(createCardPreview(state.currentCardData));
     previewOverlay.classList.add('active');
+}
+
+function getRoomPrice() {
+    if (!currentRoom) return 0;
+    if (typeof currentRoom === 'number') return currentRoom;
+    const parsed = parseFloat(currentRoom);
+    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function createCardPreview(cardData) {
