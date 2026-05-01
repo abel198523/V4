@@ -75,3 +75,7 @@ with app.app_context():
     except Exception:
         db.session.rollback()
         # Column is already nullable or table doesn't exist yet — safe to ignore
+
+# Start independent per-room countdown timers
+from game_engine import start_all_room_timers
+start_all_room_timers()

@@ -206,6 +206,37 @@ def get_balance():
     return jsonify({"balance": current_user.balance})
 
 
+@app.route("/api/room-status")
+@login_required
+def room_status():
+    from game_engine import get_all_room_status
+    return jsonify(get_all_room_status())
+
+
+@app.route("/api/room-set-playing/<int:stake>", methods=["POST"])
+@login_required
+def room_set_playing(stake):
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+    from game_engine import set_room_playing, STAKES
+    if stake not in STAKES:
+        return jsonify({"error": "Invalid room"}), 400
+    set_room_playing(stake)
+    return jsonify({"success": True})
+
+
+@app.route("/api/room-set-waiting/<int:stake>", methods=["POST"])
+@login_required
+def room_set_waiting(stake):
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+    from game_engine import set_room_waiting, STAKES
+    if stake not in STAKES:
+        return jsonify({"error": "Invalid room"}), 400
+    set_room_waiting(stake)
+    return jsonify({"success": True})
+
+
 @app.route("/logout")
 @login_required
 def logout():
