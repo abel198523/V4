@@ -113,10 +113,13 @@ def signup():
 
         if not username or not password:
             error = "Username and password are required."
+            error_type = "validation"
         elif len(password) < 6:
             error = "Password must be at least 6 characters."
+            error_type = "validation"
         elif User.query.filter_by(username=username).first():
-            error = "Username already taken."
+            error = "This username is already registered."
+            error_type = "taken"
         else:
             user = User(
                 username=username,
@@ -127,7 +130,7 @@ def signup():
             login_user(user, remember=True)
             return redirect(url_for('game_page'))
 
-        return render_template("signup.html", error=error, username=username)
+        return render_template("signup.html", error=error, error_type=error_type, username=username)
 
     return render_template("signup.html")
 
