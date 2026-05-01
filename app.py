@@ -64,3 +64,14 @@ with app.app_context():
     except Exception as e:
         logger.error(f"Failed to create database tables: {e}")
         raise
+
+    # Migration: ensure telegram_chat_id is nullable (older DBs had NOT NULL)
+    try:
+        db.session.execute(db.text(
+            "ALTER TABLE users ALTER COLUMN telegram_chat_id DROP NOT NULL"
+        ))
+        db.session.commit()
+        logger.info("Migration: telegram_chat_id set to nullable.")
+    except Exception:
+        db.session.rollback()
+        # Column is already nullable or table doesn't exist yet — safe to ignore
