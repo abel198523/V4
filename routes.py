@@ -1,4 +1,5 @@
 import os
+import traceback
 import telebot
 import random
 from flask import render_template, request, jsonify, redirect, url_for
@@ -7,6 +8,25 @@ from models import User, Room, Transaction, GameSession, OTPStore
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from bot import bot, BOT_TOKEN
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    db.session.rollback()
+    tb = traceback.format_exc()
+    return render_template("error.html", error=e, traceback=tb, code=500), 500
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template("error.html", error=e, traceback=None, code=404), 404
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    db.session.rollback()
+    tb = traceback.format_exc()
+    return render_template("error.html", error=e, traceback=tb, code=500), 500
 
 
 def save_otp(telegram_chat_id, otp):

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error {{ code }} - Royal Bingo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        html, body { background-color: #0b0e14; color: #fff; min-height: 100vh; margin: 0; }
+        .navbar { background-color: #161b22; border-bottom: 1px solid rgba(255,255,255,0.08); height: 60px; }
+        .error-card {
+            background-color: #1a1f29;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .badge-code {
+            background: #dc3545;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+        .traceback-box {
+            background: #0d1117;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            color: #f87171;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+            text-align: left;
+        }
+        .error-msg {
+            background: #2a1520;
+            border: 1px solid #dc3545;
+            border-radius: 10px;
+            padding: 14px 18px;
+            color: #f87171;
+            font-family: monospace;
+            font-size: 0.95rem;
+            word-break: break-all;
+        }
+        .btn-home {
+            background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-weight: 600;
+            padding: 10px 24px;
+            text-decoration: none;
+        }
+        .btn-home:hover { opacity: 0.88; color: #fff; }
+        .text-muted { color: #a0aab8 !important; }
+        .section-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid px-3 h-100 d-flex align-items-center">
+            <a class="navbar-brand fw-bold" href="/">ROYAL BINGO</a>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <div class="error-card p-4 p-md-5 mx-auto" style="max-width: 780px;">
+
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <span class="badge-code">{{ code }}</span>
+                <h3 class="fw-bold mb-0 text-white">
+                    {% if code == 404 %}Page Not Found{% else %}Internal Server Error{% endif %}
+                </h3>
+            </div>
+
+            <p class="text-muted mb-4">
+                {% if code == 404 %}
+                    The page you requested does not exist.
+                {% else %}
+                    An unexpected error occurred on the server. Full details are shown below.
+                {% endif %}
+            </p>
+
+            <div class="section-label">Error Message</div>
+            <div class="error-msg mb-4">{{ error }}</div>
+
+            {% if traceback %}
+            <div class="section-label">Full Traceback</div>
+            <div class="traceback-box mb-4">{{ traceback }}</div>
+            {% endif %}
+
+            <div class="d-flex gap-3 flex-wrap">
+                <a href="/" class="btn-home">Go to Home</a>
+                <a href="javascript:history.back()" class="btn btn-outline-secondary" style="border-radius:10px;">Go Back</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
