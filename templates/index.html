@@ -488,26 +488,44 @@
 
                 <div id="admin-users-tab" class="admin-tab-content active">
                     <div class="admin-search-box">
-                        <input type="text" id="admin-search-phone" class="form-input" placeholder="Search by username">
+                        <input type="text" id="admin-search-phone" class="form-input" placeholder="Username ያስገቡ">
                         <button id="admin-search-btn" class="admin-btn">Search</button>
                     </div>
                     <div id="admin-user-result" style="display:none;" class="admin-user-card">
                         <div class="user-info">
-                            <h3 id="admin-user-name"></h3>
-                            <p id="admin-user-phone"></p>
-                            <p id="admin-user-role" style="font-size:0.75rem;color:#f59e0b;font-weight:700;"></p>
+                            <h3 id="admin-user-name" style="font-size:1rem;font-weight:800;color:#e5e7eb;margin-bottom:2px;"></h3>
+                            <p id="admin-user-phone" style="font-size:0.75rem;color:#6b7280;margin:0;"></p>
+                            <p id="admin-user-role" style="font-size:0.72rem;color:#f59e0b;font-weight:700;margin:4px 0 0;"></p>
                         </div>
-                        <div class="current-balance">Balance: <span id="admin-user-balance"></span> ETB</div>
-                        <div class="balance-actions">
-                            <div class="input-group">
-                                <input type="number" id="admin-balance-amount" class="form-input" placeholder="Amount">
-                            </div>
-                            <div class="btn-group">
-                                <button id="admin-add-balance" class="balance-btn add">+ Add</button>
-                                <button id="admin-sub-balance" class="balance-btn sub">- Sub</button>
-                            </div>
-                            <button id="admin-promote-btn" class="auth-btn" style="margin-top:10px;background:#f59e0b;display:none;">Promote to Admin</button>
+                        <div class="current-balance" style="margin:14px 0 10px;font-size:0.85rem;color:#9ca3af;">
+                            ባላንስ: <span id="admin-user-balance" style="font-size:1.3rem;font-weight:900;color:#22c55e;"></span> ETB
                         </div>
+
+                        <!-- Balance adjustment -->
+                        <div style="background:#161c2e;border-radius:10px;padding:14px;margin-bottom:10px;">
+                            <label style="font-size:0.75rem;color:#9ca3af;font-weight:600;display:block;margin-bottom:8px;">
+                                💰 BALANCE ADJUSTMENT
+                            </label>
+                            <input type="number" id="admin-balance-amount" class="form-input"
+                                placeholder="መጠን (ETB)" min="0" step="1"
+                                style="margin-bottom:10px;text-align:center;font-size:1rem;font-weight:700;">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                                <button id="admin-add-balance" class="balance-btn add"
+                                    style="padding:12px;border-radius:10px;font-size:0.9rem;font-weight:800;">
+                                    + Add ETB
+                                </button>
+                                <button id="admin-sub-balance" class="balance-btn sub"
+                                    style="padding:12px;border-radius:10px;font-size:0.9rem;font-weight:800;">
+                                    − Sub ETB
+                                </button>
+                            </div>
+                            <div id="admin-balance-status" style="font-size:0.8rem;min-height:18px;"></div>
+                        </div>
+
+                        <button id="admin-promote-btn" class="auth-btn"
+                            style="margin-top:4px;background:#f59e0b;display:none;font-size:0.85rem;">
+                            ⭐ Promote to Admin
+                        </button>
                     </div>
                 </div>
                 <div id="admin-revenue-tab" class="admin-tab-content">

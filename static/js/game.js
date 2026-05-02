@@ -1745,67 +1745,70 @@ window.handleWithdraw = async (id, action) => {
 const adminSearchBtn = document.getElementById('admin-search-btn');
 if (adminSearchBtn) {
     adminSearchBtn.onclick = async () => {
-        const phone = document.getElementById('admin-search-phone').value;
-        const token = localStorage.getItem('bingo_token');
+        const username = document.getElementById('admin-search-phone').value.trim();
+        if (!username) return;
         try {
-            const res = await fetch(`/api/admin/user/${phone}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res  = await fetch(`/api/admin/user/${encodeURIComponent(username)}`);
             const user = await res.json();
             if (res.ok) {
                 document.getElementById('admin-user-result').style.display = 'block';
-                document.getElementById('admin-user-name').innerText = user.name;
-                document.getElementById('admin-user-phone').innerText = user.phone_number;
-                document.getElementById('admin-user-balance').innerText = user.balance;
+                document.getElementById('admin-user-name').innerText    = user.username;
+                document.getElementById('admin-user-phone').innerText   = `ID: ${user.id}`;
+                document.getElementById('admin-user-balance').innerText = user.balance.toFixed(2);
                 const roleEl = document.getElementById('admin-user-role');
-                if (roleEl) roleEl.innerText = user.is_admin ? "ROLE: ADMIN" : "ROLE: USER";
-                
+                if (roleEl) roleEl.innerText = user.is_admin ? 'ROLE: ADMIN' : 'ROLE: USER';
                 const promoteBtn = document.getElementById('admin-promote-btn');
                 if (promoteBtn) promoteBtn.style.display = user.is_admin ? 'none' : 'block';
-                
+                // clear amount input
+                const amtEl = document.getElementById('admin-balance-amount');
+                if (amtEl) amtEl.value = '';
+                const balStatusEl = document.getElementById('admin-balance-status');
+                if (balStatusEl) balStatusEl.innerText = '';
                 window.currentAdminUser = user;
             } else {
-                alert(user.error);
+                alert(user.error || 'ተጠቃሚ አልተገኘም');
             }
         } catch (e) { console.error(e); }
     };
 }
 
 const addBalanceBtn = document.getElementById('admin-add-balance');
-if (addBalanceBtn) {
-    addBalanceBtn.onclick = () => updateBalance(true);
-}
+if (addBalanceBtn) addBalanceBtn.onclick = () => _adjustBalance(true);
 const subBalanceBtn = document.getElementById('admin-sub-balance');
-if (subBalanceBtn) {
-    subBalanceBtn.onclick = () => updateBalance(false);
-}
+if (subBalanceBtn) subBalanceBtn.onclick = () => _adjustBalance(false);
 
-async function updateBalance(isAdd) {
-    const amount = parseFloat(document.getElementById('admin-balance-amount').value);
-    if (isNaN(amount)) return alert("መጠን ያስገቡ");
-    const token = localStorage.getItem('bingo_token');
-    const user = window.currentAdminUser;
-    if (!user) return;
+async function _adjustBalance(isAdd) {
+    const amtEl      = document.getElementById('admin-balance-amount');
+    const statusEl   = document.getElementById('admin-balance-status');
+    const balEl      = document.getElementById('admin-user-balance');
+    const user       = window.currentAdminUser;
 
-    const newBalance = isAdd ? (parseFloat(user.balance) + amount) : (parseFloat(user.balance) - amount);
+    const show = (msg, color) => { if (statusEl) { statusEl.innerText = msg; statusEl.style.color = color; } };
+
+    if (!user)              return show('⚠️ መጀመሪያ ተጠቃሚ ፈልጉ።', '#f59e0b');
+    const raw = parseFloat(amtEl ? amtEl.value : '');
+    if (isNaN(raw) || raw <= 0) return show('⚠️ ትክክለኛ መጠን ያስገቡ።', '#f59e0b');
+
+    const amount = isAdd ? raw : -raw;
     try {
-        const res = await fetch('/api/admin/update-balance', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify({ phone: user.phone_number, balance: newBalance })
+        const res  = await fetch('/api/admin/adjust-balance', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ user_id: user.id, amount })
         });
         const data = await res.json();
-        if (res.ok) {
-            document.getElementById('admin-user-balance').innerText = newBalance;
-            window.currentAdminUser.balance = newBalance;
-            alert("ባላንስ ተስተካክሏል");
+        if (data.success) {
+            window.currentAdminUser.balance = data.new_balance;
+            if (balEl) balEl.innerText = data.new_balance.toFixed(2);
+            if (amtEl) amtEl.value = '';
+            show(`✅ ተስተካክሏል! ${isAdd ? '+' : ''}${data.adjusted_by.toFixed(2)} ETB → አዲስ ባላንስ: ${data.new_balance.toFixed(2)} ETB`, '#22c55e');
         } else {
-            alert(data.error);
+            show('❌ ' + (data.error || 'ስህተት ተፈጥሯል'), '#ef4444');
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        show('❌ Connection error.', '#ef4444');
+        console.error(e);
+    }
 }
 
 const promoteUserBtn = document.getElementById('admin-promote-btn');

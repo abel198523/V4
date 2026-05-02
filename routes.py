@@ -252,6 +252,58 @@ def bingo_claim(stake):
     return jsonify({"valid": False, "message": "ቢንጎ አልሆነም — ቆጠሩ!"})
 
 
+@app.route("/api/admin/user/<username>")
+@login_required
+def admin_get_user(username):
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({"error": "ተጠቃሚ አልተገኘም"}), 404
+    return jsonify({
+        "id":       user.id,
+        "username": user.username,
+        "balance":  round(user.balance, 2),
+        "is_admin": user.is_admin,
+    })
+
+
+@app.route("/api/admin/adjust-balance", methods=["POST"])
+@login_required
+def admin_adjust_balance():
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+    amount  = data.get("amount")
+    note    = data.get("note", "Admin adjustment")
+
+    if user_id is None or amount is None:
+        return jsonify({"error": "user_id and amount are required"}), 400
+
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid amount"}), 400
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "ተጠቃሚ አልተገኘም"}), 404
+
+    new_balance = round(user.balance + amount, 2)
+    if new_balance < 0:
+        return jsonify({"error": f"ባላንስ አሉታዊ ሊሆን አይችልም (current: {user.balance:.2f} ETB)"}), 400
+
+    user.balance = new_balance
+    db.session.commit()
+    return jsonify({
+        "success":     True,
+        "username":    user.username,
+        "new_balance": new_balance,
+        "adjusted_by": round(amount, 2),
+    })
+
+
 @app.route("/api/admin/game-history")
 @login_required
 def admin_game_history():
