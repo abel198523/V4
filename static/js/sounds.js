@@ -98,6 +98,46 @@
         _tone(440, 'sine', 0.06, 0.005, 0.18);
     };
 
+    // ── Game-postponed "whomp" ────────────────────────────────────────────────
+    // A short descending sweep + low thud — clearly signals "round didn't start"
+    window.playPostponed = function () {
+        if (_muted) return;
+        const ctx = _getCtx();
+        if (!ctx) return;
+
+        // Descending sweep: 420 Hz → 140 Hz over 0.45 s
+        const osc1  = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.type = 'sine';
+        const t = ctx.currentTime;
+        osc1.frequency.setValueAtTime(420, t);
+        osc1.frequency.exponentialRampToValueAtTime(140, t + 0.45);
+        gain1.gain.setValueAtTime(0, t);
+        gain1.gain.linearRampToValueAtTime(0.38, t + 0.02);
+        gain1.gain.exponentialRampToValueAtTime(0.0001, t + 0.50);
+        osc1.start(t);
+        osc1.stop(t + 0.52);
+
+        // Low "thud" at the end
+        const osc2  = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(90, t + 0.30);
+        osc2.frequency.exponentialRampToValueAtTime(55, t + 0.55);
+        gain2.gain.setValueAtTime(0, t + 0.30);
+        gain2.gain.linearRampToValueAtTime(0.25, t + 0.32);
+        gain2.gain.exponentialRampToValueAtTime(0.0001, t + 0.58);
+        osc2.start(t + 0.30);
+        osc2.stop(t + 0.60);
+
+        // Brief high "blip" at the very start to grab attention
+        _tone(600, 'square', 0.06, 0.003, 0.04);
+    };
+
     // ── Winner fanfare ────────────────────────────────────────────────────────
     window.playWinnerFanfare = function () {
         const melody = [

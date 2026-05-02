@@ -293,6 +293,9 @@ function _showPostponedNotice(minCards, currentCards) {
     if (subText) subText.innerText = `ካርዶች አልሞሉም — ዳግም ቆጠራ ተጀምሯል`;
     if (needEl)  needEl.innerText  = `+${needed}`;
 
+    // Play the postponed sound
+    if (typeof playPostponed === 'function') playPostponed();
+
     // Restart slide-in animation each time it's shown
     notice.style.animation = 'none';
     void notice.offsetWidth;
