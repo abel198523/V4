@@ -942,19 +942,61 @@ if (rejectCard) {
 }
 
 if (confirmCard) {
-    confirmCard.onclick = () => {
+    confirmCard.onclick = async () => {
         const state = getRoomState(currentRoom);
         if (!state.currentSelectedCard || !state.currentCardData) return;
-        state.myGameCard = state.currentCardData;
-        socket.send(JSON.stringify({ 
-            type: 'BUY_CARD', 
-            room: currentRoom,
-            cardNumber: state.currentSelectedCard, 
-            cardData: state.currentCardData 
-        }));
-        const myBoardLabel = document.getElementById('sel-my-board');
-        if (myBoardLabel) myBoardLabel.innerText = `#${state.currentSelectedCard}`;
-        previewOverlay.classList.remove('active');
+
+        // Disable button to prevent double-tap
+        confirmCard.disabled = true;
+        confirmCard.innerText = '⏳ እየተገዛ...';
+
+        try {
+            const res = await fetch(
+                `/api/buy-card-by-stake/${currentRoom}/${state.currentSelectedCard}`,
+                { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+            );
+            const data = await res.json();
+
+            if (data.success) {
+                // Commit card to game state
+                state.myGameCard = state.currentCardData;
+                state.purchasedCard = state.currentSelectedCard;
+
+                // Update balance from server response
+                if (typeof data.new_balance === 'number') {
+                    userBalance = data.new_balance;
+                    ['sel-balance','wallet-balance-value','withdraw-balance-value',
+                     'walletBalance','profile-balance'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.innerText = userBalance.toFixed(2);
+                    });
+                    const mw = document.getElementById('sel-main-wallet');
+                    const pw = document.getElementById('sel-play-wallet');
+                    if (mw) mw.innerText = Math.round(userBalance);
+                    if (pw) pw.innerText = Math.round(userBalance);
+                }
+
+                // Mark this card taken in the local grid
+                if (!roomTakenCards.includes(state.currentSelectedCard)) {
+                    roomTakenCards.push(state.currentSelectedCard);
+                }
+                createAvailableCards();
+
+                const myBoardLabel = document.getElementById('sel-my-board');
+                if (myBoardLabel) myBoardLabel.innerText = `#${state.currentSelectedCard}`;
+
+                previewOverlay.classList.remove('active');
+                showToast(`✅ ካርድ #${state.currentSelectedCard} ተገዝቷል!`);
+            } else {
+                showToast(`❌ ${data.message || 'ካርዱ ሊገዛ አልተቻለም'}`);
+                previewOverlay.classList.remove('active');
+            }
+        } catch (e) {
+            showToast('❌ ግንኙነት ተሳስቷል። እባክዎ ዳግም ሞክሩ።');
+        } finally {
+            confirmCard.disabled = false;
+            confirmCard.innerText = '✓ ግዛ / Buy';
+        }
     };
 }
 

@@ -64,16 +64,18 @@ def game_page():
         db.create_all()
         rooms = Room.query.all()
 
+    stakes_needed = [5, 10, 20]
+    existing_prices = {r.card_price for r in rooms}
+    for s in stakes_needed:
+        if float(s) not in existing_prices:
+            db.session.add(Room(name=f"Room {s} ETB", card_price=float(s)))
+    try:
+        db.session.commit()
+        rooms = Room.query.all()
+    except Exception:
+        db.session.rollback()
     if not rooms:
-        room1 = Room(name="Room 1", card_price=10.0)
-        room2 = Room(name="Room 2", card_price=20.0)
-        db.session.add_all([room1, room2])
-        try:
-            db.session.commit()
-            rooms = [room1, room2]
-        except Exception:
-            db.session.rollback()
-            rooms = []
+        rooms = []
 
     response = render_template("index.html", rooms=rooms, balance=current_user.balance)
     from flask import make_response
@@ -265,6 +267,38 @@ def buy_card(room_id, card_number):
         user_id=current_user.id,
         room_id=room.id,
         session_id=session.id,
+        amount=room.card_price,
+        card_number=card_number
+    ))
+    db.session.commit()
+    return jsonify({"success": True, "new_balance": current_user.balance})
+
+
+@app.route("/api/buy-card-by-stake/<int:stake>/<int:card_number>", methods=["POST"])
+@login_required
+def buy_card_by_stake(stake, card_number):
+    """Buy a card by stake amount (5, 10, or 20 ETB). JS uses this instead of WebSocket."""
+    room = Room.query.filter_by(card_price=float(stake)).first()
+    if not room:
+        return jsonify({"success": False, "message": "Room not found"}), 404
+    db.session.refresh(current_user)
+    if current_user.balance < room.card_price:
+        return jsonify({
+            "success": False,
+            "message": f"ባላንስ አነስተኛ ነው። ያሎት: {current_user.balance:.2f} ETB"
+        }), 400
+    game_session = get_or_create_session(room.id)
+    if not game_session:
+        return jsonify({"success": False, "message": "Session error"}), 500
+    if Transaction.query.filter_by(
+        room_id=room.id, session_id=game_session.id, card_number=card_number
+    ).first():
+        return jsonify({"success": False, "message": "ይህ ካርድ ተወስዷል"}), 400
+    current_user.balance -= room.card_price
+    db.session.add(Transaction(
+        user_id=current_user.id,
+        room_id=room.id,
+        session_id=game_session.id,
         amount=room.card_price,
         card_number=card_number
     ))
