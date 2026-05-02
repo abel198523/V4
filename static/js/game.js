@@ -1412,11 +1412,56 @@ window.switchAdminTab = (tab) => {
     document.getElementById(`admin-${tab}-tab`).classList.add('active');
     event.target.classList.add('active');
 
+    if (tab === 'revenue') loadAdminRevenue();
     if (tab === 'history') loadAdminHistory();
     if (tab === 'deposits') fetchAdminDeposits();
     if (tab === 'withdrawals') fetchAdminWithdrawals();
     if (tab === 'settings') loadAdminSettings();
 };
+
+let _revInterval = null;
+
+async function loadAdminRevenue() {
+    if (_revInterval) clearInterval(_revInterval);
+
+    async function _fetch() {
+        try {
+            const res = await fetch('/api/admin/revenue');
+            if (!res.ok) return;
+            const d = await res.json();
+
+            const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+
+            set('rev-today-rounds',  d.today.rounds);
+            set('rev-active',        d.active_players_today);
+            set('rev-today-income',  d.today.income.toFixed(2) + ' ETB');
+            set('rev-today-profit',  d.today.profit.toFixed(2) + ' ETB');
+
+            set('rev-today-cards',   d.today.cards);
+            set('rev-today-income2', d.today.income.toFixed(2) + ' ETB');
+            set('rev-today-payout',  d.today.payout.toFixed(2) + ' ETB');
+            set('rev-today-profit2', d.today.profit.toFixed(2) + ' ETB');
+            set('rev-fee-pct',       d.house_fee_pct);
+
+            set('rev-all-rounds',  d.alltime.rounds);
+            set('rev-all-cards',   d.alltime.cards);
+            set('rev-all-income',  d.alltime.income.toFixed(2) + ' ETB');
+            set('rev-all-payout',  d.alltime.payout.toFixed(2) + ' ETB');
+            set('rev-all-profit',  d.alltime.profit.toFixed(2) + ' ETB');
+            set('rev-users',       d.total_users);
+            set('rev-updated',     'Updated ' + d.generated_at);
+
+            // Colour today's profit: green if positive, red if zero
+            const profitEl = document.getElementById('rev-today-profit');
+            if (profitEl) profitEl.style.color = d.today.profit > 0 ? '#f59e0b' : '#6b7280';
+            const profitEl2 = document.getElementById('rev-today-profit2');
+            if (profitEl2) profitEl2.style.color = d.today.profit > 0 ? '#f59e0b' : '#6b7280';
+        } catch (e) { console.error('[Revenue]', e); }
+    }
+
+    await _fetch();
+    _revInterval = setInterval(_fetch, 15000);
+}
 
 async function loadAdminSettings() {
     const statusEl  = document.getElementById('settings-status');

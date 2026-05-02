@@ -478,6 +478,7 @@
 
                 <div class="admin-tabs">
                     <button class="tab-btn active" onclick="switchAdminTab('users')">Users</button>
+                    <button class="tab-btn" onclick="switchAdminTab('revenue')">📊 Revenue</button>
                     <button class="tab-btn" onclick="switchAdminTab('history')">History</button>
                     <button class="tab-btn" onclick="switchAdminTab('deposits')">Deposits</button>
                     <button class="tab-btn" onclick="switchAdminTab('withdrawals')">Withdrawals</button>
@@ -509,6 +510,83 @@
                         </div>
                     </div>
                 </div>
+                <div id="admin-revenue-tab" class="admin-tab-content">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                        <h3 style="font-size:0.95rem;font-weight:700;color:#f59e0b;margin:0;">📊 Revenue Dashboard</h3>
+                        <span id="rev-updated" style="font-size:0.7rem;color:#6b7280;"></span>
+                    </div>
+
+                    <!-- Stat cards row -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+                        <div style="background:#1e2435;border-radius:10px;padding:14px;text-align:center;">
+                            <div style="font-size:0.7rem;color:#9ca3af;font-weight:600;margin-bottom:4px;">TODAY'S ROUNDS</div>
+                            <div id="rev-today-rounds" style="font-size:1.6rem;font-weight:800;color:#3b82f6;">—</div>
+                        </div>
+                        <div style="background:#1e2435;border-radius:10px;padding:14px;text-align:center;">
+                            <div style="font-size:0.7rem;color:#9ca3af;font-weight:600;margin-bottom:4px;">ACTIVE PLAYERS TODAY</div>
+                            <div id="rev-active" style="font-size:1.6rem;font-weight:800;color:#a78bfa;">—</div>
+                        </div>
+                        <div style="background:#1e2435;border-radius:10px;padding:14px;text-align:center;">
+                            <div style="font-size:0.7rem;color:#9ca3af;font-weight:600;margin-bottom:4px;">TODAY'S INCOME</div>
+                            <div id="rev-today-income" style="font-size:1.4rem;font-weight:800;color:#22c55e;">— ETB</div>
+                        </div>
+                        <div style="background:#1e2435;border-radius:10px;padding:14px;text-align:center;">
+                            <div style="font-size:0.7rem;color:#9ca3af;font-weight:600;margin-bottom:4px;">TODAY'S PROFIT</div>
+                            <div id="rev-today-profit" style="font-size:1.4rem;font-weight:800;color:#f59e0b;">— ETB</div>
+                        </div>
+                    </div>
+
+                    <!-- Today breakdown -->
+                    <div style="background:#1e2435;border-radius:10px;padding:14px;margin-bottom:10px;">
+                        <div style="font-size:0.75rem;font-weight:700;color:#9ca3af;margin-bottom:10px;">TODAY'S BREAKDOWN</div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;color:#d1d5db;">Cards Sold</span>
+                            <span id="rev-today-cards" style="font-size:0.8rem;font-weight:700;color:#fff;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;color:#d1d5db;">Total Income</span>
+                            <span id="rev-today-income2" style="font-size:0.8rem;font-weight:700;color:#22c55e;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;color:#d1d5db;">Total Payouts</span>
+                            <span id="rev-today-payout" style="font-size:0.8rem;font-weight:700;color:#ef4444;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;">
+                            <span style="font-size:0.8rem;font-weight:700;color:#f59e0b;">Net Profit (<span id="rev-fee-pct">—</span>% fee)</span>
+                            <span id="rev-today-profit2" style="font-size:0.8rem;font-weight:800;color:#f59e0b;">—</span>
+                        </div>
+                    </div>
+
+                    <!-- All-time -->
+                    <div style="background:#1e2435;border-radius:10px;padding:14px;margin-bottom:10px;">
+                        <div style="font-size:0.75rem;font-weight:700;color:#9ca3af;margin-bottom:10px;">ALL-TIME TOTALS</div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;color:#d1d5db;">Total Rounds</span>
+                            <span id="rev-all-rounds" style="font-size:0.8rem;font-weight:700;color:#fff;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;color:#d1d5db;">Cards Sold</span>
+                            <span id="rev-all-cards" style="font-size:0.8rem;font-weight:700;color:#fff;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;color:#d1d5db;">Total Income</span>
+                            <span id="rev-all-income" style="font-size:0.8rem;font-weight:700;color:#22c55e;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;color:#d1d5db;">Total Payouts</span>
+                            <span id="rev-all-payout" style="font-size:0.8rem;font-weight:700;color:#ef4444;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;font-weight:700;color:#f59e0b;">Net Profit</span>
+                            <span id="rev-all-profit" style="font-size:0.8rem;font-weight:800;color:#f59e0b;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;">
+                            <span style="font-size:0.8rem;color:#d1d5db;">Registered Users</span>
+                            <span id="rev-users" style="font-size:0.8rem;font-weight:700;color:#a78bfa;">—</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="admin-history-tab" class="admin-tab-content">
                     <div id="admin-history-list"><p class="empty-msg">Loading...</p></div>
                 </div>

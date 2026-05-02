@@ -282,6 +282,77 @@ def admin_game_history():
     return jsonify(result)
 
 
+@app.route("/api/admin/revenue")
+@login_required
+def admin_revenue():
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    from datetime import datetime, timezone, timedelta
+    from game_engine import get_house_fee
+    from sqlalchemy import func
+
+    fee = get_house_fee()
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def _session_stats(sessions):
+        income = 0.0
+        payout = 0.0
+        cards  = 0
+        for gs in sessions:
+            room = Room.query.get(gs.room_id)
+            if not room:
+                continue
+            tx_count = Transaction.query.filter_by(session_id=gs.id).count()
+            round_income  = tx_count * float(room.card_price)
+            round_payout  = round_income * (1 - fee)
+            income += round_income
+            payout += round_payout
+            cards  += tx_count
+        return cards, round(income, 2), round(payout, 2)
+
+    # Today's completed sessions
+    today_sessions = (GameSession.query
+                      .filter(GameSession.status == 'completed')
+                      .filter(GameSession.created_at >= today_start)
+                      .all())
+    t_cards, t_income, t_payout = _session_stats(today_sessions)
+
+    # All-time completed sessions
+    all_sessions = GameSession.query.filter(GameSession.status == 'completed').all()
+    a_cards, a_income, a_payout = _session_stats(all_sessions)
+
+    # Active players today (distinct users who bought a card today)
+    active_today = (db.session.query(func.count(func.distinct(Transaction.user_id)))
+                    .filter(Transaction.timestamp >= today_start)
+                    .scalar() or 0)
+
+    # Total registered users
+    total_users = User.query.count()
+
+    return jsonify({
+        "today": {
+            "rounds":  len(today_sessions),
+            "cards":   t_cards,
+            "income":  t_income,
+            "payout":  t_payout,
+            "profit":  round(t_income - t_payout, 2),
+        },
+        "alltime": {
+            "rounds":  len(all_sessions),
+            "cards":   a_cards,
+            "income":  a_income,
+            "payout":  a_payout,
+            "profit":  round(a_income - a_payout, 2),
+        },
+        "active_players_today": active_today,
+        "total_users": total_users,
+        "house_fee_pct": round(fee * 100),
+        "generated_at": now.strftime("%Y-%m-%d %H:%M UTC"),
+    })
+
+
 @app.route("/api/admin/settings", methods=["GET"])
 @login_required
 def get_admin_settings():
