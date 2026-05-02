@@ -316,6 +316,34 @@ def admin_adjust_balance():
     })
 
 
+@app.route("/api/room-history")
+def room_history():
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Unauthorized"}), 401
+    from game_engine import get_house_fee
+    sessions = (GameSession.query
+                .filter(GameSession.status == 'completed')
+                .order_by(GameSession.id.desc())
+                .limit(5)
+                .all())
+    result = []
+    fee = get_house_fee()
+    for gs in sessions:
+        room = Room.query.get(gs.room_id)
+        winner = User.query.get(gs.winner_id) if gs.winner_id else None
+        tx_count = Transaction.query.filter_by(session_id=gs.id).count()
+        prize = 0.0
+        if room and tx_count:
+            prize = round(tx_count * room.card_price * (1 - fee), 2)
+        result.append({
+            'winner': winner.username if winner else '—',
+            'prize': prize,
+            'cards': tx_count,
+            'created_at': gs.created_at.strftime('%H:%M') if gs.created_at else '—',
+        })
+    return jsonify(result)
+
+
 @app.route("/api/admin/game-history")
 def admin_game_history():
     if not _admin_ok():

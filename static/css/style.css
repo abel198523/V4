@@ -2423,3 +2423,98 @@ header {
     font-size: 0.68rem;
     align-self: center;
 }
+
+/* ── Room History Panel ─────────────────────────────── */
+.rh-panel {
+    margin: 0 12px 10px;
+    background: rgba(30, 36, 53, 0.85);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.rh-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.rh-title-icon {
+    font-size: 0.9rem;
+}
+.rh-list {
+    display: flex;
+    flex-direction: column;
+}
+.rh-empty {
+    padding: 12px 14px;
+    font-size: 0.78rem;
+    color: #4b5563;
+    text-align: center;
+}
+.rh-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 7px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.2s;
+}
+.rh-row:last-child {
+    border-bottom: none;
+}
+.rh-row:hover {
+    background: rgba(255,255,255,0.03);
+}
+.rh-rank {
+    font-size: 0.65rem;
+    color: #4b5563;
+    font-weight: 700;
+    width: 18px;
+    flex-shrink: 0;
+}
+.rh-winner {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.rh-no-winner {
+    font-size: 0.78rem;
+    color: #6b7280;
+    font-style: italic;
+    flex: 1;
+}
+.rh-cards {
+    font-size: 0.72rem;
+    color: #6b7280;
+    width: 54px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.rh-prize {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #f59e0b;
+    width: 72px;
+    text-align: right;
+    flex-shrink: 0;
+}
+.rh-time {
+    font-size: 0.65rem;
+    color: #374151;
+    width: 38px;
+    text-align: right;
+    flex-shrink: 0;
+    margin-left: 6px;
+}

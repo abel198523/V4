@@ -86,7 +86,7 @@ def _count_session_players(stake):
 def _find_and_award_winner(stake, called_set):
     try:
         from app import app, db
-        from models import Transaction, Room, User
+        from models import Transaction, Room, User, GameSession
         from card_data import get_card_data, check_bingo
 
         with app.app_context():
@@ -94,9 +94,10 @@ def _find_and_award_winner(stake, called_set):
             if not room or not room.active_session_id:
                 return None
 
+            session_id = room.active_session_id
             transactions = Transaction.query.filter_by(
                 room_id=room.id,
-                session_id=room.active_session_id
+                session_id=session_id
             ).all()
 
             if not transactions:
@@ -110,6 +111,11 @@ def _find_and_award_winner(stake, called_set):
                     user = User.query.get(tx.user_id)
                     if user:
                         user.balance += prize
+                        session = GameSession.query.get(session_id)
+                        if session:
+                            session.status = 'completed'
+                            session.winner_id = user.id
+                        room.active_session_id = None
                         db.session.commit()
                         logger.info(
                             f"Room {stake} ETB: WINNER={user.username} "
@@ -119,6 +125,23 @@ def _find_and_award_winner(stake, called_set):
     except Exception as e:
         logger.error(f"Winner check error for room {stake}: {e}")
     return None
+
+
+def _complete_session_no_winner(stake):
+    """Mark current session as completed (no winner) and clear active_session_id."""
+    try:
+        from app import app, db
+        from models import Room, GameSession
+        with app.app_context():
+            room = Room.query.filter_by(card_price=float(stake)).first()
+            if room and room.active_session_id:
+                session = GameSession.query.get(room.active_session_id)
+                if session:
+                    session.status = 'completed'
+                room.active_session_id = None
+                db.session.commit()
+    except Exception as e:
+        logger.error(f"_complete_session_no_winner error for room {stake}: {e}")
 
 
 def _room_loop(stake):
@@ -202,6 +225,7 @@ def _room_loop(stake):
 
             if not winner_found:
                 logger.info(f"Room {stake} ETB: all 75 balls called, no winner.")
+                _complete_session_no_winner(stake)
 
             # ── GAME OVER: hold winner display, then reset ─────────────────
             time.sleep(WINNER_DISPLAY_SECONDS)
