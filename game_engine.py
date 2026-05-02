@@ -179,14 +179,17 @@ def set_room_waiting(stake):
 
 def get_all_room_status():
     with _lock:
-        result = {}
-        for stake in STAKES:
-            s = room_states[stake]
-            result[str(stake)] = {
-                'timer': 'PLAYING' if s['status'] == 'playing' else s['timer'],
-                'status': s['status'],
-            }
-        return result
+        states_snapshot = {stake: dict(room_states[stake]) for stake in STAKES}
+
+    result = {}
+    for stake in STAKES:
+        s = states_snapshot[stake]
+        result[str(stake)] = {
+            'timer': 'PLAYING' if s['status'] == 'playing' else s['timer'],
+            'status': s['status'],
+            'cards_count': _count_session_players(stake),
+        }
+    return result
 
 
 def get_room_game_state(stake):

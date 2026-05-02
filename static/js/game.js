@@ -82,6 +82,15 @@ async function _syncTimers() {
             // Always render the display
             _renderRoomTimer(stake, info.status, info.timer);
 
+            // Update card/player count badge
+            const countEl = document.getElementById(`stake-count-${stake}`);
+            if (countEl) {
+                const n = info.cards_count || 0;
+                countEl.innerText = n === 1 ? '1 Card Purchased' : `${n} Cards Purchased`;
+                countEl.style.color = n > 0 ? '#22c55e' : '#6b7280';
+                countEl.style.fontWeight = n > 0 ? 'bold' : 'normal';
+            }
+
             // Transition: waiting → playing → open game screen
             if (prev.status !== 'playing' && info.status === 'playing') {
                 _gameStarted[stake] = true;
