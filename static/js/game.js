@@ -1220,7 +1220,11 @@ window.joinStake = (amount) => {
     delete _prevRoomStatus[String(amount)];
     _gameStarted[amount] = false;
     const token = localStorage.getItem('bingo_token');
-    socket.send(JSON.stringify({ type: 'JOIN_ROOM', room: amount, token: token }));
+    try {
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'JOIN_ROOM', room: amount, token: token }));
+        }
+    } catch (e) { /* WebSocket optional — backend uses HTTP polling */ }
     const stakeLabel = document.getElementById('sel-stake-amount');
     if (stakeLabel) stakeLabel.innerText = `${amount} ETB`;
     // Set stake display in info bar
