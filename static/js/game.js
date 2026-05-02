@@ -88,11 +88,16 @@ function updateRoomTimerDisplay(stake, value) {
     }
 }
 
+function parseTimerVal(val) {
+    const n = parseInt(val);
+    return isNaN(n) ? 30 : n;
+}
+
 function startRoomCountdown(stake, initialValue) {
     if (initialValue === undefined || initialValue === null) initialValue = 30;
     stopRoomCountdown(stake);
     if (!roomClientTimers[stake]) roomClientTimers[stake] = {};
-    roomClientTimers[stake].value = parseInt(initialValue) || 30;
+    roomClientTimers[stake].value = parseTimerVal(initialValue);
     roomClientTimers[stake].status = 'waiting';
 
     const tick = () => {
@@ -130,7 +135,7 @@ function setRoomPlaying(stake) {
 function setRoomWaiting(stake, fromValue) {
     if (!roomClientTimers[stake]) roomClientTimers[stake] = {};
     roomClientTimers[stake].status = 'waiting';
-    startRoomCountdown(stake, fromValue || 30);
+    startRoomCountdown(stake, (fromValue !== undefined && fromValue !== null) ? fromValue : 30);
 }
 
 // Poll the server every 2 seconds to sync authoritative timer values
@@ -163,10 +168,10 @@ async function pollRoomStatus() {
                     if (currentRoom == stake) handleGameOverReturn(stake);
                 } else if (!r || !r.interval) {
                     // Not yet running — sync to server value
-                    startRoomCountdown(stake, parseInt(info.timer) || 30);
+                    startRoomCountdown(stake, parseTimerVal(info.timer));
                 } else {
                     // Already running — sync value if server diverges by more than 3s
-                    const serverVal = parseInt(info.timer) || 30;
+                    const serverVal = parseTimerVal(info.timer);
                     const clientVal = r.value;
                     if (Math.abs(serverVal - clientVal) > 3) {
                         r.value = serverVal;
@@ -364,7 +369,7 @@ socket.onmessage = (event) => {
             setRoomPlaying(data.room);
         } else {
             // Sync client timer to server value from INIT
-            const serverCountdown = parseInt(data.countdown) || 30;
+            const serverCountdown = parseTimerVal(data.countdown);
             const r = roomClientTimers[data.room];
             if (r && r.interval) {
                 // Already ticking — just sync value
