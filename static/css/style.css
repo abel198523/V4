@@ -2272,3 +2272,78 @@ header {
     font-size: 1rem;
     font-weight: 900;
 }
+
+/* ── 10-Second Urgency Banner ─────────────────────── */
+@keyframes urgency-pulse {
+    0%   { box-shadow: 0 0 8px rgba(239,68,68,0.5);  transform: scale(1);    }
+    50%  { box-shadow: 0 0 28px rgba(239,68,68,0.95); transform: scale(1.012); }
+    100% { box-shadow: 0 0 8px rgba(239,68,68,0.5);  transform: scale(1);    }
+}
+@keyframes urgency-num-pop {
+    0%   { transform: scale(1.4); opacity: 0.6; }
+    100% { transform: scale(1);   opacity: 1;   }
+}
+.urgency-banner {
+    margin: 5px 0 2px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #b91c1c, #ef4444);
+    border: 2px solid rgba(255,160,160,0.5);
+    padding: 10px 14px;
+    animation: urgency-pulse 0.65s ease infinite;
+}
+.urgency-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: space-between;
+}
+.urgency-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+.urgency-text-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+}
+.urgency-text {
+    font-size: 0.8rem;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 0.3px;
+}
+.urgency-sub {
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.75);
+    font-weight: 600;
+}
+.urgency-count-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 8px;
+    padding: 4px 10px;
+    flex-shrink: 0;
+}
+.urgency-countdown {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #fde68a;
+    line-height: 1;
+    text-shadow: 0 0 16px rgba(253,230,138,0.9);
+    animation: urgency-num-pop 0.25s ease-out;
+}
+.urgency-unit {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: rgba(255,255,255,0.8);
+}
+
+/* Cards grid flashes red border when urgency is active */
+.cards-grid.urgency-active {
+    border: 2px solid rgba(239,68,68,0.6);
+    border-radius: 8px;
+    animation: urgency-pulse 0.65s ease infinite;
+}

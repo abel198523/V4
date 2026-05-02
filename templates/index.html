@@ -240,6 +240,21 @@
             <span id="sel-balance-2" style="display:none;">{{ "%.2f"|format(current_user.balance) }}</span>
             <span id="sel-my-board" style="display:none;">--</span>
 
+            <!-- 10-second urgency warning banner -->
+            <div id="urgency-banner" class="urgency-banner" style="display:none;">
+                <div class="urgency-inner">
+                    <span class="urgency-icon">⚠️</span>
+                    <div class="urgency-text-group">
+                        <span class="urgency-text">ካርድ ይምረጡ! ጨዋታ ይጀምራል!</span>
+                        <span class="urgency-sub">Pick a card — game starting!</span>
+                    </div>
+                    <div class="urgency-count-wrap">
+                        <span id="urgency-countdown" class="urgency-countdown">10</span>
+                        <span class="urgency-unit">s</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Cards grid: 8 columns, numbers 1-100 -->
             <div id="cards-grid" class="cards-grid"></div>
         </div>

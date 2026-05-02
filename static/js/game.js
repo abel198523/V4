@@ -131,13 +131,28 @@ async function _syncTimers() {
             // Transition: waiting → playing → show 3-2-1 then open game screen
             if (prev.status !== 'playing' && info.status === 'playing') {
                 _gameStarted[stake] = true;
-                if (currentRoom == stake) _showGameStartCountdown(startGame);
+                if (currentRoom == stake) {
+                    _hideUrgencyBanner();
+                    _showGameStartCountdown(startGame);
+                }
             }
 
             // Transition: playing → waiting → return to selection
             if (prev.status === 'playing' && info.status === 'waiting') {
                 _gameStarted[stake] = false;
                 if (currentRoom == stake) handleGameOverReturn(stake);
+            }
+
+            // 10-second urgency warning — only on selection screen
+            if (currentRoom == stake) {
+                const t = parseInt(info.timer);
+                const selScreen = document.getElementById('selection-screen');
+                const onSelScreen = selScreen && selScreen.classList.contains('active');
+                if (info.status === 'waiting' && !isNaN(t) && t <= 10 && t > 0 && onSelScreen) {
+                    _showUrgencyBanner(t);
+                } else {
+                    _hideUrgencyBanner();
+                }
             }
 
             _prevRoomStatus[stakeStr] = { status: info.status, timer: info.timer };
@@ -210,6 +225,35 @@ function _renderRoomTimer(stake, status, timer, countdownSecs) {
 
 // Legacy no-op kept so older code paths don't throw errors
 function updateCountdown(seconds) {}
+
+// ── 10-Second Urgency Banner ──────────────────────────
+let _lastUrgencyNum = -1;
+
+function _showUrgencyBanner(seconds) {
+    const banner = document.getElementById('urgency-banner');
+    const numEl  = document.getElementById('urgency-countdown');
+    const grid   = document.getElementById('cards-grid');
+    if (!banner) return;
+
+    banner.style.display = 'block';
+    if (grid) grid.classList.add('urgency-active');
+
+    if (numEl && seconds !== _lastUrgencyNum) {
+        _lastUrgencyNum = seconds;
+        numEl.style.animation = 'none';
+        void numEl.offsetWidth;
+        numEl.innerText = seconds;
+        numEl.style.animation = 'urgency-num-pop 0.25s ease-out';
+    }
+}
+
+function _hideUrgencyBanner() {
+    const banner = document.getElementById('urgency-banner');
+    const grid   = document.getElementById('cards-grid');
+    if (banner) banner.style.display = 'none';
+    if (grid)   grid.classList.remove('urgency-active');
+    _lastUrgencyNum = -1;
+}
 
 // ── 3-2-1 Game Start Countdown Overlay ───────────────
 function _showGameStartCountdown(callback) {
