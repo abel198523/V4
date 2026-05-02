@@ -100,7 +100,10 @@ function startRoomCountdown(stake, initialValue) {
         if (!r || r.status === 'playing') return;
         updateRoomTimerDisplay(stake, r.value);
         if (r.value <= 0) {
-            r.value = 30; // cycle back
+            stopRoomCountdown(stake);
+            r.status = 'playing';
+            updateRoomTimerDisplay(stake, 'PLAYING');
+            if (currentRoom == stake) startGame();
         } else {
             r.value--;
         }
