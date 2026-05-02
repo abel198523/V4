@@ -216,7 +216,6 @@ def get_balance():
 
 
 @app.route("/api/room-status")
-@login_required
 def room_status():
     from game_engine import get_all_room_status
     return jsonify(get_all_room_status())

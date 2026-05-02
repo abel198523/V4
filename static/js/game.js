@@ -76,6 +76,11 @@ async function _syncTimers() {
             console.warn('[Timer] /api/room-status returned', res.status);
             return;
         }
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            console.warn('[Timer] Non-JSON response from /api/room-status:', contentType);
+            return;
+        }
         const data = await res.json();
 
         for (const [stakeStr, info] of Object.entries(data)) {
