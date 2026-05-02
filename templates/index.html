@@ -128,42 +128,44 @@
 
         <!-- CARD SELECTION SCREEN -->
         <div id="selection-screen" class="selection-screen">
-            <div class="selection-header" style="padding:12px 15px;flex-shrink:0;">
-                <button class="back-btn" onclick="navTo('stake')">
-                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            <!-- Action bar: Back + Refresh -->
+            <div class="sel-action-bar">
+                <button class="sel-back-btn" onclick="navTo('stake')">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                    Back
                 </button>
-                <div style="flex:1;text-align:center;">
-                    <div class="selection-title" id="sel-stake-amount">Room</div>
-                    <div style="font-size:0.75rem;color:#64748b;">ካርድ ይምረጡ • Pick a Card</div>
-                </div>
-                <div id="selection-timer" style="font-size:0.85rem;font-weight:800;color:#f59e0b;background:rgba(245,158,11,0.1);padding:4px 10px;border-radius:10px;">--</div>
+                <button class="sel-refresh-btn" onclick="refreshCards()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    Refresh
+                </button>
             </div>
 
-            <div class="selection-stats" style="padding:0 15px 10px;flex-shrink:0;">
-                <div class="sel-stat-box highlight">
-                    <span class="sel-stat-label">ስም</span>
-                    <span class="sel-stat-value" id="sel-username" style="font-size:13px;">{{ current_user.username }}</span>
+            <!-- Info bar: Main Wallet | Play Wallet | Stake | Timer -->
+            <div class="sel-info-bar">
+                <div class="sel-info-box">
+                    <div class="sel-info-label">Main Wallet</div>
+                    <div class="sel-info-value" id="sel-main-wallet">{{ "%.0f"|format(current_user.balance) }}</div>
                 </div>
-                <div class="sel-stat-box">
-                    <span class="sel-stat-label">ባላንስ</span>
-                    <span class="sel-stat-value" style="color:#22c55e;font-size:13px;"><span id="sel-balance-2">{{ "%.2f"|format(current_user.balance) }}</span></span>
+                <div class="sel-info-box">
+                    <div class="sel-info-label">Play Wallet</div>
+                    <div class="sel-info-value" id="sel-play-wallet">{{ "%.0f"|format(current_user.balance) }}</div>
                 </div>
-                <div class="sel-stat-box">
-                    <span class="sel-stat-label">ካርዴ</span>
-                    <span class="sel-stat-value" id="sel-my-board" style="color:#f59e0b;">--</span>
+                <div class="sel-info-box">
+                    <div class="sel-info-label">Stake</div>
+                    <div class="sel-info-value" id="sel-stake-display">--</div>
+                </div>
+                <div class="sel-info-box sel-timer-box">
+                    <div class="sel-timer-value" id="selection-timer">--</div>
+                    <div class="sel-info-label" style="color:#f59e0b;">s</div>
                 </div>
             </div>
 
-            <div class="cards-container" style="margin:0 15px;flex:1;overflow:hidden;display:flex;flex-direction:column;">
-                <div class="cards-header" style="flex-shrink:0;">
-                    <span style="font-weight:700;font-size:0.9rem;">ካርዶች</span>
-                    <div class="legend">
-                        <div class="legend-item"><div class="dot green"></div> <span>ነፃ</span></div>
-                        <div class="legend-item"><div class="dot red"></div> <span>ተወሰደ</span></div>
-                    </div>
-                </div>
-                <div id="cards-grid" class="cards-grid" style="overflow-y:auto;flex:1;padding:5px 0;"></div>
-            </div>
+            <!-- Hidden compat span -->
+            <span id="sel-balance-2" style="display:none;">{{ "%.2f"|format(current_user.balance) }}</span>
+            <span id="sel-my-board" style="display:none;">--</span>
+
+            <!-- Cards grid: 8 columns, numbers 1-100 -->
+            <div id="cards-grid" class="cards-grid"></div>
         </div>
 
         <!-- GAME SCREEN -->

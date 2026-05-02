@@ -71,10 +71,20 @@ function updateRoomTimerDisplay(stake, value) {
     // Update selection-screen timer if this is the active room
     if (currentRoom == stake) {
         const selTimer = document.getElementById('selection-timer');
-        const selTimerLarge = document.getElementById('selection-timer-large');
-        const label = value === 'PLAYING' ? '🎮 በጨዋታ ላይ' : `⏰ ${value}`;
-        if (selTimer) selTimer.innerText = label;
-        if (selTimerLarge) selTimerLarge.innerText = value === 'PLAYING' ? 'በጨዋታ ላይ' : value;
+        if (selTimer) {
+            if (value === 'PLAYING') {
+                selTimer.innerText = '🎮';
+                selTimer.style.color = '#22c55e';
+                // hide the "s" label when playing
+                const sLabel = selTimer.nextElementSibling;
+                if (sLabel) sLabel.style.display = 'none';
+            } else {
+                selTimer.innerText = value;
+                selTimer.style.color = value <= 10 ? '#ef4444' : '#f59e0b';
+                const sLabel = selTimer.nextElementSibling;
+                if (sLabel) sLabel.style.display = 'block';
+            }
+        }
     }
 }
 
@@ -229,6 +239,15 @@ const staticCards = [{"id":1,"data":{"B":[7,10,13,14,15],"I":[18,21,23,29,30],"N
 function getCardById(id) {
     const found = staticCards.find(c => c.id === id);
     return found ? found.data : staticCards[0].data;
+}
+
+function refreshCards() {
+    const btn = document.querySelector('.sel-refresh-btn');
+    if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
+    createAvailableCards();
+    setTimeout(() => {
+        if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
+    }, 600);
 }
 
 function createAvailableCards() {
@@ -621,12 +640,6 @@ if (verifyOtpBtn) {
 }
 
 // Initialize App
-window.showCardSelection = (stake, name, price) => {
-    currentRoom = stake;
-    document.getElementById('selection-room-name').innerText = name;
-    document.getElementById('card-selection-screen').style.display = 'flex';
-    createAvailableCards();
-};
 
 function initApp() {
     const token = localStorage.getItem("bingo_token");
@@ -995,6 +1008,15 @@ window.joinStake = (amount) => {
     socket.send(JSON.stringify({ type: 'JOIN_ROOM', room: amount, token: token }));
     const stakeLabel = document.getElementById('sel-stake-amount');
     if (stakeLabel) stakeLabel.innerText = `${amount} ETB`;
+    // Set stake display in info bar
+    const stakeDisp = document.getElementById('sel-stake-display');
+    if (stakeDisp) stakeDisp.innerText = amount;
+    // Sync wallet values to current balance
+    const walletVal = Math.round(userBalance);
+    const mw = document.getElementById('sel-main-wallet');
+    const pw = document.getElementById('sel-play-wallet');
+    if (mw) mw.innerText = walletVal;
+    if (pw) pw.innerText = walletVal;
     const screens = ['stake-screen', 'profile-screen', 'wallet-screen', 'game-screen'];
     screens.forEach(s => {
         const el = document.getElementById(s);
@@ -1004,13 +1026,6 @@ window.joinStake = (amount) => {
     if (selectionScreen) selectionScreen.classList.add('active');
     const mainContent = document.getElementById('main-content');
     if (mainContent) mainContent.style.display = 'block';
-};
-
-window.showCardSelection = (stake, name, price) => {
-    currentRoom = stake;
-    document.getElementById('selection-room-name').innerText = name;
-    document.getElementById('card-selection-screen').style.display = 'flex';
-    createAvailableCards();
 };
 
 function initApp() {
@@ -1093,6 +1108,7 @@ let userBalance = 0;
 
 function updateUserData(data) {
     userBalance = parseFloat(data.balance);
+    const walletRound = Math.round(userBalance);
     const balanceElements = [
         document.getElementById('sel-balance'),
         document.getElementById('wallet-balance-value'),
@@ -1103,6 +1119,12 @@ function updateUserData(data) {
     balanceElements.forEach(el => {
         if (el) el.innerText = userBalance.toFixed(2);
     });
+
+    // Sync selection-screen wallet boxes
+    const mw = document.getElementById('sel-main-wallet');
+    const pw = document.getElementById('sel-play-wallet');
+    if (mw) mw.innerText = walletRound;
+    if (pw) pw.innerText = walletRound;
 
     const profilePhoneEl = document.getElementById('profile-phone-number');
     const profileUserTop = document.getElementById('profile-username-top');
