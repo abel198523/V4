@@ -2346,6 +2346,72 @@ header {
 }
 
 /* ── 10-Second Urgency Banner ─────────────────────── */
+/* ── Game Postponed Notice ───────────────────────── */
+@keyframes postponed-slide-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes postponed-fade-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+.postponed-notice {
+    margin: 0 0 5px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #1e3a5f, #1d4ed8 80%);
+    border: 1px solid rgba(99,179,255,0.4);
+    padding: 9px 12px;
+    animation: postponed-slide-in 0.3s ease-out;
+    flex-shrink: 0;
+}
+.postponed-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.postponed-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+.postponed-text-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+.postponed-title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #93c5fd;
+    line-height: 1.2;
+}
+.postponed-sub {
+    font-size: 0.65rem;
+    color: #bfdbfe;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.postponed-count-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+}
+.postponed-need {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: #fbbf24;
+    line-height: 1;
+}
+.postponed-need-label {
+    font-size: 0.55rem;
+    color: #93c5fd;
+    font-weight: 700;
+}
+
 @keyframes urgency-pulse {
     0%   { box-shadow: 0 0 8px rgba(239,68,68,0.5);  transform: scale(1);    }
     50%  { box-shadow: 0 0 28px rgba(239,68,68,0.95); transform: scale(1.012); }

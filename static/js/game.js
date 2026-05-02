@@ -60,6 +60,7 @@ let _prevRoomStatus = {}; // stakeStr -> { status, timer }
 let _gameStarted = {}; // stake -> bool, prevent duplicate startGame calls
 let _timerMax = {}; // stakeStr -> max timer seen (denominator for ring)
 let _gameStartCDActive = false; // prevent overlapping 3-2-1 overlays
+let _postponedHideTimer = null; // auto-hide timeout for postponed notice
 
 function startTimerSystem() {
     if (_timerPollId) clearInterval(_timerPollId);
@@ -154,6 +155,23 @@ async function _syncTimers() {
             if (prev.status === 'playing' && info.status === 'waiting') {
                 _gameStarted[stake] = false;
                 if (currentRoom == stake) handleGameOverReturn(stake);
+            }
+
+            // Detect countdown reset (timer jumped back up while still waiting)
+            // = server didn't have enough cards and restarted the round silently.
+            if (currentRoom == stake && info.status === 'waiting') {
+                const selScreen = document.getElementById('selection-screen');
+                const onSelScreen = selScreen && selScreen.classList.contains('active');
+                if (onSelScreen) {
+                    const prevT = (prev.status === 'waiting' && typeof prev.timer === 'number')
+                                  ? prev.timer : null;
+                    const curT  = parseInt(info.timer);
+                    // Reset detected: prev timer was ≤ 3, new timer jumped to ≥ 15
+                    if (prevT !== null && prevT <= 3 && curT >= 15) {
+                        _hideUrgencyBanner();
+                        _showPostponedNotice(info.min_cards || 2, info.cards_count || 0);
+                    }
+                }
             }
 
             // 10-second urgency warning — only on selection screen
@@ -263,6 +281,34 @@ function updateCountdown(seconds) {}
 
 // ── 10-Second Urgency Banner ──────────────────────────
 let _lastUrgencyNum = -1;
+
+// ── Game Postponed Notice ─────────────────────────────
+function _showPostponedNotice(minCards, currentCards) {
+    const notice  = document.getElementById('postponed-notice');
+    const subText = document.getElementById('postponed-sub-text');
+    const needEl  = document.getElementById('postponed-need');
+    if (!notice) return;
+
+    const needed = Math.max(0, minCards - currentCards);
+    if (subText) subText.innerText = `ካርዶች አልሞሉም — ዳግም ቆጠራ ተጀምሯል`;
+    if (needEl)  needEl.innerText  = `+${needed}`;
+
+    // Restart slide-in animation each time it's shown
+    notice.style.animation = 'none';
+    void notice.offsetWidth;
+    notice.style.display = 'block';
+    notice.style.animation = 'postponed-slide-in 0.3s ease-out';
+
+    // Auto-hide after 5 seconds
+    if (_postponedHideTimer) clearTimeout(_postponedHideTimer);
+    _postponedHideTimer = setTimeout(_hidePostponedNotice, 5000);
+}
+
+function _hidePostponedNotice() {
+    const notice = document.getElementById('postponed-notice');
+    if (notice) notice.style.display = 'none';
+    if (_postponedHideTimer) { clearTimeout(_postponedHideTimer); _postponedHideTimer = null; }
+}
 
 function _showUrgencyBanner(seconds) {
     const banner = document.getElementById('urgency-banner');

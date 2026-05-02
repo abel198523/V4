@@ -261,6 +261,21 @@
             </div>
 
             <!-- 10-second urgency warning banner -->
+            <!-- Game postponed notice (shown when countdown resets due to not enough cards) -->
+            <div id="postponed-notice" class="postponed-notice" style="display:none;">
+                <div class="postponed-inner">
+                    <span class="postponed-icon">⏸️</span>
+                    <div class="postponed-text-group">
+                        <span class="postponed-title">ጨዋታ ተሰናክሏል</span>
+                        <span class="postponed-sub" id="postponed-sub-text">ካርዶች አልሞሉም — ዳግም ቆጠራ ተጀምሯል</span>
+                    </div>
+                    <div class="postponed-count-wrap">
+                        <span id="postponed-need" class="postponed-need">+1</span>
+                        <span class="postponed-need-label">card</span>
+                    </div>
+                </div>
+            </div>
+
             <div id="urgency-banner" class="urgency-banner" style="display:none;">
                 <div class="urgency-inner">
                     <span class="urgency-icon">⚠️</span>
