@@ -75,7 +75,13 @@ def game_page():
             db.session.rollback()
             rooms = []
 
-    return render_template("index.html", rooms=rooms, balance=current_user.balance)
+    response = render_template("index.html", rooms=rooms, balance=current_user.balance)
+    from flask import make_response
+    resp = make_response(response)
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 
 @app.route('/webhook/' + (BOT_TOKEN if BOT_TOKEN else 'token'), methods=['POST'])
