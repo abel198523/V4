@@ -1364,6 +1364,11 @@ async function loadBalanceHistory() {
 }
 
 
+// Returns headers that include the admin key for all admin API calls
+function _ah(extra) {
+    return Object.assign({ 'Content-Type': 'application/json', 'X-Admin-Key': localStorage.getItem('_ak') || '' }, extra || {});
+}
+
 async function promptAdminPassword() {
     const pass = prompt("አድሚን ፓስወርድ ያስገቡ:");
     if (!pass) return;
@@ -1375,6 +1380,7 @@ async function promptAdminPassword() {
         });
         const d = await res.json();
         if (d.valid) {
+            localStorage.setItem('_ak', pass);
             navTo('admin');
         } else {
             alert("የተሳሳተ ፓስወርድ!");
@@ -1437,7 +1443,7 @@ async function loadAdminRevenue() {
 
     async function _fetch() {
         try {
-            const res = await fetch('/api/admin/revenue');
+            const res = await fetch('/api/admin/revenue', { headers: _ah() });
             if (!res.ok) return;
             const d = await res.json();
 
@@ -1502,7 +1508,7 @@ async function loadAdminSettings() {
     if (statusEl) { statusEl.innerText = 'Loading...'; statusEl.style.color = '#6b7280'; }
 
     try {
-        const res = await fetch('/api/admin/settings');
+        const res = await fetch('/api/admin/settings', { headers: _ah() });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (minEl)   minEl.value   = data.min_cards;
@@ -1541,7 +1547,7 @@ async function loadAdminSettings() {
             try {
                 const res = await fetch('/api/admin/settings', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: _ah(),
                     body: JSON.stringify({ min_cards: minVal, countdown_seconds: cntVal, house_fee_pct: feeVal })
                 });
                 const data = await res.json();
@@ -1585,7 +1591,7 @@ async function loadAdminSettings() {
             try {
                 const res  = await fetch('/api/admin/change-password', {
                     method:  'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: _ah(),
                     body:    JSON.stringify({ current_password: cur, new_password: nw })
                 });
                 const data = await res.json();
@@ -1611,7 +1617,7 @@ async function loadAdminHistory() {
     if (!listEl) return;
     listEl.innerHTML = '<p class="empty-msg">Loading...</p>';
     try {
-        const res = await fetch('/api/admin/game-history');
+        const res = await fetch('/api/admin/game-history', { headers: _ah() });
         if (!res.ok) throw new Error('Failed');
         const sessions = await res.json();
         if (!sessions.length) {
@@ -1655,12 +1661,9 @@ async function loadAdminHistory() {
 }
 
 async function fetchAdminDeposits() {
-    const token = localStorage.getItem('bingo_token');
     const listEl = document.getElementById('admin-deposits-list');
     try {
-        const res = await fetch('/api/admin/deposits', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await fetch('/api/admin/deposits', { headers: _ah() });
         const deposits = await res.json();
         if (deposits.length === 0) {
             listEl.innerHTML = '<p class="empty-msg">No pending deposit requests.</p>';
@@ -1681,12 +1684,9 @@ async function fetchAdminDeposits() {
 }
 
 async function fetchAdminWithdrawals() {
-    const token = localStorage.getItem('bingo_token');
     const listEl = document.getElementById('admin-withdrawals-list');
     try {
-        const res = await fetch('/api/admin/withdrawals', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await fetch('/api/admin/withdrawals', { headers: _ah() });
         const withdrawals = await res.json();
         if (withdrawals.length === 0) {
             listEl.innerHTML = '<p class="empty-msg">No pending withdrawal requests.</p>';
@@ -1748,7 +1748,7 @@ if (adminSearchBtn) {
         const username = document.getElementById('admin-search-phone').value.trim();
         if (!username) return;
         try {
-            const res  = await fetch(`/api/admin/user/${encodeURIComponent(username)}`);
+            const res  = await fetch(`/api/admin/user/${encodeURIComponent(username)}`, { headers: _ah() });
             const user = await res.json();
             if (res.ok) {
                 document.getElementById('admin-user-result').style.display = 'block';
@@ -1793,7 +1793,7 @@ async function _adjustBalance(isAdd) {
     try {
         const res  = await fetch('/api/admin/adjust-balance', {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: _ah(),
             body:    JSON.stringify({ user_id: user.id, amount })
         });
         const data = await res.json();

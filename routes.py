@@ -252,10 +252,23 @@ def bingo_claim(stake):
     return jsonify({"valid": False, "message": "ቢንጎ አልሆነም — ቆጠሩ!"})
 
 
+def _admin_ok():
+    """Accept either a session-based admin user OR X-Admin-Key header with the stored password."""
+    from models import Setting
+    key = request.headers.get('X-Admin-Key', '')
+    if key:
+        stored = Setting.query.get('admin_password')
+        correct = stored.value if stored else 'fidel123'
+        return key == correct
+    try:
+        return current_user.is_authenticated and current_user.is_admin
+    except Exception:
+        return False
+
+
 @app.route("/api/admin/user/<username>")
-@login_required
 def admin_get_user(username):
-    if not current_user.is_admin:
+    if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     user = User.query.filter_by(username=username).first()
     if not user:
@@ -269,9 +282,8 @@ def admin_get_user(username):
 
 
 @app.route("/api/admin/adjust-balance", methods=["POST"])
-@login_required
 def admin_adjust_balance():
-    if not current_user.is_admin:
+    if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     data = request.get_json() or {}
     user_id = data.get("user_id")
@@ -305,9 +317,8 @@ def admin_adjust_balance():
 
 
 @app.route("/api/admin/game-history")
-@login_required
 def admin_game_history():
-    if not current_user.is_admin:
+    if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     sessions = (GameSession.query
                 .filter(GameSession.status == 'completed')
@@ -335,9 +346,8 @@ def admin_game_history():
 
 
 @app.route("/api/admin/revenue")
-@login_required
 def admin_revenue():
-    if not current_user.is_admin:
+    if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
 
     from datetime import datetime, timezone, timedelta
@@ -433,9 +443,8 @@ def admin_revenue():
 
 
 @app.route("/api/admin/settings", methods=["GET"])
-@login_required
 def get_admin_settings():
-    if not current_user.is_admin:
+    if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     from game_engine import get_min_cards, get_countdown_seconds, get_house_fee
     return jsonify({
@@ -446,9 +455,8 @@ def get_admin_settings():
 
 
 @app.route("/api/admin/settings", methods=["POST"])
-@login_required
 def update_admin_settings():
-    if not current_user.is_admin:
+    if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     data = request.get_json() or {}
     errors = []
@@ -494,9 +502,8 @@ def verify_admin_password():
 
 
 @app.route("/api/admin/change-password", methods=["POST"])
-@login_required
 def change_admin_password():
-    if not current_user.is_admin:
+    if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     from models import Setting
     data = request.get_json() or {}
@@ -520,9 +527,8 @@ def change_admin_password():
 
 
 @app.route("/api/room-set-playing/<int:stake>", methods=["POST"])
-@login_required
 def room_set_playing(stake):
-    if not current_user.is_admin:
+    if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     from game_engine import set_room_playing, STAKES
     if stake not in STAKES:
@@ -532,9 +538,8 @@ def room_set_playing(stake):
 
 
 @app.route("/api/room-set-waiting/<int:stake>", methods=["POST"])
-@login_required
 def room_set_waiting(stake):
-    if not current_user.is_admin:
+    if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     from game_engine import set_room_waiting, STAKES
     if stake not in STAKES:
