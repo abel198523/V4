@@ -225,7 +225,13 @@
                     <div class="sel-info-value" id="sel-stake-display">--</div>
                 </div>
                 <div class="sel-info-box sel-timer-box">
-                    <div class="sel-timer-value" id="selection-timer">--</div>
+                    <div class="sel-ring-wrap">
+                        <svg class="sel-ring-svg" viewBox="0 0 70 70">
+                            <circle class="sel-ring-bg" cx="35" cy="35" r="28"/>
+                            <circle class="sel-ring-fg" id="timer-ring-circle" cx="35" cy="35" r="28" stroke-dasharray="175.93" stroke-dashoffset="175.93"/>
+                        </svg>
+                        <div class="sel-timer-value" id="selection-timer">--</div>
+                    </div>
                     <div class="sel-info-label" style="color:#f59e0b;">s</div>
                 </div>
             </div>
@@ -307,6 +313,7 @@
                         </div>
                         <div id="bingo-board" style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;width:100%;"></div>
                         <button id="bingo-btn" class="bingo-btn">🎉 BINGO!</button>
+                        <div id="near-bingo-bar" class="near-bingo-bar" style="display:none;"></div>
                     </div>
                 </div>
             </div>
@@ -802,6 +809,14 @@
             </div>
             <div id="winner-card-container" class="winner-card-preview"></div>
             <button class="modal-close-btn" onclick="document.getElementById('winner-modal').classList.remove('active')">ዝጋ / Close</button>
+        </div>
+    </div>
+
+    <!-- Game Start Overlay (3-2-1 countdown) -->
+    <div id="game-start-overlay" class="game-start-overlay">
+        <div class="gso-inner">
+            <div class="gso-label">ጨዋታ ይጀምራል</div>
+            <div id="gso-number" class="gso-num">3</div>
         </div>
     </div>
 

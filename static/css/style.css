@@ -2160,3 +2160,115 @@ header {
     width: 0%;
     transition: 0.5s;
 }
+
+/* ── Game Start Overlay (3-2-1) ───────────────────── */
+.game-start-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(12, 17, 29, 0.93);
+    z-index: 9000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+}
+.game-start-overlay.active { display: flex; }
+.gso-inner { text-align: center; }
+.gso-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+}
+.gso-num {
+    font-size: 9rem;
+    font-weight: 900;
+    line-height: 1;
+    color: #f59e0b;
+    text-shadow: 0 0 60px rgba(245,158,11,0.7), 0 0 120px rgba(245,158,11,0.3);
+}
+@keyframes gso-pop {
+    0%   { transform: scale(0.3); opacity: 0; }
+    65%  { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1);   opacity: 1; }
+}
+.gso-pop { animation: gso-pop 0.55s cubic-bezier(.17,.67,.41,1.4) forwards; }
+@keyframes gso-go-anim {
+    0%   { transform: scale(0.8); color: #f59e0b; text-shadow: 0 0 60px rgba(245,158,11,0.7); }
+    50%  { transform: scale(1.35); color: #22c55e; text-shadow: 0 0 80px rgba(34,197,94,0.9); }
+    100% { transform: scale(1);   color: #22c55e; text-shadow: 0 0 40px rgba(34,197,94,0.6); }
+}
+.gso-go { animation: gso-go-anim 0.6s ease forwards; }
+
+/* ── Near Bingo Bar ───────────────────────────────── */
+.near-bingo-bar {
+    margin-top: 6px;
+    padding: 5px 10px;
+    border-radius: 7px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-align: center;
+    letter-spacing: 0.5px;
+    background: rgba(245,158,11,0.12);
+    color: #f59e0b;
+    border: 1px solid rgba(245,158,11,0.35);
+}
+.near-bingo-bar.one-away {
+    background: rgba(239,68,68,0.15);
+    color: #ef4444;
+    border-color: rgba(239,68,68,0.5);
+    animation: bingo-pulse 0.7s ease infinite;
+}
+
+/* ── Newly Called Cell Pop ────────────────────────── */
+@keyframes cell-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.4); box-shadow: 0 0 18px rgba(34,197,94,1); }
+    100% { transform: scale(1); }
+}
+.bingo-cell.newly-called { animation: cell-pop 0.5s ease-out; }
+
+/* ── Enhanced Ball Flash ──────────────────────────── */
+@keyframes ball-flash {
+    0%   { transform: scale(1);    filter: brightness(1);   }
+    30%  { transform: scale(1.6);  filter: brightness(1.5); }
+    60%  { transform: scale(1.3);  filter: brightness(1.2); }
+    100% { transform: scale(1);    filter: brightness(1);   }
+}
+
+/* ── SVG Timer Ring (Selection Screen) ───────────── */
+.sel-ring-wrap {
+    position: relative;
+    width: 58px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.sel-ring-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+.sel-ring-bg {
+    fill: none;
+    stroke: #1e2533;
+    stroke-width: 5;
+}
+.sel-ring-fg {
+    fill: none;
+    stroke: #f59e0b;
+    stroke-width: 5;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.9s linear, stroke 0.3s ease;
+}
+.sel-timer-box .sel-timer-value {
+    position: relative;
+    z-index: 1;
+    font-size: 1rem;
+    font-weight: 900;
+}

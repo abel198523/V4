@@ -58,6 +58,8 @@ let globalPrizes = {};
 let _timerPollId = null;
 let _prevRoomStatus = {}; // stakeStr -> { status, timer }
 let _gameStarted = {}; // stake -> bool, prevent duplicate startGame calls
+let _timerMax = {}; // stakeStr -> max timer seen (denominator for ring)
+let _gameStartCDActive = false; // prevent overlapping 3-2-1 overlays
 
 function startTimerSystem() {
     if (_timerPollId) clearInterval(_timerPollId);
@@ -86,6 +88,12 @@ async function _syncTimers() {
         for (const [stakeStr, info] of Object.entries(data)) {
             const stake = parseInt(stakeStr);
             const prev = _prevRoomStatus[stakeStr] || {};
+
+            // Track max timer seen for ring calculation
+            if (info.status === 'waiting' && info.timer) {
+                const t = parseInt(info.timer);
+                if (!_timerMax[stakeStr] || t > _timerMax[stakeStr]) _timerMax[stakeStr] = t;
+            }
 
             // Always render the display
             _renderRoomTimer(stake, info.status, info.timer);
@@ -126,10 +134,10 @@ async function _syncTimers() {
                 }
             }
 
-            // Transition: waiting → playing → open game screen
+            // Transition: waiting → playing → show 3-2-1 then open game screen
             if (prev.status !== 'playing' && info.status === 'playing') {
                 _gameStarted[stake] = true;
-                if (currentRoom == stake) startGame();
+                if (currentRoom == stake) _showGameStartCountdown(startGame);
             }
 
             // Transition: playing → waiting → return to selection
@@ -176,11 +184,110 @@ function _renderRoomTimer(stake, status, timer) {
         }
         const sLabel = selTimer ? selTimer.nextElementSibling : null;
         if (sLabel) sLabel.style.display = isPlaying ? 'none' : 'inline';
+
+        // Update SVG countdown ring
+        const ring = document.getElementById('timer-ring-circle');
+        if (ring) {
+            const circumference = 175.93;
+            if (isPlaying) {
+                ring.style.strokeDashoffset = circumference;
+                ring.style.stroke = '#22c55e';
+            } else {
+                const max = _timerMax[String(stake)] || 120;
+                const pct = Math.max(0, Math.min(1, t / max));
+                ring.style.strokeDashoffset = circumference * (1 - pct);
+                ring.style.stroke = urgent ? '#ef4444' : '#f59e0b';
+            }
+        }
     }
 }
 
 // Legacy no-op kept so older code paths don't throw errors
 function updateCountdown(seconds) {}
+
+// ── 3-2-1 Game Start Countdown Overlay ───────────────
+function _showGameStartCountdown(callback) {
+    if (_gameStartCDActive) { callback(); return; }
+    _gameStartCDActive = true;
+    const overlay = document.getElementById('game-start-overlay');
+    if (!overlay) { _gameStartCDActive = false; callback(); return; }
+    overlay.classList.add('active');
+    const numEl = document.getElementById('gso-number');
+    const nums = [3, 2, 1];
+    let idx = 0;
+    function tick() {
+        if (idx < nums.length) {
+            if (numEl) {
+                numEl.className = '';
+                void numEl.offsetWidth;
+                numEl.innerText = nums[idx];
+                numEl.className = 'gso-num gso-pop';
+            }
+            idx++;
+            setTimeout(tick, 900);
+        } else {
+            if (numEl) {
+                numEl.className = '';
+                void numEl.offsetWidth;
+                numEl.innerText = 'GO!';
+                numEl.className = 'gso-num gso-go';
+            }
+            setTimeout(() => {
+                overlay.classList.remove('active');
+                _gameStartCDActive = false;
+                callback();
+            }, 650);
+        }
+    }
+    tick();
+}
+
+// ── Winning Pattern Helper ────────────────────────────
+function getWinningPattern(cardData, calledBalls) {
+    if (!cardData || !calledBalls) return [];
+    const called = new Set(calledBalls);
+    const letters = ['B', 'I', 'N', 'G', 'O'];
+    const grid = [];
+    for (let row = 0; row < 5; row++) {
+        const r = [];
+        for (const l of letters) {
+            const val = cardData[l][row];
+            r.push({ val, hit: val === 'FREE' || called.has(val) });
+        }
+        grid.push(r);
+    }
+    for (const row of grid) {
+        if (row.every(c => c.hit)) return row.map(c => c.val);
+    }
+    for (let c = 0; c < 5; c++) {
+        if (grid.every(r => r[c].hit)) return grid.map(r => r[c].val);
+    }
+    if (grid.every((r, i) => r[i].hit)) return grid.map((r, i) => r[i].val);
+    if (grid.every((r, i) => r[4 - i].hit)) return grid.map((r, i) => r[4 - i].val);
+    return calledBalls;
+}
+
+// ── Near-Bingo Calculator ─────────────────────────────
+function calcNearBingo(cardData, calledBalls) {
+    if (!cardData || !calledBalls) return 99;
+    const called = new Set(calledBalls);
+    const letters = ['B', 'I', 'N', 'G', 'O'];
+    const grid = [];
+    for (let row = 0; row < 5; row++) {
+        const r = [];
+        for (const l of letters) {
+            const val = cardData[l][row];
+            r.push(val === 'FREE' ? true : called.has(val));
+        }
+        grid.push(r);
+    }
+    let min = Infinity;
+    for (const row of grid) { min = Math.min(min, row.filter(v => !v).length); }
+    for (let c = 0; c < 5; c++) { min = Math.min(min, grid.filter(r => !r[c]).length); }
+    min = Math.min(min, grid.filter((r, i) => !r[i]).length);
+    min = Math.min(min, grid.filter((r, i) => !r[4 - i]).length);
+    return min;
+}
 
 function handleGameOverReturn(stake) {
     stopGameStatePoll();
@@ -199,6 +306,10 @@ function handleGameOverReturn(stake) {
         btn.style.background = '';
         btn.style.boxShadow = '';
     }
+
+    // Reset near-bingo bar
+    const nbBar = document.getElementById('near-bingo-bar');
+    if (nbBar) { nbBar.style.display = 'none'; nbBar.className = 'near-bingo-bar'; }
 
     ['master-grid', 'bingo-board', 'recent-balls'].forEach(id => {
         const el = document.getElementById(id);
@@ -773,11 +884,43 @@ function updateGameUI(history) {
     }
 
     if (autoMarking) {
+        const latestBall = history[history.length - 1];
         history.forEach(num => {
             const el = document.getElementById(`cell-${num}`);
-            if (el) el.classList.add('called');
+            if (el) {
+                if (!el.classList.contains('called')) {
+                    el.classList.add('called');
+                    if (num === latestBall) {
+                        el.classList.add('newly-called');
+                        setTimeout(() => el.classList.remove('newly-called'), 500);
+                    }
+                }
+            }
         });
     }
+
+    // Near-bingo indicator
+    const stateNB = getRoomState(currentRoom);
+    if (stateNB.myGameCard && history.length > 0) {
+        const remaining = calcNearBingo(stateNB.myGameCard, history);
+        const nbBar = document.getElementById('near-bingo-bar');
+        if (nbBar) {
+            if (remaining === 0) {
+                nbBar.style.display = 'none';
+            } else if (remaining === 1) {
+                nbBar.style.display = 'block';
+                nbBar.className = 'near-bingo-bar one-away';
+                nbBar.innerText = '🔥 ሌላ 1 ቁጥር — BINGO!';
+            } else if (remaining <= 3) {
+                nbBar.style.display = 'block';
+                nbBar.className = 'near-bingo-bar';
+                nbBar.innerText = `⚡ ሌላ ${remaining} ቁጥር ብቻ ቢንጎ!`;
+            } else {
+                nbBar.style.display = 'none';
+            }
+        }
+    }
+
     const callsEl = document.getElementById('call-count');
     if (callsEl) callsEl.innerText = history.length;
     progressText.innerText = `${history.length}/75`;
@@ -1185,7 +1328,9 @@ async function pollGameState(stake) {
             _winnerShown = true;
             stopGameStatePoll();
             const isMe = (data.winner === (window.CURRENT_USERNAME || ''));
-            showWinnerModal(data.winner, null, null, data.prize, isMe);
+            const winCard = isMe ? state.myGameCard : null;
+            const winPat = isMe ? getWinningPattern(state.myGameCard, data.balls) : null;
+            showWinnerModal(data.winner, winCard, winPat, data.prize, isMe);
             setTimeout(() => {
                 const modal = document.getElementById('winner-modal');
                 if (modal) modal.classList.remove('active');
