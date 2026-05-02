@@ -331,6 +331,32 @@ def admin_revenue():
     # Total registered users
     total_users = User.query.count()
 
+    # Last 10 completed rounds detail
+    recent_sessions = (GameSession.query
+                       .filter(GameSession.status == 'completed')
+                       .order_by(GameSession.id.desc())
+                       .limit(10)
+                       .all())
+    recent_rounds = []
+    for gs in recent_sessions:
+        room = Room.query.get(gs.room_id)
+        if not room:
+            continue
+        tx_count   = Transaction.query.filter_by(session_id=gs.id).count()
+        r_income   = round(tx_count * float(room.card_price), 2)
+        r_payout   = round(r_income * (1 - fee), 2)
+        r_profit   = round(r_income - r_payout, 2)
+        winner_obj = User.query.get(gs.winner_id) if gs.winner_id else None
+        recent_rounds.append({
+            "session_id": gs.id,
+            "cards":      tx_count,
+            "income":     r_income,
+            "payout":     r_payout,
+            "profit":     r_profit,
+            "winner":     winner_obj.username if winner_obj else "—",
+            "time":       gs.created_at.strftime("%H:%M") if gs.created_at else "—",
+        })
+
     return jsonify({
         "today": {
             "rounds":  len(today_sessions),
@@ -346,10 +372,11 @@ def admin_revenue():
             "payout":  a_payout,
             "profit":  round(a_income - a_payout, 2),
         },
-        "active_players_today": active_today,
-        "total_users": total_users,
-        "house_fee_pct": round(fee * 100),
-        "generated_at": now.strftime("%Y-%m-%d %H:%M UTC"),
+        "recent_rounds":          recent_rounds,
+        "active_players_today":   active_today,
+        "total_users":            total_users,
+        "house_fee_pct":          round(fee * 100),
+        "generated_at":           now.strftime("%Y-%m-%d %H:%M UTC"),
     })
 
 

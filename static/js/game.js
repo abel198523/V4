@@ -1451,11 +1451,30 @@ async function loadAdminRevenue() {
             set('rev-users',       d.total_users);
             set('rev-updated',     'Updated ' + d.generated_at);
 
-            // Colour today's profit: green if positive, red if zero
+            // Colour today's profit
             const profitEl = document.getElementById('rev-today-profit');
             if (profitEl) profitEl.style.color = d.today.profit > 0 ? '#f59e0b' : '#6b7280';
             const profitEl2 = document.getElementById('rev-today-profit2');
             if (profitEl2) profitEl2.style.color = d.today.profit > 0 ? '#f59e0b' : '#6b7280';
+
+            // Recent rounds log
+            const listEl = document.getElementById('rev-rounds-list');
+            if (listEl) {
+                if (!d.recent_rounds || d.recent_rounds.length === 0) {
+                    listEl.innerHTML = '<p style="font-size:0.8rem;color:#6b7280;text-align:center;padding:10px 0;">No completed rounds yet.</p>';
+                } else {
+                    listEl.innerHTML = d.recent_rounds.map(r => {
+                        const profitColor = r.profit > 0 ? '#22c55e' : '#6b7280';
+                        return `<div style="display:grid;grid-template-columns:40px 1fr 60px 60px 60px;gap:4px;padding:5px 0;border-bottom:1px solid #1a2035;align-items:center;">
+                            <span style="font-size:0.7rem;color:#6b7280;">${r.time}</span>
+                            <span style="font-size:0.75rem;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.winner}">🏆 ${r.winner}</span>
+                            <span style="font-size:0.75rem;color:#22c55e;text-align:right;font-weight:600;">${r.income.toFixed(2)}</span>
+                            <span style="font-size:0.75rem;color:#ef4444;text-align:right;font-weight:600;">${r.payout.toFixed(2)}</span>
+                            <span style="font-size:0.75rem;text-align:right;font-weight:700;color:${profitColor};">${r.profit.toFixed(2)}</span>
+                        </div>`;
+                    }).join('');
+                }
+            }
         } catch (e) { console.error('[Revenue]', e); }
     }
 
