@@ -673,6 +673,26 @@
                     <button id="settings-save-btn" class="auth-btn" style="margin-top:4px;">
                         💾 Save Settings
                     </button>
+
+                    <!-- Change Admin Password -->
+                    <div style="background:#1e2435;border-radius:12px;padding:18px;margin-top:20px;">
+                        <label style="display:block;font-size:0.8rem;color:#9ca3af;margin-bottom:6px;font-weight:600;">
+                            🔑 CHANGE ADMIN PASSWORD
+                        </label>
+                        <p style="font-size:0.75rem;color:#6b7280;margin-bottom:12px;">
+                            አሁን ያለውን ፓስወርድ ያስገቡ ከዚያ አዲሱን ይምረጡ።
+                        </p>
+                        <input type="password" id="pwd-current" class="form-input"
+                            placeholder="Current password" style="margin-bottom:8px;">
+                        <input type="password" id="pwd-new" class="form-input"
+                            placeholder="New password (min 6 chars)" style="margin-bottom:8px;">
+                        <input type="password" id="pwd-confirm" class="form-input"
+                            placeholder="Confirm new password" style="margin-bottom:12px;">
+                        <div id="pwd-status" style="font-size:0.82rem;color:#6b7280;min-height:18px;margin-bottom:10px;"></div>
+                        <button id="pwd-save-btn" class="auth-btn" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);">
+                            🔒 Change Password
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

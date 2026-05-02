@@ -1364,12 +1364,23 @@ async function loadBalanceHistory() {
 }
 
 
-function promptAdminPassword() {
+async function promptAdminPassword() {
     const pass = prompt("አድሚን ፓስወርድ ያስገቡ:");
-    if (pass === "fidel123") {
-        navTo('admin');
-    } else {
-        alert("የተሳሳተ ፓስወርድ!");
+    if (!pass) return;
+    try {
+        const res = await fetch('/api/admin/verify-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pass })
+        });
+        const d = await res.json();
+        if (d.valid) {
+            navTo('admin');
+        } else {
+            alert("የተሳሳተ ፓስወርድ!");
+        }
+    } catch (e) {
+        alert("Connection error. Please try again.");
     }
 }
 window.promptAdminPassword = promptAdminPassword;
@@ -1547,6 +1558,50 @@ async function loadAdminSettings() {
             }
             saveBtn.disabled = false;
             saveBtn.innerText = '💾 Save Settings';
+        };
+    }
+
+    // Change password handler
+    const pwdBtn = document.getElementById('pwd-save-btn');
+    if (pwdBtn) {
+        pwdBtn.onclick = async () => {
+            const curEl  = document.getElementById('pwd-current');
+            const newEl  = document.getElementById('pwd-new');
+            const conEl  = document.getElementById('pwd-confirm');
+            const statEl = document.getElementById('pwd-status');
+
+            const cur = curEl  ? curEl.value.trim()  : '';
+            const nw  = newEl  ? newEl.value.trim()  : '';
+            const con = conEl  ? conEl.value.trim()  : '';
+
+            const show = (msg, color) => { if (statEl) { statEl.innerText = msg; statEl.style.color = color; } };
+
+            if (!cur)         return show('⚠️ Please enter your current password.', '#f59e0b');
+            if (nw.length < 6) return show('⚠️ New password must be at least 6 characters.', '#f59e0b');
+            if (nw !== con)   return show('⚠️ Passwords do not match.', '#f59e0b');
+
+            pwdBtn.disabled  = true;
+            pwdBtn.innerText = 'Saving...';
+            try {
+                const res  = await fetch('/api/admin/change-password', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ current_password: cur, new_password: nw })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    show('✅ Password changed successfully!', '#22c55e');
+                    if (curEl) curEl.value = '';
+                    if (newEl) newEl.value = '';
+                    if (conEl) conEl.value = '';
+                } else {
+                    show('❌ ' + (data.error || 'Failed.'), '#ef4444');
+                }
+            } catch (e) {
+                show('❌ Connection error.', '#ef4444');
+            }
+            pwdBtn.disabled  = false;
+            pwdBtn.innerText = '🔒 Change Password';
         };
     }
 }

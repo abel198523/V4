@@ -431,6 +431,42 @@ def update_admin_settings():
     })
 
 
+@app.route("/api/admin/verify-password", methods=["POST"])
+def verify_admin_password():
+    from models import Setting
+    data = request.get_json() or {}
+    stored = Setting.query.get('admin_password')
+    correct = stored.value if stored else 'fidel123'
+    ok = data.get('password', '') == correct
+    return jsonify({"valid": ok})
+
+
+@app.route("/api/admin/change-password", methods=["POST"])
+@login_required
+def change_admin_password():
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+    from models import Setting
+    data = request.get_json() or {}
+    current_pass = data.get('current_password', '')
+    new_pass     = data.get('new_password', '').strip()
+
+    stored = Setting.query.get('admin_password')
+    correct = stored.value if stored else 'fidel123'
+
+    if current_pass != correct:
+        return jsonify({"error": "Current password is incorrect."}), 400
+    if len(new_pass) < 6:
+        return jsonify({"error": "New password must be at least 6 characters."}), 400
+
+    if stored:
+        stored.value = new_pass
+    else:
+        db.session.add(Setting(key='admin_password', value=new_pass))
+    db.session.commit()
+    return jsonify({"success": True})
+
+
 @app.route("/api/room-set-playing/<int:stake>", methods=["POST"])
 @login_required
 def room_set_playing(stake):
