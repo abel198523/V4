@@ -1,6 +1,7 @@
 // ── Nova Bingo Sound Engine (Web Audio API — no files needed) ─────────────────
 (function () {
-    let _ctx = null;
+    let _ctx  = null;
+    let _muted = (localStorage.getItem('nvbMuted') === 'true');
 
     function _getCtx() {
         if (!_ctx) {
@@ -11,15 +12,16 @@
         return _ctx;
     }
 
-    // Generic tone builder
+    // Generic tone builder — silently skips if muted
     function _tone(freq, type, gainPeak, attackSec, decaySec, startOffset) {
+        if (_muted) return;
         const ctx = _getCtx();
         if (!ctx) return;
         const osc  = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.type      = type;
+        osc.type            = type;
         osc.frequency.value = freq;
         const t = ctx.currentTime + (startOffset || 0);
         gain.gain.setValueAtTime(0, t);
@@ -29,9 +31,36 @@
         osc.stop(t + attackSec + decaySec + 0.02);
     }
 
+    // ── Mute control ──────────────────────────────────────────────────────────
+    window.isMuted = function () { return _muted; };
+
+    window.toggleMute = function () {
+        _muted = !_muted;
+        localStorage.setItem('nvbMuted', _muted);
+        _updateMuteBtns();
+        return _muted;
+    };
+
+    function _updateMuteBtns() {
+        document.querySelectorAll('.mute-btn').forEach(btn => {
+            const iconOn  = btn.querySelector('.mute-icon-on');
+            const iconOff = btn.querySelector('.mute-icon-off');
+            const label   = btn.querySelector('.mute-label');
+            if (iconOn)  iconOn.style.display  = _muted ? 'none'         : 'inline';
+            if (iconOff) iconOff.style.display = _muted ? 'inline'       : 'none';
+            if (label)   label.textContent     = _muted ? 'Unmute'       : 'Mute';
+            btn.setAttribute('aria-label',       _muted ? 'Unmute sound' : 'Mute sound');
+            btn.classList.toggle('muted', _muted);
+        });
+    }
+
+    // Run once DOM is ready so buttons reflect saved state
+    document.addEventListener('DOMContentLoaded', _updateMuteBtns);
+    // Also patch after dynamic render (game.js calls this after load)
+    window._syncMuteBtns = _updateMuteBtns;
+
     // ── Tick (last 5 s warning, one per second) ───────────────────────────────
     window.playTick = function () {
-        // short sharp click: high sine + quick decay
         _tone(1100, 'sine',   0.30, 0.004, 0.08);
         _tone(550,  'square', 0.08, 0.002, 0.05);
     };
@@ -43,8 +72,7 @@
         _tone(1400, 'sine',   0.30, 0.003, 0.08, 0.14);
     };
 
-    // ── 3-2-1 chimes (each number gets its own pitch) ─────────────────────────
-    //   3 → low warm tone, 2 → mid, 1 → high bright
+    // ── 3-2-1 chimes ──────────────────────────────────────────────────────────
     const _chimePitches = { 3: 440, 2: 554, 1: 659 };
 
     window.playCountdownChime = function (num) {
@@ -56,17 +84,15 @@
 
     // ── GO! triumphant chord ──────────────────────────────────────────────────
     window.playGoSound = function () {
-        // Major triad C5-E5-G5 all at once, bright and punchy
         const notes = [523.25, 659.25, 783.99];
         notes.forEach((f, i) => {
-            _tone(f,     'sine',     0.45, 0.01,  0.55, i * 0.04);
-            _tone(f * 2, 'sine',     0.12, 0.005, 0.30, i * 0.04);
+            _tone(f,     'sine', 0.45, 0.01,  0.55, i * 0.04);
+            _tone(f * 2, 'sine', 0.12, 0.005, 0.30, i * 0.04);
         });
-        // sub-bass thump
         _tone(130, 'sine', 0.35, 0.005, 0.25);
     };
 
-    // ── Ball-called chime (soft, non-intrusive) ───────────────────────────────
+    // ── Ball-called chime ─────────────────────────────────────────────────────
     window.playBallCall = function () {
         _tone(880, 'sine', 0.18, 0.005, 0.20);
         _tone(440, 'sine', 0.06, 0.005, 0.18);
@@ -79,7 +105,6 @@
             [1047, 0.36], [784, 0.52], [1047, 0.64]
         ];
         melody.forEach(([f, off]) => _tone(f, 'sine', 0.50, 0.01, 0.20, off));
-        // Underlying pad
         [523, 659, 784].forEach((f, i) =>
             _tone(f, 'triangle', 0.15, 0.02, 0.80, i * 0.03));
     };
