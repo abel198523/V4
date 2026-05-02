@@ -50,21 +50,20 @@ let globalStats = {};
 let globalPrizes = {};
 
 // ================================================================
-// TIMER SYSTEM v3 — Server is the single source of truth.
-// Client polls /api/room-status every second and mirrors the value.
-// No client-side independent countdown — eliminates all drift/sync issues.
+// ROOM STATUS SYSTEM v4 — Card Threshold based.
+// No countdown timer. Game launches when enough cards are purchased.
+// status: 'waiting' | 'launching' | 'playing'
 // ================================================================
 
 let _timerPollId = null;
-let _prevRoomStatus = {}; // stakeStr -> { status, timer }
-let _gameStarted = {}; // stake -> bool, prevent duplicate startGame calls
-let _timerMax = {}; // stakeStr -> max timer seen (denominator for ring)
+let _prevRoomStatus = {}; // stakeStr -> { status }
+let _gameStarted = {};    // stake -> bool, prevent duplicate startGame calls
 let _gameStartCDActive = false; // prevent overlapping 3-2-1 overlays
-let _postponedHideTimer = null; // auto-hide timeout for postponed notice
+let _lastLaunchTick = -1; // last launch_timer value we played a tick for
 
 function startTimerSystem() {
     if (_timerPollId) clearInterval(_timerPollId);
-    _syncTimers(); // immediate first call
+    _syncTimers();
     _timerPollId = setInterval(_syncTimers, 1000);
 }
 
@@ -75,283 +74,176 @@ function stopTimerSystem() {
 async function _syncTimers() {
     try {
         const res = await fetch('/api/room-status');
-        if (!res.ok) {
-            console.warn('[Timer] /api/room-status returned', res.status);
-            return;
-        }
-        const contentType = res.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-            console.warn('[Timer] Non-JSON response from /api/room-status:', contentType);
-            return;
-        }
+        if (!res.ok) return;
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) return;
         const data = await res.json();
 
         for (const [stakeStr, info] of Object.entries(data)) {
             const stake = parseInt(stakeStr);
-            const prev = _prevRoomStatus[stakeStr] || {};
+            const prev  = _prevRoomStatus[stakeStr] || {};
 
-            // Always render the display (pass countdown_seconds as ring denominator)
-            _renderRoomTimer(stake, info.status, info.timer, info.countdown_seconds);
-
-            // Update card/player count badge
+            // ── Stake-list card count badge ───────────────────────────────
             const countEl = document.getElementById(`stake-count-${stake}`);
             if (countEl) {
-                const n = info.cards_count || 0;
-                const minCards = info.min_cards || 2;
-                const needed = Math.max(0, minCards - n);
+                const n   = info.cards_count || 0;
+                const min = info.min_cards   || 5;
                 if (info.status === 'playing') {
-                    countEl.innerText = `${n} Cards in Game`;
+                    countEl.innerText  = `${n} Cards in Game`;
                     countEl.style.color = '#22c55e';
-                    countEl.style.fontWeight = 'bold';
-                } else if (needed > 0) {
-                    countEl.innerText = `⚠️ Need ${needed} more card${needed > 1 ? 's' : ''} to start (${n}/${minCards})`;
+                } else if (info.status === 'launching') {
+                    countEl.innerText  = `✅ ${n}/${min} — Launching in ${info.launch_timer}s`;
                     countEl.style.color = '#f59e0b';
-                    countEl.style.fontWeight = 'bold';
                 } else {
-                    countEl.innerText = `✅ ${n} Cards — Ready to start!`;
-                    countEl.style.color = '#22c55e';
-                    countEl.style.fontWeight = 'bold';
+                    const need = Math.max(0, min - n);
+                    countEl.innerText  = need > 0
+                        ? `⏳ Need ${need} more card${need > 1 ? 's' : ''} (${n}/${min})`
+                        : `✅ ${n}/${min} Cards — Ready!`;
+                    countEl.style.color = need > 0 ? '#94a3b8' : '#22c55e';
+                }
+                countEl.style.fontWeight = 'bold';
+            }
+
+            // ── Stake-list status badge ───────────────────────────────────
+            const badge = document.getElementById(`stake-timer-${stake}`);
+            if (badge) {
+                if (info.status === 'playing') {
+                    badge.innerText = '🎮 PLAYING';
+                    badge.style.color = '#22c55e';
+                    badge.style.background = 'rgba(34,197,94,0.1)';
+                } else if (info.status === 'launching') {
+                    badge.innerText = `🚀 ${info.launch_timer}s`;
+                    badge.style.color = '#f59e0b';
+                    badge.style.background = 'rgba(245,158,11,0.1)';
+                } else {
+                    badge.innerText = '⏳ Waiting';
+                    badge.style.color = '#64748b';
+                    badge.style.background = 'rgba(100,116,139,0.1)';
                 }
             }
 
-            // Update live prize pool badge
+            // ── Stake-list prize pool badge ───────────────────────────────
             const prizeEl = document.getElementById(`stake-prize-${stake}`);
             if (prizeEl) {
                 const pool = info.prize_pool || 0;
-                if (pool > 0) {
-                    prizeEl.innerText = `🏆 Prize Pool: ${pool.toFixed(2)} ETB`;
-                    prizeEl.style.color = '#f59e0b';
-                    prizeEl.style.fontWeight = 'bold';
-                } else {
-                    prizeEl.innerText = '🏆 Prize Pool: 0.00 ETB';
-                    prizeEl.style.color = '#6b7280';
-                    prizeEl.style.fontWeight = 'normal';
-                }
+                prizeEl.innerText = `🏆 Prize Pool: ${pool.toFixed(2)} ETB`;
+                prizeEl.style.color = pool > 0 ? '#f59e0b' : '#6b7280';
+                prizeEl.style.fontWeight = pool > 0 ? 'bold' : 'normal';
             }
 
-            // Transition: waiting → playing → show 3-2-1 then open game screen
+            // ── Card Fill Panel (selection screen, current room only) ─────
+            if (currentRoom == stake) {
+                _updateCardFillPanel(info);
+            }
+
+            // ── Screen transitions ────────────────────────────────────────
+            // launching → playing
             if (prev.status !== 'playing' && info.status === 'playing') {
                 _gameStarted[stake] = true;
-                if (currentRoom == stake) {
-                    _hideUrgencyBanner();
-                    _showGameStartCountdown(startGame);
-                }
+                if (currentRoom == stake) _showGameStartCountdown(startGame);
             }
 
-            // Safety net: if game already running and player is still stuck on
-            // selection screen (e.g. joined mid-game after race condition cleared),
-            // transition them immediately without waiting for another state change.
+            // Safety net: already playing but stuck on selection screen
             if (info.status === 'playing' && currentRoom == stake && !_gameStarted[stake]) {
-                const selScreen = document.getElementById('selection-screen');
-                const onSel = selScreen && selScreen.classList.contains('active');
-                if (onSel) {
+                const sel = document.getElementById('selection-screen');
+                if (sel && sel.classList.contains('active')) {
                     _gameStarted[stake] = true;
-                    _hideUrgencyBanner();
                     _showGameStartCountdown(startGame);
                 }
             }
 
-            // Transition: playing → waiting → return to selection
-            if (prev.status === 'playing' && info.status === 'waiting') {
+            // playing → waiting/launching → return to selection
+            if (prev.status === 'playing' && info.status !== 'playing') {
                 _gameStarted[stake] = false;
                 if (currentRoom == stake) handleGameOverReturn(stake);
             }
 
-            // Detect countdown reset (timer jumped back up while still waiting)
-            // = server didn't have enough cards and restarted the round silently.
-            if (currentRoom == stake && info.status === 'waiting') {
-                const selScreen = document.getElementById('selection-screen');
-                const onSelScreen = selScreen && selScreen.classList.contains('active');
-                if (onSelScreen) {
-                    const prevT = (prev.status === 'waiting' && typeof prev.timer === 'number')
-                                  ? prev.timer : null;
-                    const curT  = parseInt(info.timer);
-                    // Reset detected: prev timer was ≤ 3, new timer jumped to ≥ 15
-                    if (prevT !== null && prevT <= 3 && curT >= 15) {
-                        _hideUrgencyBanner();
-                        _showPostponedNotice(info.min_cards || 2, info.cards_count || 0);
-                    }
-                }
-            }
-
-            // 10-second urgency warning — only on selection screen
-            if (currentRoom == stake) {
-                const t = parseInt(info.timer);
-                const selScreen = document.getElementById('selection-screen');
-                const onSelScreen = selScreen && selScreen.classList.contains('active');
-                if (info.status === 'waiting' && !isNaN(t) && t <= 10 && t > 0 && onSelScreen) {
-                    _showUrgencyBanner(t);
-                } else {
-                    _hideUrgencyBanner();
-                }
-            }
-
-            // Live game screen stats: prize pool + player count
+            // ── Live game screen stats ────────────────────────────────────
             if (info.status === 'playing' && currentRoom == stake) {
-                const derashEl = document.getElementById('derash');
+                const derashEl  = document.getElementById('derash');
                 const playersEl = document.getElementById('players');
-                if (derashEl) derashEl.innerText = (info.prize_pool || 0).toFixed(0);
+                if (derashEl)  derashEl.innerText  = (info.prize_pool || 0).toFixed(0);
                 if (playersEl) playersEl.innerText = info.cards_count || 0;
             }
 
-            _prevRoomStatus[stakeStr] = { status: info.status, timer: info.timer };
+            _prevRoomStatus[stakeStr] = { status: info.status };
         }
-    } catch (e) { console.error('[Timer] _syncTimers error:', e); }
+    } catch (e) { console.error('[Status] _syncTimers error:', e); }
 }
 
-function _renderRoomTimer(stake, status, timer, countdownSecs) {
-    const isPlaying = status === 'playing';
-    const t = isPlaying ? null : parseInt(timer);
-    const urgent = !isPlaying && t <= 5;
+// ── Card Fill Panel renderer ──────────────────────────────────────────────────
+function _updateCardFillPanel(info) {
+    const n   = info.cards_count  || 0;
+    const min = info.min_cards    || 5;
+    const lt  = info.launch_timer || 0;
+    const maxLaunch = info.launch_countdown || 10;
 
-    // Stake-list timer badge
-    const badge = document.getElementById(`stake-timer-${stake}`);
-    if (badge) {
-        if (isPlaying) {
-            badge.innerText = '🎮 PLAYING';
-            badge.style.color = '#22c55e';
-            badge.style.background = 'rgba(34,197,94,0.1)';
-        } else {
-            badge.innerText = `⏰ ${t}`;
-            badge.style.color = urgent ? '#ef4444' : '#f59e0b';
-            badge.style.background = urgent ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.1)';
-        }
+    const iconEl       = document.getElementById('cfp-icon');
+    const labelEl      = document.getElementById('cfp-label');
+    const currentEl    = document.getElementById('cfp-current');
+    const minEl        = document.getElementById('cfp-min');
+    const barEl        = document.getElementById('cfp-bar');
+    const launchWrap   = document.getElementById('cfp-launch-wrap');
+    const launchNumEl  = document.getElementById('cfp-launch-num');
+    const prizePoolEl  = document.getElementById('sel-prize-pool');
+
+    if (currentEl) currentEl.innerText = n;
+    if (minEl)     minEl.innerText     = min;
+
+    // Prize pool in info bar
+    if (prizePoolEl) {
+        const pool = info.prize_pool || 0;
+        prizePoolEl.innerText = `${pool.toFixed(0)} ETB`;
+        prizePoolEl.style.color = pool > 0 ? '#f59e0b' : '#94a3b8';
     }
 
-    // Selection-screen large timer (only for the currently open room)
-    if (currentRoom == stake) {
-        const selTimer = document.getElementById('selection-timer');
-        if (selTimer) {
-            if (isPlaying) {
-                selTimer.innerText = '🎮';
-                selTimer.style.color = '#22c55e';
-            } else {
-                selTimer.innerText = t;
-                selTimer.style.color = urgent ? '#ef4444' : '#f59e0b';
-            }
-        }
-        const sLabel = selTimer ? selTimer.nextElementSibling : null;
-        if (sLabel) sLabel.style.display = isPlaying ? 'none' : 'inline';
+    if (info.status === 'playing') {
+        if (iconEl)  iconEl.innerText  = '🎮';
+        if (labelEl) labelEl.innerText = 'ጨዋታ በሂደት ላይ ነው!';
+        if (barEl)   { barEl.style.width = '100%'; barEl.style.background = '#22c55e'; }
+        if (launchWrap) launchWrap.style.display = 'none';
 
-        // Update SVG countdown ring (use server-supplied countdownSecs as denominator)
-        const ring = document.getElementById('timer-ring-circle');
-        if (ring) {
-            const circumference = 175.93;
-            if (isPlaying) {
-                ring.style.strokeDashoffset = circumference;
-                ring.style.stroke = '#22c55e';
-            } else {
-                const max = countdownSecs || 120;
-                const pct = Math.max(0, Math.min(1, t / max));
-                ring.style.strokeDashoffset = circumference * (1 - pct);
-                ring.style.stroke = urgent ? '#ef4444' : '#f59e0b';
-            }
+    } else if (info.status === 'launching') {
+        if (iconEl)  iconEl.innerText  = '🚀';
+        if (labelEl) labelEl.innerText = 'ዝግጁ! ጨዋታ ይጀምራል!';
+        if (barEl)   { barEl.style.width = '100%'; barEl.style.background = '#f59e0b'; }
+        if (launchWrap) launchWrap.style.display = 'flex';
+        if (launchNumEl) {
+            launchNumEl.innerText = lt;
+            // Pulse animation on change
+            launchNumEl.style.animation = 'none';
+            void launchNumEl.offsetWidth;
+            launchNumEl.style.animation = 'cfp-launch-pop 0.3s ease-out';
+        }
+        // Tick sounds during launch countdown
+        if (lt !== _lastLaunchTick) {
+            _lastLaunchTick = lt;
+            if (lt <= 3 && lt > 0 && typeof playFinalTick === 'function') playFinalTick();
+            else if (lt > 0 && typeof playTick === 'function') playTick();
         }
 
-        // Also update the in-game timer badge (renamed id to avoid duplicate)
-        const gsTimer = document.getElementById('game-screen-timer');
-        if (gsTimer) {
-            if (isPlaying) {
-                gsTimer.innerText = '🎮';
-                gsTimer.style.color = '#22c55e';
-            } else {
-                gsTimer.innerText = t;
-                gsTimer.style.color = urgent ? '#ef4444' : '#f59e0b';
-            }
+    } else {
+        // waiting
+        const pct = Math.min(100, Math.round((n / min) * 100));
+        if (iconEl)  iconEl.innerText  = n >= min ? '✅' : '⏳';
+        if (labelEl) {
+            const need = Math.max(0, min - n);
+            labelEl.innerText = need > 0
+                ? `ሌሎች ${need} ካርዶች ሲገዙ ጨዋታ ይጀምራል`
+                : 'ዝግጁ ነው! ጨዋታ ምልክት ይሰጣል...';
         }
-
-        // Standalone countdown strip — large, always visible, no SVG overlay issues
-        const strip   = document.getElementById('sel-countdown-strip');
-        const cdNum   = document.getElementById('sel-cd-num');
-        const cdBar   = document.getElementById('sel-cd-bar');
-        if (strip) {
-            if (isPlaying) {
-                strip.style.display = 'none';
-            } else {
-                strip.style.display = 'flex';
-                const max = countdownSecs || 20;
-                const pct = Math.max(0, Math.min(100, (t / max) * 100));
-                if (cdNum) {
-                    cdNum.innerText = t;
-                    cdNum.style.color = urgent ? '#ef4444' : '#f59e0b';
-                }
-                if (cdBar) {
-                    cdBar.style.width  = pct + '%';
-                    cdBar.style.background = urgent ? '#ef4444' : '#f59e0b';
-                }
-            }
+        if (barEl) {
+            barEl.style.width      = pct + '%';
+            barEl.style.background = n >= min ? '#22c55e' : '#3b82f6';
         }
+        if (launchWrap) launchWrap.style.display = 'none';
+        _lastLaunchTick = -1;
     }
 }
 
-// Legacy no-op kept so older code paths don't throw errors
+// Legacy no-ops
 function updateCountdown(seconds) {}
-
-// ── 10-Second Urgency Banner ──────────────────────────
-let _lastUrgencyNum = -1;
-
-// ── Game Postponed Notice ─────────────────────────────
-function _showPostponedNotice(minCards, currentCards) {
-    const notice  = document.getElementById('postponed-notice');
-    const subText = document.getElementById('postponed-sub-text');
-    const needEl  = document.getElementById('postponed-need');
-    if (!notice) return;
-
-    const needed = Math.max(0, minCards - currentCards);
-    if (subText) subText.innerText = `ካርዶች አልሞሉም — ዳግም ቆጠራ ተጀምሯል`;
-    if (needEl)  needEl.innerText  = `+${needed}`;
-
-    // Play the postponed sound
-    if (typeof playPostponed === 'function') playPostponed();
-
-    // Restart slide-in animation each time it's shown
-    notice.style.animation = 'none';
-    void notice.offsetWidth;
-    notice.style.display = 'block';
-    notice.style.animation = 'postponed-slide-in 0.3s ease-out';
-
-    // Auto-hide after 5 seconds
-    if (_postponedHideTimer) clearTimeout(_postponedHideTimer);
-    _postponedHideTimer = setTimeout(_hidePostponedNotice, 5000);
-}
-
-function _hidePostponedNotice() {
-    const notice = document.getElementById('postponed-notice');
-    if (notice) notice.style.display = 'none';
-    if (_postponedHideTimer) { clearTimeout(_postponedHideTimer); _postponedHideTimer = null; }
-}
-
-function _showUrgencyBanner(seconds) {
-    const banner = document.getElementById('urgency-banner');
-    const numEl  = document.getElementById('urgency-countdown');
-    const grid   = document.getElementById('cards-grid');
-    if (!banner) return;
-
-    banner.style.display = 'block';
-    if (grid) grid.classList.add('urgency-active');
-
-    if (numEl && seconds !== _lastUrgencyNum) {
-        _lastUrgencyNum = seconds;
-        numEl.style.animation = 'none';
-        void numEl.offsetWidth;
-        numEl.innerText = seconds;
-        numEl.style.animation = 'urgency-num-pop 0.25s ease-out';
-
-        // Play tick sounds for last 5 seconds
-        if (seconds <= 5) {
-            if (seconds === 1 && typeof playFinalTick === 'function') playFinalTick();
-            else if (typeof playTick === 'function') playTick();
-        }
-    }
-}
-
-function _hideUrgencyBanner() {
-    const banner = document.getElementById('urgency-banner');
-    const grid   = document.getElementById('cards-grid');
-    if (banner) banner.style.display = 'none';
-    if (grid)   grid.classList.remove('urgency-active');
-    _lastUrgencyNum = -1;
-}
+function _hideUrgencyBanner() {}
 
 // ── 3-2-1 Game Start Countdown Overlay ───────────────
 function _showGameStartCountdown(callback) {
@@ -1832,10 +1724,10 @@ async function loadAdminSettings() {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (minEl)   minEl.value   = data.min_cards;
-        if (countEl) countEl.value = data.countdown_seconds;
+        if (countEl) countEl.value = data.launch_countdown;
         if (feeEl)   feeEl.value   = data.house_fee_pct;
         if (statusEl) {
-            statusEl.innerText = `✅ Loaded — min cards: ${data.min_cards}, countdown: ${data.countdown_seconds}s, commission: ${data.house_fee_pct}%`;
+            statusEl.innerText = `✅ Loaded — min cards: ${data.min_cards}, launch warning: ${data.launch_countdown}s, commission: ${data.house_fee_pct}%`;
             statusEl.style.color = '#22c55e';
         }
     } catch (e) {
@@ -1845,16 +1737,16 @@ async function loadAdminSettings() {
     const saveBtn = document.getElementById('settings-save-btn');
     if (saveBtn) {
         saveBtn.onclick = async () => {
-            const minVal = parseInt(minEl   ? minEl.value   : '2');
-            const cntVal = parseInt(countEl ? countEl.value : '20');
+            const minVal = parseInt(minEl   ? minEl.value   : '5');
+            const cntVal = parseInt(countEl ? countEl.value : '10');
             const feeVal = parseInt(feeEl   ? feeEl.value   : '10');
 
             if (isNaN(minVal) || minVal < 1 || minVal > 50) {
                 if (statusEl) { statusEl.innerText = '⚠️ Min cards must be 1–50.'; statusEl.style.color = '#f59e0b'; }
                 return;
             }
-            if (isNaN(cntVal) || cntVal < 10 || cntVal > 300) {
-                if (statusEl) { statusEl.innerText = '⚠️ Countdown must be 10–300 seconds.'; statusEl.style.color = '#f59e0b'; }
+            if (isNaN(cntVal) || cntVal < 5 || cntVal > 120) {
+                if (statusEl) { statusEl.innerText = '⚠️ Launch countdown must be 5–120 seconds.'; statusEl.style.color = '#f59e0b'; }
                 return;
             }
             if (isNaN(feeVal) || feeVal < 0 || feeVal > 50) {
@@ -1868,12 +1760,12 @@ async function loadAdminSettings() {
                 const res = await fetch('/api/admin/settings', {
                     method: 'POST',
                     headers: _ah(),
-                    body: JSON.stringify({ min_cards: minVal, countdown_seconds: cntVal, house_fee_pct: feeVal })
+                    body: JSON.stringify({ min_cards: minVal, launch_countdown: cntVal, house_fee_pct: feeVal })
                 });
                 const data = await res.json();
                 if (data.success) {
                     if (statusEl) {
-                        statusEl.innerText = `✅ Saved! Min cards: ${data.min_cards} | Countdown: ${data.countdown_seconds}s | Commission: ${data.house_fee_pct}%. Takes effect next round.`;
+                        statusEl.innerText = `✅ Saved! Min cards: ${data.min_cards} | Launch warning: ${data.launch_countdown}s | Commission: ${data.house_fee_pct}%. Takes effect next round.`;
                         statusEl.style.color = '#22c55e';
                     }
                 } else {

@@ -215,7 +215,7 @@
                 </button>
             </div>
 
-            <!-- Info bar: Main Wallet | Play Wallet | Stake | Timer -->
+            <!-- Info bar: Main Wallet | Play Wallet | Stake -->
             <div class="sel-info-bar">
                 <div class="sel-info-box">
                     <div class="sel-info-label">Main Wallet</div>
@@ -229,64 +229,38 @@
                     <div class="sel-info-label">Stake</div>
                     <div class="sel-info-value" id="sel-stake-display">--</div>
                 </div>
-                <div class="sel-info-box sel-timer-box">
-                    <div class="sel-ring-wrap">
-                        <svg class="sel-ring-svg" viewBox="0 0 70 70">
-                            <circle class="sel-ring-bg" cx="35" cy="35" r="28"/>
-                            <circle class="sel-ring-fg" id="timer-ring-circle" cx="35" cy="35" r="28" stroke-dasharray="175.93" stroke-dashoffset="175.93"/>
-                        </svg>
-                        <div class="sel-ring-num" id="selection-timer">--</div>
-                    </div>
-                    <div class="sel-info-label" style="color:#f59e0b;">s</div>
+                <div class="sel-info-box">
+                    <div class="sel-info-label">Prize Pool</div>
+                    <div class="sel-info-value" id="sel-prize-pool" style="color:#f59e0b;">0 ETB</div>
                 </div>
             </div>
 
-            <!-- Hidden compat span -->
+            <!-- Hidden compat spans -->
             <span id="sel-balance-2" style="display:none;">{{ "%.2f"|format(current_user.balance) }}</span>
             <span id="sel-my-board" style="display:none;">--</span>
 
-            <!-- Standalone large countdown strip — always visible, no SVG overlay -->
-            <div id="sel-countdown-strip" class="sel-countdown-strip" style="display:none;">
-                <div class="sel-cd-left">
-                    <span class="sel-cd-label">ቀሪ ሰዓት</span>
-                    <span class="sel-cd-sublabel">Time Left</span>
-                </div>
-                <div class="sel-cd-center">
-                    <span id="sel-cd-num" class="sel-cd-num">20</span>
-                    <span class="sel-cd-unit">s</span>
-                </div>
-                <div class="sel-cd-bar-wrap">
-                    <div id="sel-cd-bar" class="sel-cd-bar"></div>
-                </div>
-            </div>
-
-            <!-- 10-second urgency warning banner -->
-            <!-- Game postponed notice (shown when countdown resets due to not enough cards) -->
-            <div id="postponed-notice" class="postponed-notice" style="display:none;">
-                <div class="postponed-inner">
-                    <span class="postponed-icon">⏸️</span>
-                    <div class="postponed-text-group">
-                        <span class="postponed-title">ጨዋታ ተሰናክሏል</span>
-                        <span class="postponed-sub" id="postponed-sub-text">ካርዶች አልሞሉም — ዳግም ቆጠራ ተጀምሯል</span>
+            <!-- ── Card Fill Progress Panel ─────────────────────────── -->
+            <div id="card-fill-panel" class="card-fill-panel">
+                <div class="cfp-top">
+                    <div class="cfp-status-wrap">
+                        <span id="cfp-icon" class="cfp-icon">⏳</span>
+                        <span id="cfp-label" class="cfp-label">ካርዶች እየተሞሉ ነው...</span>
                     </div>
-                    <div class="postponed-count-wrap">
-                        <span id="postponed-need" class="postponed-need">+1</span>
-                        <span class="postponed-need-label">card</span>
+                    <div class="cfp-count-wrap">
+                        <span id="cfp-current" class="cfp-current">0</span>
+                        <span class="cfp-sep">/</span>
+                        <span id="cfp-min" class="cfp-min">5</span>
+                        <span class="cfp-cards-lbl">cards</span>
                     </div>
                 </div>
-            </div>
-
-            <div id="urgency-banner" class="urgency-banner" style="display:none;">
-                <div class="urgency-inner">
-                    <span class="urgency-icon">⚠️</span>
-                    <div class="urgency-text-group">
-                        <span class="urgency-text">ካርድ ይምረጡ! ጨዋታ ይጀምራል!</span>
-                        <span class="urgency-sub">Pick a card — game starting!</span>
-                    </div>
-                    <div class="urgency-count-wrap">
-                        <span id="urgency-countdown" class="urgency-countdown">10</span>
-                        <span class="urgency-unit">s</span>
-                    </div>
+                <div class="cfp-bar-track">
+                    <div id="cfp-bar" class="cfp-bar"></div>
+                </div>
+                <!-- Launch countdown — only shown during 'launching' phase -->
+                <div id="cfp-launch-wrap" class="cfp-launch-wrap" style="display:none;">
+                    <span class="cfp-launch-label">ጨዋታ ይጀምራል በ</span>
+                    <span id="cfp-launch-num" class="cfp-launch-num">10</span>
+                    <span class="cfp-launch-unit">ሰከንድ</span>
                 </div>
             </div>
 
@@ -720,16 +694,16 @@
 
                     <div style="background:#1e2435;border-radius:12px;padding:18px;margin-bottom:16px;">
                         <label style="display:block;font-size:0.8rem;color:#9ca3af;margin-bottom:6px;font-weight:600;">
-                            COUNTDOWN DURATION (SECONDS)
+                            LAUNCH COUNTDOWN (SECONDS)
                         </label>
                         <p style="font-size:0.75rem;color:#6b7280;margin-bottom:12px;">
-                            እያንዳንዱ ዙር ከመጀመሩ በፊት ስንት ሰከንድ ይቆጠራል። (10–300 ሰከንድ)
+                            ዝቅተኛ ካርዶች ሲሞሉ ጨዋታ ከመጀመሩ ስንት ሰከንድ ማስጠንቀቂያ ይሰጣል። (5–120 ሰከንድ)
                         </p>
                         <div style="display:flex;gap:10px;align-items:center;">
-                            <input type="number" id="settings-countdown" min="10" max="300"
+                            <input type="number" id="settings-countdown" min="5" max="120"
                                 class="form-input" style="width:100px;text-align:center;font-size:1.2rem;font-weight:700;"
-                                placeholder="20">
-                            <span style="color:#9ca3af;font-size:0.85rem;">seconds per round</span>
+                                placeholder="10">
+                            <span style="color:#9ca3af;font-size:0.85rem;">seconds warning before launch</span>
                         </div>
                     </div>
 

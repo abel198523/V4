@@ -6,18 +6,22 @@ import logging
 logger = logging.getLogger(__name__)
 
 STAKES = [10]
-COUNTDOWN_SECONDS = 20
 BALL_INTERVAL = 3
 WINNER_DISPLAY_SECONDS = 8
 HOUSE_FEE = 0.10
-MIN_CARDS = 2  # default minimum; overridden at runtime by DB setting
+MIN_CARDS = 5        # cards needed before launch countdown begins
+LAUNCH_COUNTDOWN = 10  # seconds of warning before game starts after threshold met
 
 _lock = threading.Lock()
 
+# status values:
+#   'waiting'   – not enough cards yet, showing fill progress
+#   'launching' – threshold met, 10-s countdown running
+#   'playing'   – balls being called
 room_states = {
     s: {
         'status': 'waiting',
-        'timer': COUNTDOWN_SECONDS,
+        'launch_timer': 0,    # seconds left in launch countdown (only while 'launching')
         'balls': [],
         'winner': None,
         'winner_card': None,
@@ -30,9 +34,8 @@ _timer_threads = {}
 
 
 def get_min_cards():
-    """Read MIN_CARDS from DB setting; fall back to module default."""
     try:
-        from app import app, db
+        from app import app
         from models import Setting
         with app.app_context():
             s = Setting.query.get('min_cards')
@@ -41,22 +44,20 @@ def get_min_cards():
         return MIN_CARDS
 
 
-def get_countdown_seconds():
-    """Read COUNTDOWN_SECONDS from DB setting; fall back to module default."""
+def get_launch_countdown():
     try:
-        from app import app, db
+        from app import app
         from models import Setting
         with app.app_context():
-            s = Setting.query.get('countdown_seconds')
-            return int(s.value) if s else COUNTDOWN_SECONDS
+            s = Setting.query.get('launch_countdown')
+            return int(s.value) if s else LAUNCH_COUNTDOWN
     except Exception:
-        return COUNTDOWN_SECONDS
+        return LAUNCH_COUNTDOWN
 
 
 def get_house_fee():
-    """Read HOUSE_FEE (0.0–1.0) from DB setting stored as integer percent; fall back to default."""
     try:
-        from app import app, db
+        from app import app
         from models import Setting
         with app.app_context():
             s = Setting.query.get('house_fee_pct')
@@ -66,7 +67,6 @@ def get_house_fee():
 
 
 def _count_session_players(stake):
-    """Return number of cards purchased for this room's current active session."""
     try:
         from app import app, db
         from models import Transaction, Room
@@ -122,85 +122,115 @@ def _find_and_award_winner(stake, called_set):
 
 
 def _room_loop(stake):
-    logger.info(f"Room timer thread started for {stake} ETB room.")
+    logger.info(f"Room loop started for {stake} ETB room.")
     while True:
-        # --- WAITING PHASE: count down (reads live DB value each round) ---
-        countdown = get_countdown_seconds()
+        # ── WAITING PHASE: poll until enough cards are purchased ──────────
+        min_cards = get_min_cards()
         with _lock:
             room_states[stake]['status'] = 'waiting'
-            room_states[stake]['timer'] = countdown
+            room_states[stake]['launch_timer'] = 0
+
+        logger.info(f"Room {stake} ETB: WAITING — need {min_cards} cards to launch.")
+
+        while True:
+            player_count = _count_session_players(stake)
+            min_cards = get_min_cards()
+            if player_count >= min_cards:
+                break
+            time.sleep(1)
+
+        # ── LAUNCHING PHASE: countdown before game starts ─────────────────
+        countdown = get_launch_countdown()
+        logger.info(f"Room {stake} ETB: {player_count}/{min_cards} cards — LAUNCHING in {countdown}s.")
 
         for t in range(countdown, -1, -1):
             with _lock:
-                room_states[stake]['timer'] = t
-            time.sleep(1)
+                room_states[stake]['status'] = 'launching'
+                room_states[stake]['launch_timer'] = t
 
-        # Check minimum cards threshold before launching (reads live DB value)
-        min_cards = get_min_cards()
-        player_count = _count_session_players(stake)
-        if player_count < min_cards:
-            logger.info(f"Room {stake} ETB: only {player_count}/{min_cards} cards — restarting countdown.")
-            continue  # restart countdown, not enough cards
-
-        # --- AUTO-START GAME ---
-        balls = list(range(1, 76))
-        random.shuffle(balls)
-
-        with _lock:
-            room_states[stake]['status'] = 'playing'
-            room_states[stake]['balls'] = []
-            room_states[stake]['winner'] = None
-            room_states[stake]['winner_card'] = None
-            room_states[stake]['prize'] = 0.0
-
-        logger.info(f"Room {stake} ETB: GAME STARTED with {player_count} player(s)")
-
-        # --- PLAYING PHASE: call one ball every BALL_INTERVAL seconds ---
-        winner_found = False
-        for ball in balls:
-            with _lock:
-                room_states[stake]['balls'].append(ball)
-                called_set = set(room_states[stake]['balls'])
-
-            logger.info(f"Room {stake} ETB: called ball {ball} ({len(called_set)}/75)")
-
-            result = _find_and_award_winner(stake, called_set)
-            if result:
-                username, card_num, prize = result
-                with _lock:
-                    room_states[stake]['winner'] = username
-                    room_states[stake]['winner_card'] = card_num
-                    room_states[stake]['prize'] = prize
-                winner_found = True
+            # If cards drop below threshold during countdown, abort and wait again
+            current = _count_session_players(stake)
+            current_min = get_min_cards()
+            if current < current_min:
+                logger.info(
+                    f"Room {stake} ETB: cards dropped to {current}/{current_min} "
+                    f"during launch countdown — aborting."
+                )
                 break
+            time.sleep(1)
+        else:
+            # Countdown completed — check final count
+            player_count = _count_session_players(stake)
+            min_cards = get_min_cards()
+            if player_count < min_cards:
+                logger.info(f"Room {stake} ETB: cards insufficient at launch time — restarting wait.")
+                continue
 
-            time.sleep(BALL_INTERVAL)
+            # ── PLAYING PHASE ─────────────────────────────────────────────
+            balls = list(range(1, 76))
+            random.shuffle(balls)
 
-        if not winner_found:
-            logger.info(f"Room {stake} ETB: all 75 balls called, no winner.")
+            with _lock:
+                room_states[stake]['status'] = 'playing'
+                room_states[stake]['launch_timer'] = 0
+                room_states[stake]['balls'] = []
+                room_states[stake]['winner'] = None
+                room_states[stake]['winner_card'] = None
+                room_states[stake]['prize'] = 0.0
 
-        # --- GAME OVER: hold winner display, then reset ---
-        time.sleep(WINNER_DISPLAY_SECONDS)
+            logger.info(f"Room {stake} ETB: GAME STARTED with {player_count} player(s)")
 
+            winner_found = False
+            for ball in balls:
+                with _lock:
+                    room_states[stake]['balls'].append(ball)
+                    called_set = set(room_states[stake]['balls'])
+
+                logger.info(f"Room {stake} ETB: called ball {ball} ({len(called_set)}/75)")
+
+                result = _find_and_award_winner(stake, called_set)
+                if result:
+                    username, card_num, prize = result
+                    with _lock:
+                        room_states[stake]['winner'] = username
+                        room_states[stake]['winner_card'] = card_num
+                        room_states[stake]['prize'] = prize
+                    winner_found = True
+                    break
+
+                time.sleep(BALL_INTERVAL)
+
+            if not winner_found:
+                logger.info(f"Room {stake} ETB: all 75 balls called, no winner.")
+
+            # ── GAME OVER: hold winner display, then reset ─────────────────
+            time.sleep(WINNER_DISPLAY_SECONDS)
+
+            with _lock:
+                room_states[stake]['status'] = 'waiting'
+                room_states[stake]['launch_timer'] = 0
+                room_states[stake]['balls'] = []
+                room_states[stake]['winner'] = None
+                room_states[stake]['winner_card'] = None
+                room_states[stake]['prize'] = 0.0
+
+            logger.info(f"Room {stake} ETB: reset to WAITING")
+            continue
+
+        # Countdown was aborted (cards dropped) — loop back to WAITING
         with _lock:
             room_states[stake]['status'] = 'waiting'
-            room_states[stake]['timer'] = COUNTDOWN_SECONDS
-            room_states[stake]['balls'] = []
-            room_states[stake]['winner'] = None
-            room_states[stake]['winner_card'] = None
-            room_states[stake]['prize'] = 0.0
-
-        logger.info(f"Room {stake} ETB: reset to WAITING")
+            room_states[stake]['launch_timer'] = 0
 
 
 def start_all_room_timers():
     for stake in STAKES:
         if stake not in _timer_threads or not _timer_threads[stake].is_alive():
             t = threading.Thread(target=_room_loop, args=(stake,), daemon=True)
-            t.name = f"room-timer-{stake}"
+            t.name = f"room-loop-{stake}"
             _timer_threads[stake] = t
             t.start()
-    logger.info("All room timer threads started.")
+    logger.info("All room loops started.")
 
 
 def set_room_playing(stake):
@@ -212,7 +242,7 @@ def set_room_playing(stake):
 def set_room_waiting(stake):
     with _lock:
         room_states[stake]['status'] = 'waiting'
-        room_states[stake]['timer'] = COUNTDOWN_SECONDS
+        room_states[stake]['launch_timer'] = 0
     logger.info(f"Room {stake} ETB set to WAITING (manual).")
 
 
@@ -224,15 +254,16 @@ def get_all_room_status():
     for stake in STAKES:
         s = states_snapshot[stake]
         count = _count_session_players(stake)
+        min_c = get_min_cards()
         prize_pool = round(count * stake * (1 - get_house_fee()), 2)
         result[str(stake)] = {
-            'timer': 'PLAYING' if s['status'] == 'playing' else s['timer'],
             'status': s['status'],
+            'launch_timer': s['launch_timer'],
             'cards_count': count,
+            'min_cards': min_c,
             'prize_pool': prize_pool,
-            'min_cards': get_min_cards(),
-            'countdown_seconds': get_countdown_seconds(),
             'house_fee_pct': round(get_house_fee() * 100),
+            'launch_countdown': get_launch_countdown(),
         }
     return result
 
@@ -246,5 +277,5 @@ def get_room_game_state(stake):
             'winner': s['winner'],
             'winner_card': s['winner_card'],
             'prize': s['prize'],
-            'timer': s['timer'],
+            'launch_timer': s['launch_timer'],
         }

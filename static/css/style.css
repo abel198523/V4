@@ -2257,250 +2257,128 @@ header {
     100% { transform: scale(1);    filter: brightness(1);   }
 }
 
-/* ── SVG Timer Ring (Selection Screen) ───────────── */
-.sel-ring-wrap {
-    position: relative;
-    width: 58px;
-    height: 58px;
+/* ── Card Fill Progress Panel ─────────────────────── */
+.card-fill-panel {
+    margin: 0 12px 6px;
+    padding: 10px 14px 8px;
+    background: rgba(59,130,246,0.07);
+    border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 12px;
+    flex-shrink: 0;
+    transition: background 0.4s, border-color 0.4s;
+}
+.card-fill-panel.launching {
+    background: rgba(245,158,11,0.1);
+    border-color: rgba(245,158,11,0.4);
+}
+.card-fill-panel.playing {
+    background: rgba(34,197,94,0.08);
+    border-color: rgba(34,197,94,0.3);
+}
+.cfp-top {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    margin-bottom: 7px;
 }
-.sel-ring-svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    transform: rotate(-90deg);
-}
-.sel-ring-bg {
-    fill: none;
-    stroke: #1e2533;
-    stroke-width: 5;
-}
-.sel-ring-fg {
-    fill: none;
-    stroke: #f59e0b;
-    stroke-width: 5;
-    stroke-linecap: round;
-    transition: stroke-dashoffset 0.9s linear, stroke 0.3s ease;
-}
-/* Ring inner number — absolutely centered on top of SVG (no z-index ambiguity) */
-.sel-ring-num {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 20;
-    font-size: 1rem;
-    font-weight: 900;
-    color: #f59e0b;
-    line-height: 1;
-    pointer-events: none;
-    white-space: nowrap;
-}
-
-/* ── Standalone countdown strip ──────────────────── */
-.sel-countdown-strip {
+.cfp-status-wrap {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin: 0 12px 5px;
-    padding: 8px 14px;
-    background: rgba(245,158,11,0.08);
-    border: 1px solid rgba(245,158,11,0.25);
-    border-radius: 10px;
-    flex-shrink: 0;
-}
-.sel-cd-left {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    flex: 1;
-}
-.sel-cd-label {
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: #f59e0b;
-    line-height: 1.2;
-}
-.sel-cd-sublabel {
-    font-size: 0.58rem;
-    color: #94a3b8;
-    font-weight: 600;
-}
-.sel-cd-center {
-    display: flex;
-    align-items: baseline;
-    gap: 3px;
-}
-.sel-cd-num {
-    font-size: 2.2rem;
-    font-weight: 900;
-    color: #f59e0b;
-    line-height: 1;
-    min-width: 2.5ch;
-    text-align: right;
-    transition: color 0.2s;
-}
-.sel-cd-unit {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #94a3b8;
-}
-.sel-cd-bar-wrap {
-    width: 90px;
-    height: 6px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 3px;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-.sel-cd-bar {
-    height: 100%;
-    background: #f59e0b;
-    border-radius: 3px;
-    width: 100%;
-    transition: width 0.9s linear, background 0.3s ease;
-}
-
-/* ── 10-Second Urgency Banner ─────────────────────── */
-/* ── Game Postponed Notice ───────────────────────── */
-@keyframes postponed-slide-in {
-    from { opacity: 0; transform: translateY(-8px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes postponed-fade-out {
-    from { opacity: 1; }
-    to   { opacity: 0; }
-}
-.postponed-notice {
-    margin: 0 0 5px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #1e3a5f, #1d4ed8 80%);
-    border: 1px solid rgba(99,179,255,0.4);
-    padding: 9px 12px;
-    animation: postponed-slide-in 0.3s ease-out;
-    flex-shrink: 0;
-}
-.postponed-inner {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.postponed-icon {
-    font-size: 1.3rem;
-    flex-shrink: 0;
-}
-.postponed-text-group {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
+    gap: 6px;
     flex: 1;
     min-width: 0;
 }
-.postponed-title {
-    font-size: 0.82rem;
-    font-weight: 800;
-    color: #93c5fd;
-    line-height: 1.2;
+.cfp-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
 }
-.postponed-sub {
-    font-size: 0.65rem;
-    color: #bfdbfe;
-    font-weight: 500;
+.cfp-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #94a3b8;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.postponed-count-wrap {
+.cfp-count-wrap {
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    align-items: baseline;
+    gap: 2px;
     flex-shrink: 0;
 }
-.postponed-need {
-    font-size: 1.4rem;
+.cfp-current {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #3b82f6;
+    line-height: 1;
+    transition: color 0.3s;
+}
+.cfp-sep {
+    font-size: 1rem;
+    color: #475569;
+    font-weight: 700;
+}
+.cfp-min {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #64748b;
+    line-height: 1;
+}
+.cfp-cards-lbl {
+    font-size: 0.62rem;
+    color: #64748b;
+    font-weight: 600;
+    margin-left: 3px;
+    align-self: flex-end;
+    margin-bottom: 2px;
+}
+.cfp-bar-track {
+    height: 8px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.cfp-bar {
+    height: 100%;
+    width: 0%;
+    background: #3b82f6;
+    border-radius: 4px;
+    transition: width 0.6s ease, background 0.4s ease;
+}
+
+/* Launch countdown row */
+.cfp-launch-wrap {
+    margin-top: 8px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    justify-content: center;
+}
+.cfp-launch-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #f59e0b;
+}
+@keyframes cfp-launch-pop {
+    0%   { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1);   opacity: 1;   }
+}
+.cfp-launch-num {
+    font-size: 2rem;
     font-weight: 900;
     color: #fbbf24;
     line-height: 1;
+    text-shadow: 0 0 14px rgba(251,191,36,0.7);
 }
-.postponed-need-label {
-    font-size: 0.55rem;
-    color: #93c5fd;
+.cfp-launch-unit {
+    font-size: 0.72rem;
     font-weight: 700;
+    color: #f59e0b;
 }
 
-@keyframes urgency-pulse {
-    0%   { box-shadow: 0 0 8px rgba(239,68,68,0.5);  transform: scale(1);    }
-    50%  { box-shadow: 0 0 28px rgba(239,68,68,0.95); transform: scale(1.012); }
-    100% { box-shadow: 0 0 8px rgba(239,68,68,0.5);  transform: scale(1);    }
-}
-@keyframes urgency-num-pop {
-    0%   { transform: scale(1.4); opacity: 0.6; }
-    100% { transform: scale(1);   opacity: 1;   }
-}
-.urgency-banner {
-    margin: 5px 0 2px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #b91c1c, #ef4444);
-    border: 2px solid rgba(255,160,160,0.5);
-    padding: 10px 14px;
-    animation: urgency-pulse 0.65s ease infinite;
-}
-.urgency-inner {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    justify-content: space-between;
-}
-.urgency-icon {
-    font-size: 1.3rem;
-    flex-shrink: 0;
-}
-.urgency-text-group {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    flex: 1;
-}
-.urgency-text {
-    font-size: 0.8rem;
-    font-weight: 900;
-    color: #fff;
-    letter-spacing: 0.3px;
-}
-.urgency-sub {
-    font-size: 0.65rem;
-    color: rgba(255,255,255,0.75);
-    font-weight: 600;
-}
-.urgency-count-wrap {
-    display: flex;
-    align-items: baseline;
-    gap: 3px;
-    background: rgba(0,0,0,0.25);
-    border-radius: 8px;
-    padding: 4px 10px;
-    flex-shrink: 0;
-}
-.urgency-countdown {
-    font-size: 2rem;
-    font-weight: 900;
-    color: #fde68a;
-    line-height: 1;
-    text-shadow: 0 0 16px rgba(253,230,138,0.9);
-    animation: urgency-num-pop 0.25s ease-out;
-}
-.urgency-unit {
-    font-size: 0.75rem;
-    font-weight: 800;
-    color: rgba(255,255,255,0.8);
-}
-
-/* Cards grid flashes red border when urgency is active */
+/* Cards grid — no urgency-active needed anymore, kept as no-op */
 .cards-grid.urgency-active {
-    border: 2px solid rgba(239,68,68,0.6);
+    border: none;
     border-radius: 8px;
     animation: urgency-pulse 0.65s ease infinite;
 }
