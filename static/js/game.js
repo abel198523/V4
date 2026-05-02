@@ -186,6 +186,14 @@ async function _syncTimers() {
                 }
             }
 
+            // Live game screen stats: prize pool + player count
+            if (info.status === 'playing' && currentRoom == stake) {
+                const derashEl = document.getElementById('derash');
+                const playersEl = document.getElementById('players');
+                if (derashEl) derashEl.innerText = (info.prize_pool || 0).toFixed(0);
+                if (playersEl) playersEl.innerText = info.cards_count || 0;
+            }
+
             _prevRoomStatus[stakeStr] = { status: info.status, timer: info.timer };
         }
     } catch (e) { console.error('[Timer] _syncTimers error:', e); }
@@ -1231,6 +1239,15 @@ if (confirmCard) {
                 }
                 createAvailableCards();
 
+                // Highlight the owned card in the grid
+                const allCardEls = document.querySelectorAll('#cards-grid .card-item');
+                allCardEls.forEach(el => el.classList.remove('my-card'));
+                allCardEls.forEach(el => {
+                    if (parseInt(el.innerText) === state.currentSelectedCard) {
+                        el.classList.add('my-card');
+                    }
+                });
+
                 const myBoardLabel = document.getElementById('sel-my-board');
                 if (myBoardLabel) myBoardLabel.innerText = `#${state.currentSelectedCard}`;
 
@@ -1451,6 +1468,9 @@ async function pollGameState(stake) {
 
         if (data.status !== 'playing') {
             stopGameStatePoll();
+            if (!_winnerShown) {
+                showToast('ጨዋታ ተጠናቋል — አሸናፊ አልተገኘም');
+            }
             return;
         }
 
@@ -1458,7 +1478,7 @@ async function pollGameState(stake) {
         if (data.balls && data.balls.length !== _lastBallCount) {
             _lastBallCount = data.balls.length;
             updateGameUI(data.balls);
-            // Flash latest ball
+            // Flash latest ball + always play ball-call sound
             const latest = data.balls[data.balls.length - 1];
             if (latest) {
                 const letter = getBallLetter(latest);
@@ -1468,6 +1488,7 @@ async function pollGameState(stake) {
                     ab.classList.add('ball-flash');
                     setTimeout(() => ab.classList.remove('ball-flash'), 600);
                 }
+                if (typeof playBallCall === 'function') playBallCall();
                 checkMyCardForBingo(data.balls);
             }
         }
@@ -1476,6 +1497,7 @@ async function pollGameState(stake) {
         if (data.winner && !_winnerShown) {
             _winnerShown = true;
             stopGameStatePoll();
+            const state = getRoomState(currentRoom);
             const isMe = (data.winner === (window.CURRENT_USERNAME || ''));
             const winCard = isMe ? state.myGameCard : null;
             const winPat = isMe ? getWinningPattern(state.myGameCard, data.balls) : null;
@@ -1532,6 +1554,9 @@ function startGame() {
     }
     state.bingoFlashed = false;
     renderMyGameCard();
+    // Show player's card number in game header
+    const myBoardEl = document.getElementById('sel-my-board-game');
+    if (myBoardEl) myBoardEl.innerText = state.purchasedCard ? `#${state.purchasedCard}` : '--';
     // Reset game board
     updateGameUI([]);
     _lastBallCount = 0;
