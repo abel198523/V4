@@ -1118,10 +1118,11 @@ body {
 
 .admin-tabs {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 20px;
     border-bottom: 1px solid var(--border);
     padding-bottom: 10px;
+    flex-wrap: wrap;
 }
 
 .tab-btn {
@@ -1172,11 +1173,16 @@ body {
 
 .admin-screen.active {
     display: block;
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
 }
 
 .admin-content {
     max-width: 500px;
     margin: 20px auto;
+    padding-bottom: 80px;
 }
 
 .admin-search-box {
