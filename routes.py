@@ -209,7 +209,8 @@ def do_signup():
 @app.route("/api/user/balance")
 @login_required
 def get_balance():
-    return jsonify({"balance": current_user.balance})
+    db.session.refresh(current_user)
+    return jsonify({"balance": current_user.balance, "username": current_user.username})
 
 
 @app.route("/api/room-status")

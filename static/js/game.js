@@ -856,46 +856,23 @@ window.closeCustomAlert = function() {
 
 window.manualRefreshBalance = async function() {
     const btn = document.querySelector('.refresh-btn-wallet');
-    if (btn) {
-        btn.style.animation = 'spin 1s linear infinite';
-        btn.disabled = true;
-    }
-    
+    if (btn) { btn.style.animation = 'spin 1s linear infinite'; btn.disabled = true; }
     try {
-        const token = localStorage.getItem('bingo_token');
-        const response = await fetch('/api/user/balance', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await response.json();
-        if (data.balance !== undefined) {
-            userBalance = data.balance;
-            const balanceEl = document.getElementById('sel-balance');
-            const walletBalanceEl = document.getElementById('wallet-balance-value');
-            const indexBalanceEl = document.getElementById('walletBalance');
-            const withdrawBalanceEl = document.getElementById('withdraw-balance-value');
-            
-            if (balanceEl) balanceEl.innerText = userBalance.toFixed(2);
-            if (walletBalanceEl) walletBalanceEl.innerText = userBalance.toFixed(2);
-            if (indexBalanceEl) indexBalanceEl.innerText = userBalance.toFixed(2);
-            if (withdrawBalanceEl) withdrawBalanceEl.innerText = userBalance.toFixed(2);
-            
-            showToast("ባላንስ ታድሷል (Balance Refreshed)");
-        }
+        await fetchAndSyncBalance();
+        showToast("ባላንስ ታድሷል ✓");
     } catch (e) {
-        console.error("Balance refresh failed", e);
-        showToast("ማደስ አልተቻለም (Refresh Failed)");
+        showToast("ማደስ አልተቻለም");
     } finally {
-        if (btn) {
-            btn.style.animation = 'none';
-            btn.disabled = false;
-        }
+        if (btn) { btn.style.animation = 'none'; btn.disabled = false; }
     }
 };
 
-function showCardPreview(num) {
+async function showCardPreview(num) {
+    // Always pull fresh balance from DB before checking
+    await fetchAndSyncBalance();
     const roomPrice = getRoomPrice();
     if (userBalance < roomPrice) {
-        showCustomAlert("ባላንስ የሎትም", "ይቅርታ፣ ካርድ ለመግዛት በቂ ብር የለዎትም። እባክዎ መጀመሪያ አካውንትዎን ይሙሉ።", "low_balance");
+        showCustomAlert("ባላንስ የሎትም", `ይቅርታ፣ ካርድ ለመግዛት ${roomPrice} ETB ያስፈልጋል። ያሎት ባላንስ ${userBalance.toFixed(2)} ETB ነው።`, "low_balance");
         return;
     }
     const state = getRoomState(currentRoom);
@@ -1033,6 +1010,10 @@ function initApp() {
     createStakeList();
     createAvailableCards();
 
+    // Fetch fresh balance from DB immediately on load, then every 15 seconds
+    fetchAndSyncBalance();
+    setInterval(fetchAndSyncBalance, 15000);
+
     // Start independent countdown for each room from server-authoritative values
     pollRoomStatus().then(() => {
         // After first poll, any room without a timer starts at 30
@@ -1104,27 +1085,44 @@ function initApp() {
     }
 }
 
-let userBalance = 0;
+// Initialize immediately from server-rendered value (never stale)
+let userBalance = (typeof window.INITIAL_BALANCE === 'number') ? window.INITIAL_BALANCE : 0;
+
+// Central balance sync — always fetches fresh value from DB
+async function fetchAndSyncBalance() {
+    try {
+        const token = localStorage.getItem('bingo_token');
+        const res = await fetch('/api/user/balance', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (typeof data.balance === 'number') {
+            userBalance = data.balance;
+            const rounded = Math.round(userBalance);
+            const els = {
+                'sel-balance':          userBalance.toFixed(2),
+                'wallet-balance-value': userBalance.toFixed(2),
+                'withdraw-balance-value': userBalance.toFixed(2),
+                'walletBalance':        userBalance.toFixed(2),
+                'profile-balance':      userBalance.toFixed(2),
+                'sel-main-wallet':      rounded,
+                'sel-play-wallet':      rounded,
+            };
+            Object.entries(els).forEach(([id, val]) => {
+                const el = document.getElementById(id);
+                if (el) el.innerText = val;
+            });
+        }
+    } catch (e) { /* silent */ }
+}
 
 function updateUserData(data) {
-    userBalance = parseFloat(data.balance);
-    const walletRound = Math.round(userBalance);
-    const balanceElements = [
-        document.getElementById('sel-balance'),
-        document.getElementById('wallet-balance-value'),
-        document.getElementById('withdraw-balance-value'),
-        document.getElementById('walletBalance')
-    ];
-    
-    balanceElements.forEach(el => {
-        if (el) el.innerText = userBalance.toFixed(2);
-    });
-
-    // Sync selection-screen wallet boxes
-    const mw = document.getElementById('sel-main-wallet');
-    const pw = document.getElementById('sel-play-wallet');
-    if (mw) mw.innerText = walletRound;
-    if (pw) pw.innerText = walletRound;
+    if (typeof data.balance === 'number' || typeof data.balance === 'string') {
+        userBalance = parseFloat(data.balance);
+    }
+    // Use the central sync to update all UI elements consistently
+    fetchAndSyncBalance();
 
     const profilePhoneEl = document.getElementById('profile-phone-number');
     const profileUserTop = document.getElementById('profile-username-top');

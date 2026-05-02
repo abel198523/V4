@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Nova Bingo</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260502d">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260502e">
     <style>
         .top-header {
             position: fixed;
@@ -514,18 +514,22 @@
     </div>
 
     <script>
+        // Always expose fresh server-side balance as a global so game.js picks it up immediately
+        window.INITIAL_BALANCE = {{ current_user.balance }};
+        window.CURRENT_USERNAME = "{{ current_user.username }}";
+        window.CURRENT_USER_ID = {{ current_user.id }};
+
         // Bridge Flask session to localStorage token expected by game.js
         if (!localStorage.getItem('bingo_token')) {
             localStorage.setItem('bingo_token', 'flask-session');
         }
-        if (!localStorage.getItem('bingo_user')) {
-            localStorage.setItem('bingo_user', JSON.stringify({
-                username: "{{ current_user.username }}",
-                name: "{{ current_user.username }}",
-                balance: {{ current_user.balance }},
-                player_id: {{ current_user.id }}
-            }));
-        }
+        // Always overwrite bingo_user with fresh server data (no stale cache)
+        localStorage.setItem('bingo_user', JSON.stringify({
+            username: window.CURRENT_USERNAME,
+            name: window.CURRENT_USERNAME,
+            balance: window.INITIAL_BALANCE,
+            player_id: window.CURRENT_USER_ID
+        }));
 
         // Keep nav buttons in sync
         const origNavTo = window.navTo;
