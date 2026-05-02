@@ -277,6 +277,31 @@ def room_set_waiting(stake):
     return jsonify({"success": True})
 
 
+@app.route("/api/leaderboard")
+@login_required
+def leaderboard():
+    won_sessions = GameSession.query.filter(GameSession.winner_id.isnot(None)).all()
+    user_stats = {}
+    for gs in won_sessions:
+        room = Room.query.get(gs.room_id)
+        if not room:
+            continue
+        tx_count = Transaction.query.filter_by(session_id=gs.id).count()
+        prize = round(tx_count * room.card_price * 0.9, 2)
+        uid = gs.winner_id
+        if uid not in user_stats:
+            user = User.query.get(uid)
+            user_stats[uid] = {
+                'username': user.username if user else 'Unknown',
+                'wins': 0,
+                'total_prize': 0.0
+            }
+        user_stats[uid]['wins'] += 1
+        user_stats[uid]['total_prize'] = round(user_stats[uid]['total_prize'] + prize, 2)
+    leaders = sorted(user_stats.values(), key=lambda x: x['total_prize'], reverse=True)[:20]
+    return jsonify(leaders)
+
+
 @app.route("/logout")
 @login_required
 def logout():

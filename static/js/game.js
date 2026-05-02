@@ -1258,22 +1258,60 @@ function startGame() {
 }
 
 function navTo(screenId) {
-    const screens = ['stake-screen', 'profile-screen', 'wallet-screen', 'game-screen', 'selection-screen', 'admin-screen', 'deposit-screen', 'withdraw-screen'];
+    const screens = ['stake-screen', 'profile-screen', 'wallet-screen', 'game-screen', 'selection-screen', 'admin-screen', 'deposit-screen', 'withdraw-screen', 'leaderboard-screen'];
     screens.forEach(s => {
         const el = document.getElementById(s);
         if (el) el.classList.remove('active');
     });
-    
+
     const target = document.getElementById(`${screenId}-screen`);
     if (target) target.classList.add('active');
-    
+
     if (screenId === 'profile') loadProfileData();
     if (screenId === 'wallet') loadBalanceHistory();
+    if (screenId === 'leaderboard') loadLeaderboard();
 
     const sideMenu = document.getElementById('side-menu');
     const overlay = document.getElementById('menu-overlay');
     if (sideMenu) sideMenu.classList.remove('active');
     if (overlay) overlay.classList.remove('active');
+}
+
+async function loadLeaderboard() {
+    const listEl = document.getElementById('lb-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<p class="lb-empty">Loading...</p>';
+    try {
+        const res = await fetch('/api/leaderboard');
+        if (!res.ok) throw new Error('Failed');
+        const leaders = await res.json();
+        if (!leaders.length) {
+            listEl.innerHTML = '<p class="lb-empty">🏆 ምንም አሸናፊ አልተመዘገበም።<br>No winners recorded yet.</p>';
+            return;
+        }
+        const medals = ['🥇', '🥈', '🥉'];
+        const rankClass = ['gold', 'silver', 'bronze'];
+        listEl.innerHTML = leaders.map((l, i) => {
+            const initial = (l.username || '?')[0].toUpperCase();
+            const rankIcon = i < 3 ? medals[i] : `#${i + 1}`;
+            const rClass = i < 3 ? rankClass[i] : 'other';
+            return `
+            <div class="lb-row">
+                <div class="lb-rank ${rClass}">${rankIcon}</div>
+                <div class="lb-avatar">${initial}</div>
+                <div class="lb-info">
+                    <div class="lb-name">${l.username}</div>
+                    <div class="lb-wins">${l.wins} win${l.wins !== 1 ? 's' : ''}</div>
+                </div>
+                <div class="lb-prize">
+                    <div class="lb-prize-amount">${l.total_prize.toFixed(2)}</div>
+                    <div class="lb-prize-label">ETB won</div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        listEl.innerHTML = '<p class="lb-empty">ስህተት ተፈጥሯል። እባክዎ ዳግም ሞክሩ።</p>';
+    }
 }
 
 async function loadBalanceHistory() {

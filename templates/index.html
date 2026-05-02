@@ -91,8 +91,73 @@
         .nav-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; }
         .nav-btn.active { color: #3b82f6; }
         /* Main content padding for bottom nav */
-        .stake-screen, .profile-screen, .wallet-screen, .admin-screen {
+        .stake-screen, .profile-screen, .wallet-screen, .admin-screen, .leaderboard-screen {
             padding-bottom: 70px !important;
+        }
+        .leaderboard-screen {
+            display: none;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 15px;
+            gap: 10px;
+        }
+        .leaderboard-screen.active { display: flex; }
+        .lb-title {
+            font-size: 1.1rem;
+            font-weight: 900;
+            margin: 0 0 4px;
+        }
+        .lb-subtitle {
+            color: #64748b;
+            font-size: 0.8rem;
+            margin: 0 0 14px;
+        }
+        .lb-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #161b22;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            padding: 12px 14px;
+            transition: background 0.2s;
+        }
+        .lb-rank {
+            font-size: 1.2rem;
+            font-weight: 900;
+            width: 28px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .lb-rank.gold   { color: #f59e0b; }
+        .lb-rank.silver { color: #94a3b8; }
+        .lb-rank.bronze { color: #b45309; }
+        .lb-rank.other  { color: #475569; }
+        .lb-avatar {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg,#3b82f6,#8b5cf6);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; font-size: 1rem; flex-shrink: 0;
+        }
+        .lb-info { flex: 1; min-width: 0; }
+        .lb-name { font-weight: 800; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .lb-wins { color: #64748b; font-size: 0.75rem; margin-top: 2px; }
+        .lb-prize { text-align: right; flex-shrink: 0; }
+        .lb-prize-amount { font-weight: 900; font-size: 1rem; color: #22c55e; }
+        .lb-prize-label { color: #64748b; font-size: 0.7rem; }
+        .lb-empty { text-align: center; color: #64748b; padding: 40px 0; font-size: 0.9rem; }
+        .lb-refresh-btn {
+            background: rgba(59,130,246,0.12);
+            border: 1px solid rgba(59,130,246,0.25);
+            color: #3b82f6;
+            border-radius: 10px;
+            padding: 7px 16px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            align-self: flex-end;
+            margin-bottom: 2px;
         }
     </style>
 </head>
@@ -420,6 +485,14 @@
             </div>
         </div>
 
+        <!-- LEADERBOARD SCREEN -->
+        <div id="leaderboard-screen" class="leaderboard-screen">
+            <h2 class="lb-title">🏆 የምርጥ አሸናፊዎች</h2>
+            <p class="lb-subtitle">Top Winners • ምርጥ 20 አሸናፊዎች</p>
+            <button class="lb-refresh-btn" onclick="loadLeaderboard()">↻ Refresh</button>
+            <div id="lb-list"><p class="lb-empty">Loading...</p></div>
+        </div>
+
     </div><!-- end screen-wrapper -->
 
     <!-- Bottom Navigation -->
@@ -427,6 +500,10 @@
         <button class="nav-btn active" id="nav-stake" onclick="navTo('stake')">
             <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             ክፍሎች
+        </button>
+        <button class="nav-btn" id="nav-leaderboard" onclick="navTo('leaderboard')">
+            <svg viewBox="0 0 24 24"><path d="M8 6H3v14h5V6zM21 10h-5v10h5V10zM14.5 3h-5v17h5V3z"/></svg>
+            ደረጃ
         </button>
         <button class="nav-btn" id="nav-wallet" onclick="navTo('wallet')">
             <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 14a1 1 0 1 0 2 0 1 1 0 0 0-2 0z" fill="currentColor"/><path d="M2 10h20M6 7V5a2 2 0 0 1 4 0v2"/></svg>
@@ -448,6 +525,10 @@
             <a class="menu-item" onclick="navTo('stake');return false;" href="#">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                 ክፍሎች / Rooms
+            </a>
+            <a class="menu-item" onclick="navTo('leaderboard');return false;" href="#">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6H3v14h5V6zM21 10h-5v10h5V10zM14.5 3h-5v17h5V3z"/></svg>
+                ደረጃ ዝርዝር / Leaderboard
             </a>
             <a class="menu-item" onclick="navTo('wallet');return false;" href="#">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
