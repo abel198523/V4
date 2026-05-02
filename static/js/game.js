@@ -353,8 +353,7 @@ socket.onmessage = (event) => {
     }
 };
 
-// Start timer system immediately on page load
-startTimerSystem();
+// startTimerSystem() is called inside initApp() after createStakeList() builds the DOM elements.
 
     const submitDeposit = document.getElementById('submit-deposit');
     if (submitDeposit) {
@@ -1013,25 +1012,15 @@ window.joinStake = (amount) => {
 
 function initApp() {
     createBingoNumbers();
-    createStakeList();
+    createStakeList();      // builds stake-timer-* / stake-count-* / stake-prize-* elements
     createAvailableCards();
+
+    // Start server-driven timer system AFTER DOM elements exist
+    startTimerSystem();
 
     // Fetch fresh balance from DB immediately on load, then every 15 seconds
     fetchAndSyncBalance();
     setInterval(fetchAndSyncBalance, 15000);
-
-    // Start independent countdown for each room from server-authoritative values
-    pollRoomStatus().then(() => {
-        // After first poll, any room without a timer starts at 30
-        STAKES.forEach(stake => {
-            if (!roomClientTimers[stake] || !roomClientTimers[stake].interval) {
-                startRoomCountdown(stake, 30);
-            }
-        });
-    });
-
-    // Poll server every 2 seconds to stay in sync
-    setInterval(pollRoomStatus, 2000);
 
     const token = localStorage.getItem('bingo_token');
     if (token) {
