@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 STAKES = [5, 10, 20]
-COUNTDOWN_SECONDS = 30
+COUNTDOWN_SECONDS = 20
 BALL_INTERVAL = 3
 WINNER_DISPLAY_SECONDS = 8
 HOUSE_FEE = 0.10
@@ -26,6 +26,24 @@ room_states = {
 }
 
 _timer_threads = {}
+
+
+def _count_session_players(stake):
+    """Return number of cards purchased for this room's current active session."""
+    try:
+        from app import app, db
+        from models import Transaction, Room
+        with app.app_context():
+            room = Room.query.filter_by(card_price=float(stake)).first()
+            if not room or not room.active_session_id:
+                return 0
+            return Transaction.query.filter_by(
+                room_id=room.id,
+                session_id=room.active_session_id
+            ).count()
+    except Exception as e:
+        logger.error(f"count_session_players error for room {stake}: {e}")
+        return 0
 
 
 def _find_and_award_winner(stake, called_set):
@@ -69,18 +87,21 @@ def _find_and_award_winner(stake, called_set):
 def _room_loop(stake):
     logger.info(f"Room timer thread started for {stake} ETB room.")
     while True:
-        # --- WAITING PHASE ---
+        # --- WAITING PHASE: count down from COUNTDOWN_SECONDS to 0 ---
+        with _lock:
+            room_states[stake]['status'] = 'waiting'
+            room_states[stake]['timer'] = COUNTDOWN_SECONDS
+
         for t in range(COUNTDOWN_SECONDS, -1, -1):
             with _lock:
                 room_states[stake]['timer'] = t
             time.sleep(1)
 
-        with _lock:
-            already_playing = room_states[stake]['status'] == 'playing'
-
-        if already_playing:
-            time.sleep(1)
-            continue
+        # Check if anyone bought a card for this round
+        player_count = _count_session_players(stake)
+        if player_count == 0:
+            logger.info(f"Room {stake} ETB: no players joined — restarting countdown.")
+            continue  # restart countdown, no game
 
         # --- AUTO-START GAME ---
         balls = list(range(1, 76))
@@ -93,7 +114,7 @@ def _room_loop(stake):
             room_states[stake]['winner_card'] = None
             room_states[stake]['prize'] = 0.0
 
-        logger.info(f"Room {stake} ETB: GAME STARTED")
+        logger.info(f"Room {stake} ETB: GAME STARTED with {player_count} player(s)")
 
         # --- PLAYING PHASE: call one ball every BALL_INTERVAL seconds ---
         winner_found = False

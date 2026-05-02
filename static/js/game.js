@@ -49,141 +49,94 @@ function getRoomState(roomId) {
 let globalStats = {};
 let globalPrizes = {};
 
-// ─── Per-room independent client-side timers ───────────────────────────────
-// roomClientTimers[stake] = { value: int, status: 'waiting'|'playing', interval: id }
-const roomClientTimers = {};
+// ================================================================
+// TIMER SYSTEM v3 — Server is the single source of truth.
+// Client polls /api/room-status every second and mirrors the value.
+// No client-side independent countdown — eliminates all drift/sync issues.
+// ================================================================
 
-function updateRoomTimerDisplay(stake, value) {
-    // Update the stake-list row
-    const timerEl = document.getElementById(`stake-timer-${stake}`);
-    if (timerEl) {
-        if (value === 'PLAYING') {
-            timerEl.innerText = '🎮 PLAYING';
-            timerEl.style.color = '#22c55e';
-            timerEl.style.background = 'rgba(34,197,94,0.1)';
-        } else {
-            timerEl.innerText = `⏰ ${value}`;
-            timerEl.style.color = value <= 10 ? '#ef4444' : '#f59e0b';
-            timerEl.style.background = value <= 10
-                ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)';
-        }
-    }
-    // Update selection-screen timer if this is the active room
-    if (currentRoom == stake) {
-        const selTimer = document.getElementById('selection-timer');
-        if (selTimer) {
-            if (value === 'PLAYING') {
-                selTimer.innerText = '🎮';
-                selTimer.style.color = '#22c55e';
-                // hide the "s" label when playing
-                const sLabel = selTimer.nextElementSibling;
-                if (sLabel) sLabel.style.display = 'none';
-            } else {
-                selTimer.innerText = value;
-                selTimer.style.color = value <= 10 ? '#ef4444' : '#f59e0b';
-                const sLabel = selTimer.nextElementSibling;
-                if (sLabel) sLabel.style.display = 'block';
-            }
-        }
-    }
+let _timerPollId = null;
+let _prevRoomStatus = {}; // stakeStr -> { status, timer }
+let _gameStarted = {}; // stake -> bool, prevent duplicate startGame calls
+
+function startTimerSystem() {
+    if (_timerPollId) clearInterval(_timerPollId);
+    _syncTimers(); // immediate first call
+    _timerPollId = setInterval(_syncTimers, 1000);
 }
 
-function parseTimerVal(val) {
-    const n = parseInt(val);
-    return isNaN(n) ? 30 : n;
+function stopTimerSystem() {
+    if (_timerPollId) { clearInterval(_timerPollId); _timerPollId = null; }
 }
 
-function startRoomCountdown(stake, initialValue) {
-    if (initialValue === undefined || initialValue === null) initialValue = 30;
-    stopRoomCountdown(stake);
-    if (!roomClientTimers[stake]) roomClientTimers[stake] = {};
-    roomClientTimers[stake].value = parseTimerVal(initialValue);
-    roomClientTimers[stake].status = 'waiting';
-
-    const tick = () => {
-        const r = roomClientTimers[stake];
-        if (!r || r.status === 'playing') return;
-        updateRoomTimerDisplay(stake, r.value);
-        if (r.value <= 0) {
-            stopRoomCountdown(stake);
-            r.status = 'playing';
-            updateRoomTimerDisplay(stake, 'PLAYING');
-            if (currentRoom == stake) startGame();
-        } else {
-            r.value--;
-        }
-    };
-
-    tick(); // show immediately
-    roomClientTimers[stake].interval = setInterval(tick, 1000);
-}
-
-function stopRoomCountdown(stake) {
-    if (roomClientTimers[stake] && roomClientTimers[stake].interval) {
-        clearInterval(roomClientTimers[stake].interval);
-        roomClientTimers[stake].interval = null;
-    }
-}
-
-function setRoomPlaying(stake) {
-    stopRoomCountdown(stake);
-    if (!roomClientTimers[stake]) roomClientTimers[stake] = {};
-    roomClientTimers[stake].status = 'playing';
-    updateRoomTimerDisplay(stake, 'PLAYING');
-}
-
-function setRoomWaiting(stake, fromValue) {
-    if (!roomClientTimers[stake]) roomClientTimers[stake] = {};
-    roomClientTimers[stake].status = 'waiting';
-    startRoomCountdown(stake, (fromValue !== undefined && fromValue !== null) ? fromValue : 30);
-}
-
-// Poll the server every 2 seconds to sync authoritative timer values
-let _lastRoomStatus = {};
-async function pollRoomStatus() {
+async function _syncTimers() {
     try {
         const res = await fetch('/api/room-status');
         if (!res.ok) return;
         const data = await res.json();
 
-        Object.keys(data).forEach(stakeStr => {
+        for (const [stakeStr, info] of Object.entries(data)) {
             const stake = parseInt(stakeStr);
-            const info = data[stakeStr];
-            const prev = _lastRoomStatus[stakeStr] || {};
+            const prev = _prevRoomStatus[stakeStr] || {};
 
-            if (info.status === 'playing') {
-                // Room started playing
-                const r = roomClientTimers[stake];
-                if (!r || r.status !== 'playing') {
-                    setRoomPlaying(stake);
-                    // If user is watching this room, start the game screen
-                    if (currentRoom == stake) startGame();
-                }
-            } else {
-                // Room is waiting
-                const r = roomClientTimers[stake];
-                if (r && r.status === 'playing') {
-                    // Just ended — restart countdown from 30
-                    setRoomWaiting(stake, 30);
-                    if (currentRoom == stake) handleGameOverReturn(stake);
-                } else if (!r || !r.interval) {
-                    // Not yet running — sync to server value
-                    startRoomCountdown(stake, parseTimerVal(info.timer));
-                } else {
-                    // Already running — sync value if server diverges by more than 3s
-                    const serverVal = parseTimerVal(info.timer);
-                    const clientVal = r.value;
-                    if (Math.abs(serverVal - clientVal) > 3) {
-                        r.value = serverVal;
-                    }
-                }
+            // Always render the display
+            _renderRoomTimer(stake, info.status, info.timer);
+
+            // Transition: waiting → playing → open game screen
+            if (prev.status !== 'playing' && info.status === 'playing') {
+                _gameStarted[stake] = true;
+                if (currentRoom == stake) startGame();
             }
-            _lastRoomStatus[stakeStr] = info;
-        });
-    } catch (e) {
-        // ignore fetch errors (offline, etc.)
+
+            // Transition: playing → waiting → return to selection
+            if (prev.status === 'playing' && info.status === 'waiting') {
+                _gameStarted[stake] = false;
+                if (currentRoom == stake) handleGameOverReturn(stake);
+            }
+
+            _prevRoomStatus[stakeStr] = { status: info.status, timer: info.timer };
+        }
+    } catch (e) { /* ignore network errors */ }
+}
+
+function _renderRoomTimer(stake, status, timer) {
+    const isPlaying = status === 'playing';
+    const t = isPlaying ? null : parseInt(timer);
+    const urgent = !isPlaying && t <= 5;
+
+    // Stake-list timer badge
+    const badge = document.getElementById(`stake-timer-${stake}`);
+    if (badge) {
+        if (isPlaying) {
+            badge.innerText = '🎮 PLAYING';
+            badge.style.color = '#22c55e';
+            badge.style.background = 'rgba(34,197,94,0.1)';
+        } else {
+            badge.innerText = `⏰ ${t}`;
+            badge.style.color = urgent ? '#ef4444' : '#f59e0b';
+            badge.style.background = urgent ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.1)';
+        }
+    }
+
+    // Selection-screen large timer (only for the currently open room)
+    if (currentRoom == stake) {
+        const selTimer = document.getElementById('selection-timer');
+        if (selTimer) {
+            if (isPlaying) {
+                selTimer.innerText = '🎮';
+                selTimer.style.color = '#22c55e';
+            } else {
+                selTimer.innerText = t;
+                selTimer.style.color = urgent ? '#ef4444' : '#f59e0b';
+            }
+        }
+        const sLabel = selTimer ? selTimer.nextElementSibling : null;
+        if (sLabel) sLabel.style.display = isPlaying ? 'none' : 'inline';
     }
 }
+
+// Legacy no-op kept so older code paths don't throw errors
+function updateCountdown(seconds) {}
 
 function handleGameOverReturn(stake) {
     stopGameStatePoll();
@@ -226,7 +179,7 @@ function handleGameOverReturn(stake) {
     if (selScreen) selScreen.classList.add('active');
 }
 
-function updateRoomStats(stats, roomTimers, prizes) {
+function updateRoomStats(stats, prizes) {
     globalStats = stats || {};
     globalPrizes = prizes || {};
     Object.keys(stats).forEach(amount => {
@@ -241,14 +194,12 @@ function updateRoomStats(stats, roomTimers, prizes) {
             prizeEl.innerText = `Prize: ${prizes[amount].toFixed(2)} ETB`;
             prizeEl.style.display = 'block';
         }
-        // Timer display is handled by roomClientTimers — don't override here
+        // Timer display handled by _renderRoomTimer via _syncTimers
     });
 }
 
-// Legacy function kept for compatibility
-function updateCountdown(seconds) {
-    if (currentRoom) updateRoomTimerDisplay(currentRoom, seconds);
-}
+// Legacy no-op
+function updateCountdown(seconds) {}
 
 const STAKES = [5, 10, 20];
 
@@ -365,49 +316,12 @@ socket.onmessage = (event) => {
             state.currentCardData = null;
         }
         updateGameUI(data.history);
-        if (data.isGameRunning) {
-            setRoomPlaying(data.room);
-        } else {
-            // Sync client timer to server value from INIT
-            const serverCountdown = parseTimerVal(data.countdown);
-            const r = roomClientTimers[data.room];
-            if (r && r.interval) {
-                // Already ticking — just sync value
-                r.value = serverCountdown;
-            }
-        }
         createAvailableCards();
+        // Timer system handles game/waiting state — no action needed here
     } else if (data.type === 'NEW_BALL') {
         const state = getRoomState(data.room);
         state.lastHistory = data.history;
         if (data.room == currentRoom) updateGameUI(data.history);
-    } else if (data.type === 'COUNTDOWN') {
-        // Server-pushed countdown for a specific room — sync that room's timer
-        const stake = parseInt(data.room);
-        if (!isNaN(stake)) {
-            const r = roomClientTimers[stake];
-            if (r && r.status === 'waiting' && r.interval) {
-                r.value = parseInt(data.value) || r.value;
-            }
-        }
-    } else if (data.type === 'GAME_START') {
-        const stake = parseInt(data.room);
-        setRoomPlaying(stake);
-        if (data.room == currentRoom) startGame();
-    } else if (data.type === 'GAME_OVER') {
-        const stake = parseInt(data.room);
-        // Restart this room's countdown from 30
-        setRoomWaiting(stake, 30);
-
-        if (data.room == currentRoom || !data.room) {
-            showWinnerModal(data.winner, data.winCard, data.winPattern);
-            setTimeout(() => {
-                const modal = document.getElementById('winner-modal');
-                if (modal) modal.classList.remove('active');
-                handleGameOverReturn(stake);
-                currentRoom = null;
-            }, 8000);
-        }
     } else if (data.type === 'ERROR') {
         showToast(data.message);
     } else if (data.type === 'ROOM_STATS') {
@@ -415,7 +329,7 @@ socket.onmessage = (event) => {
             roomTakenCards = data.takenCards[currentRoom];
             createAvailableCards();
         }
-        updateRoomStats(data.stats, data.timers, data.prizes);
+        updateRoomStats(data.stats, data.prizes);
     } else if (data.type === 'BALANCE_UPDATE') {
         userBalance = data.balance;
         const balanceEl = document.getElementById('sel-balance');
@@ -426,6 +340,9 @@ socket.onmessage = (event) => {
         if (indexBalanceEl) indexBalanceEl.innerText = userBalance.toFixed(2);
     }
 };
+
+// Start timer system immediately on page load
+startTimerSystem();
 
     const submitDeposit = document.getElementById('submit-deposit');
     if (submitDeposit) {
