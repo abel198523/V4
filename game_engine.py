@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-STAKES = [5, 10, 20]
+STAKES = [10]
 COUNTDOWN_SECONDS = 20
 BALL_INTERVAL = 3
 WINNER_DISPLAY_SECONDS = 8
