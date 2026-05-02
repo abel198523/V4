@@ -244,6 +244,12 @@ function _showUrgencyBanner(seconds) {
         void numEl.offsetWidth;
         numEl.innerText = seconds;
         numEl.style.animation = 'urgency-num-pop 0.25s ease-out';
+
+        // Play tick sounds for last 5 seconds
+        if (seconds <= 5) {
+            if (seconds === 1 && typeof playFinalTick === 'function') playFinalTick();
+            else if (typeof playTick === 'function') playTick();
+        }
     }
 }
 
@@ -267,12 +273,14 @@ function _showGameStartCountdown(callback) {
     let idx = 0;
     function tick() {
         if (idx < nums.length) {
+            const n = nums[idx];
             if (numEl) {
                 numEl.className = '';
                 void numEl.offsetWidth;
-                numEl.innerText = nums[idx];
+                numEl.innerText = n;
                 numEl.className = 'gso-num gso-pop';
             }
+            if (typeof playCountdownChime === 'function') playCountdownChime(n);
             idx++;
             setTimeout(tick, 900);
         } else {
@@ -282,6 +290,7 @@ function _showGameStartCountdown(callback) {
                 numEl.innerText = 'GO!';
                 numEl.className = 'gso-num gso-go';
             }
+            if (typeof playGoSound === 'function') playGoSound();
             setTimeout(() => {
                 overlay.classList.remove('active');
                 _gameStartCDActive = false;
@@ -943,6 +952,7 @@ function updateGameUI(history) {
                     if (num === latestBall) {
                         el.classList.add('newly-called');
                         setTimeout(() => el.classList.remove('newly-called'), 500);
+                        if (typeof playBallCall === 'function') playBallCall();
                     }
                 }
             }
@@ -1381,6 +1391,7 @@ async function pollGameState(stake) {
             const winCard = isMe ? state.myGameCard : null;
             const winPat = isMe ? getWinningPattern(state.myGameCard, data.balls) : null;
             showWinnerModal(data.winner, winCard, winPat, data.prize, isMe);
+            if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
             setTimeout(() => {
                 const modal = document.getElementById('winner-modal');
                 if (modal) modal.classList.remove('active');
