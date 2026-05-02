@@ -333,6 +333,44 @@
                         <div style="font-size:1rem;font-weight:800;color:#3b82f6;margin-top:5px;">{% if current_user.is_admin %}Admin{% else %}Player{% endif %}</div>
                     </div>
                 </div>
+
+                <!-- Personal Game Stats -->
+                <div style="margin-top:18px;">
+                    <div style="font-size:0.8rem;color:#64748b;font-weight:700;text-transform:uppercase;margin-bottom:10px;letter-spacing:0.5px;">የጨዋታ ስታቲስቲክስ</div>
+                    <div id="profile-game-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="profile-stat-item">
+                            <div style="font-size:0.72rem;color:#64748b;font-weight:700;text-transform:uppercase;">ጨዋታዎች</div>
+                            <div style="font-size:1.5rem;font-weight:900;color:#f59e0b;margin-top:4px;" id="pstat-games">—</div>
+                            <div style="font-size:0.68rem;color:#475569;margin-top:2px;">Games Played</div>
+                        </div>
+                        <div class="profile-stat-item">
+                            <div style="font-size:0.72rem;color:#64748b;font-weight:700;text-transform:uppercase;">ካርዶች</div>
+                            <div style="font-size:1.5rem;font-weight:900;color:#3b82f6;margin-top:4px;" id="pstat-cards">—</div>
+                            <div style="font-size:0.68rem;color:#475569;margin-top:2px;">Cards Purchased</div>
+                        </div>
+                        <div class="profile-stat-item">
+                            <div style="font-size:0.72rem;color:#64748b;font-weight:700;text-transform:uppercase;">አሸናፊዎች</div>
+                            <div style="font-size:1.5rem;font-weight:900;color:#22c55e;margin-top:4px;" id="pstat-wins">—</div>
+                            <div style="font-size:0.68rem;color:#475569;margin-top:2px;">Wins</div>
+                        </div>
+                        <div class="profile-stat-item">
+                            <div style="font-size:0.72rem;color:#64748b;font-weight:700;text-transform:uppercase;">ያሸነፉ</div>
+                            <div style="font-size:1.2rem;font-weight:900;color:#22c55e;margin-top:4px;" id="pstat-won">—</div>
+                            <div style="font-size:0.68rem;color:#475569;margin-top:2px;">ETB Won</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px;background:#161b22;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:0.72rem;color:#64748b;font-weight:700;text-transform:uppercase;">ጠቅላላ የወጣ</div>
+                            <div style="font-size:1rem;font-weight:800;color:#ef4444;margin-top:2px;"><span id="pstat-spent">—</span> ETB</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.72rem;color:#64748b;font-weight:700;text-transform:uppercase;">ትርፍ/ኪሳራ</div>
+                            <div style="font-size:1rem;font-weight:800;margin-top:2px;" id="pstat-net">—</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div style="margin-top:20px;">
                     <a href="{{ url_for('logout') }}" class="auth-btn" style="display:block;text-align:center;background:#ef4444;padding:12px;border-radius:10px;color:white;font-weight:700;text-decoration:none;">ወጣ / Logout</a>
                 </div>

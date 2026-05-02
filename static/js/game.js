@@ -1266,6 +1266,29 @@ function navTo(screenId) {
     if (overlay) overlay.classList.remove('active');
 }
 
+async function loadProfileData() {
+    try {
+        const res = await fetch('/api/user/stats');
+        if (!res.ok) return;
+        const s = await res.json();
+
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+
+        set('pstat-games', s.games_played);
+        set('pstat-cards', s.cards_purchased);
+        set('pstat-wins',  s.wins);
+        set('pstat-won',   s.total_won.toFixed(2));
+        set('pstat-spent', s.total_spent.toFixed(2));
+
+        const net = s.total_won - s.total_spent;
+        const netEl = document.getElementById('pstat-net');
+        if (netEl) {
+            netEl.innerText = (net >= 0 ? '+' : '') + net.toFixed(2) + ' ETB';
+            netEl.style.color = net >= 0 ? '#22c55e' : '#ef4444';
+        }
+    } catch (e) { /* silent */ }
+}
+
 async function loadLeaderboard() {
     const listEl = document.getElementById('lb-list');
     if (!listEl) return;

@@ -277,6 +277,37 @@ def room_set_waiting(stake):
     return jsonify({"success": True})
 
 
+@app.route("/api/user/stats")
+@login_required
+def user_stats():
+    uid = current_user.id
+    cards_purchased = Transaction.query.filter_by(user_id=uid).count()
+    # Distinct sessions the user played in
+    from sqlalchemy import distinct
+    games_played = db.session.query(
+        db.func.count(distinct(Transaction.session_id))
+    ).filter(Transaction.user_id == uid).scalar() or 0
+    # Sessions won
+    won_sessions = GameSession.query.filter_by(winner_id=uid).all()
+    wins = len(won_sessions)
+    total_won = 0.0
+    for gs in won_sessions:
+        room = Room.query.get(gs.room_id)
+        if room:
+            tx_count = Transaction.query.filter_by(session_id=gs.id).count()
+            total_won += tx_count * room.card_price * 0.9
+    total_spent = db.session.query(
+        db.func.coalesce(db.func.sum(Transaction.amount), 0)
+    ).filter(Transaction.user_id == uid).scalar() or 0.0
+    return jsonify({
+        'games_played': games_played,
+        'cards_purchased': cards_purchased,
+        'wins': wins,
+        'total_won': round(float(total_won), 2),
+        'total_spent': round(float(total_spent), 2),
+    })
+
+
 @app.route("/api/leaderboard")
 @login_required
 def leaderboard():
