@@ -942,6 +942,35 @@ body {
     display: flex;
 }
 
+/* ── Title banner ── */
+.sel-title-banner {
+    text-align: center;
+    padding: 10px 0 4px;
+    flex-shrink: 0;
+    letter-spacing: 3px;
+    line-height: 1;
+    filter: drop-shadow(0 0 18px rgba(139,92,246,0.55));
+}
+
+.sel-title-nova {
+    font-size: 1.7rem;
+    font-weight: 900;
+    background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-right: 6px;
+}
+
+.sel-title-bingo {
+    font-size: 1.7rem;
+    font-weight: 900;
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
 /* ── Action bar (Back / Refresh) ── */
 .sel-action-bar {
     display: flex;

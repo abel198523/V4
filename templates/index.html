@@ -6,8 +6,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Royal Bingo</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260502c">
+    <title>Nova Bingo</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=20260502d">
     <style>
         .top-header {
             position: fixed;
@@ -99,7 +99,7 @@
 <body>
     <!-- Top Header -->
     <header class="top-header">
-        <span class="logo" id="menu-logo-trigger">ROYAL BINGO</span>
+        <span class="logo" id="menu-logo-trigger">NOVA BINGO</span>
         <div class="header-right">
             <div class="balance-chip"><span id="sel-balance">{{ "%.2f"|format(current_user.balance) }}</span> ETB</div>
             <span id="stake-username" style="font-size:0.8rem;color:#94a3b8;font-weight:600;">{{ current_user.username }}</span>
@@ -128,6 +128,11 @@
 
         <!-- CARD SELECTION SCREEN -->
         <div id="selection-screen" class="selection-screen">
+            <!-- App title banner -->
+            <div class="sel-title-banner">
+                <span class="sel-title-nova">NOVA</span><span class="sel-title-bingo">BINGO</span>
+            </div>
+
             <!-- Action bar: Back + Refresh -->
             <div class="sel-action-bar">
                 <button class="sel-back-btn" onclick="navTo('stake')">
@@ -436,7 +441,7 @@
     <!-- Side Menu -->
     <div id="side-menu" class="side-menu">
         <div class="menu-header">
-            <div class="menu-logo">ROYAL BINGO</div>
+            <div class="menu-logo">NOVA BINGO</div>
             <button id="close-menu" class="close-menu-btn">✕</button>
         </div>
         <div class="menu-items">
