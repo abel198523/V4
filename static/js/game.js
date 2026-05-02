@@ -220,6 +220,28 @@ function _renderRoomTimer(stake, status, timer, countdownSecs) {
                 gsTimer.style.color = urgent ? '#ef4444' : '#f59e0b';
             }
         }
+
+        // Standalone countdown strip — large, always visible, no SVG overlay issues
+        const strip   = document.getElementById('sel-countdown-strip');
+        const cdNum   = document.getElementById('sel-cd-num');
+        const cdBar   = document.getElementById('sel-cd-bar');
+        if (strip) {
+            if (isPlaying) {
+                strip.style.display = 'none';
+            } else {
+                strip.style.display = 'flex';
+                const max = countdownSecs || 20;
+                const pct = Math.max(0, Math.min(100, (t / max) * 100));
+                if (cdNum) {
+                    cdNum.innerText = t;
+                    cdNum.style.color = urgent ? '#ef4444' : '#f59e0b';
+                }
+                if (cdBar) {
+                    cdBar.style.width  = pct + '%';
+                    cdBar.style.background = urgent ? '#ef4444' : '#f59e0b';
+                }
+            }
+        }
     }
 }
 

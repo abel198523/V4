@@ -2266,11 +2266,83 @@ header {
     stroke-linecap: round;
     transition: stroke-dashoffset 0.9s linear, stroke 0.3s ease;
 }
-.sel-timer-box .sel-timer-value {
-    position: relative;
-    z-index: 1;
+/* Ring inner number — absolutely centered on top of SVG (no z-index ambiguity) */
+.sel-ring-num {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
     font-size: 1rem;
     font-weight: 900;
+    color: #f59e0b;
+    line-height: 1;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+/* ── Standalone countdown strip ──────────────────── */
+.sel-countdown-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 12px 5px;
+    padding: 8px 14px;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+.sel-cd-left {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+}
+.sel-cd-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #f59e0b;
+    line-height: 1.2;
+}
+.sel-cd-sublabel {
+    font-size: 0.58rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+.sel-cd-center {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+}
+.sel-cd-num {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: #f59e0b;
+    line-height: 1;
+    min-width: 2.5ch;
+    text-align: right;
+    transition: color 0.2s;
+}
+.sel-cd-unit {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #94a3b8;
+}
+.sel-cd-bar-wrap {
+    width: 90px;
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.sel-cd-bar {
+    height: 100%;
+    background: #f59e0b;
+    border-radius: 3px;
+    width: 100%;
+    transition: width 0.9s linear, background 0.3s ease;
 }
 
 /* ── 10-Second Urgency Banner ─────────────────────── */

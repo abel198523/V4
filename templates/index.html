@@ -235,7 +235,7 @@
                             <circle class="sel-ring-bg" cx="35" cy="35" r="28"/>
                             <circle class="sel-ring-fg" id="timer-ring-circle" cx="35" cy="35" r="28" stroke-dasharray="175.93" stroke-dashoffset="175.93"/>
                         </svg>
-                        <div class="sel-timer-value" id="selection-timer">--</div>
+                        <div class="sel-ring-num" id="selection-timer">--</div>
                     </div>
                     <div class="sel-info-label" style="color:#f59e0b;">s</div>
                 </div>
@@ -244,6 +244,21 @@
             <!-- Hidden compat span -->
             <span id="sel-balance-2" style="display:none;">{{ "%.2f"|format(current_user.balance) }}</span>
             <span id="sel-my-board" style="display:none;">--</span>
+
+            <!-- Standalone large countdown strip — always visible, no SVG overlay -->
+            <div id="sel-countdown-strip" class="sel-countdown-strip" style="display:none;">
+                <div class="sel-cd-left">
+                    <span class="sel-cd-label">ቀሪ ሰዓት</span>
+                    <span class="sel-cd-sublabel">Time Left</span>
+                </div>
+                <div class="sel-cd-center">
+                    <span id="sel-cd-num" class="sel-cd-num">20</span>
+                    <span class="sel-cd-unit">s</span>
+                </div>
+                <div class="sel-cd-bar-wrap">
+                    <div id="sel-cd-bar" class="sel-cd-bar"></div>
+                </div>
+            </div>
 
             <!-- 10-second urgency warning banner -->
             <div id="urgency-banner" class="urgency-banner" style="display:none;">
