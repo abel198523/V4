@@ -482,6 +482,7 @@
                     <button class="tab-btn" onclick="switchAdminTab('deposits')">Deposits</button>
                     <button class="tab-btn" onclick="switchAdminTab('withdrawals')">Withdrawals</button>
                     <button class="tab-btn" onclick="switchAdminTab('broadcast')">Broadcast</button>
+                    <button class="tab-btn" onclick="switchAdminTab('settings')">⚙️ Settings</button>
                 </div>
 
                 <div id="admin-users-tab" class="admin-tab-content active">
@@ -523,6 +524,30 @@
                         <textarea id="broadcast-message" class="form-input" rows="4" placeholder="Enter message..."></textarea>
                     </div>
                     <button id="send-broadcast" class="auth-btn">Send Broadcast</button>
+                </div>
+
+                <div id="admin-settings-tab" class="admin-tab-content">
+                    <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:16px;color:#f59e0b;">⚙️ Game Settings</h3>
+
+                    <div style="background:#1e2435;border-radius:12px;padding:18px;margin-bottom:16px;">
+                        <label style="display:block;font-size:0.8rem;color:#9ca3af;margin-bottom:6px;font-weight:600;">
+                            MINIMUM CARDS TO START A GAME
+                        </label>
+                        <p style="font-size:0.75rem;color:#6b7280;margin-bottom:12px;">
+                            Countdown ሲጠናቀቅ ቢያንስ ስንት ካርዶች ከተሸጡ ብቻ game ይጀምራል።
+                        </p>
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <input type="number" id="settings-min-cards" min="1" max="50"
+                                class="form-input" style="width:100px;text-align:center;font-size:1.2rem;font-weight:700;"
+                                placeholder="2">
+                            <span style="color:#9ca3af;font-size:0.85rem;">cards minimum</span>
+                        </div>
+                        <div id="settings-min-cards-status" style="margin-top:10px;font-size:0.8rem;color:#6b7280;"></div>
+                    </div>
+
+                    <button id="settings-save-btn" class="auth-btn" style="margin-top:4px;">
+                        💾 Save Settings
+                    </button>
                 </div>
             </div>
         </div>

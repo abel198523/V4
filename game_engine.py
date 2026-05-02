@@ -10,7 +10,7 @@ COUNTDOWN_SECONDS = 20
 BALL_INTERVAL = 3
 WINNER_DISPLAY_SECONDS = 8
 HOUSE_FEE = 0.10
-MIN_CARDS = 2  # minimum cards purchased before a game round launches
+MIN_CARDS = 2  # default minimum; overridden at runtime by DB setting
 
 _lock = threading.Lock()
 
@@ -27,6 +27,18 @@ room_states = {
 }
 
 _timer_threads = {}
+
+
+def get_min_cards():
+    """Read MIN_CARDS from DB setting; fall back to module default."""
+    try:
+        from app import app, db
+        from models import Setting
+        with app.app_context():
+            s = Setting.query.get('min_cards')
+            return int(s.value) if s else MIN_CARDS
+    except Exception:
+        return MIN_CARDS
 
 
 def _count_session_players(stake):
@@ -98,10 +110,11 @@ def _room_loop(stake):
                 room_states[stake]['timer'] = t
             time.sleep(1)
 
-        # Check minimum cards threshold before launching
+        # Check minimum cards threshold before launching (reads live DB value)
+        min_cards = get_min_cards()
         player_count = _count_session_players(stake)
-        if player_count < MIN_CARDS:
-            logger.info(f"Room {stake} ETB: only {player_count}/{MIN_CARDS} cards — restarting countdown.")
+        if player_count < min_cards:
+            logger.info(f"Room {stake} ETB: only {player_count}/{min_cards} cards — restarting countdown.")
             continue  # restart countdown, not enough cards
 
         # --- AUTO-START GAME ---
@@ -192,7 +205,7 @@ def get_all_room_status():
             'status': s['status'],
             'cards_count': count,
             'prize_pool': prize_pool,
-            'min_cards': MIN_CARDS,
+            'min_cards': get_min_cards(),
         }
     return result
 

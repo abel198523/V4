@@ -1411,11 +1411,60 @@ window.switchAdminTab = (tab) => {
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(`admin-${tab}-tab`).classList.add('active');
     event.target.classList.add('active');
-    
+
     if (tab === 'history') loadAdminHistory();
     if (tab === 'deposits') fetchAdminDeposits();
     if (tab === 'withdrawals') fetchAdminWithdrawals();
+    if (tab === 'settings') loadAdminSettings();
 };
+
+async function loadAdminSettings() {
+    const statusEl = document.getElementById('settings-min-cards-status');
+    const inputEl = document.getElementById('settings-min-cards');
+    if (statusEl) statusEl.innerText = 'Loading...';
+    try {
+        const res = await fetch('/api/admin/settings');
+        if (!res.ok) throw new Error('Failed to load settings');
+        const data = await res.json();
+        if (inputEl) inputEl.value = data.min_cards;
+        if (statusEl) {
+            statusEl.innerText = `Current value: ${data.min_cards} cards`;
+            statusEl.style.color = '#22c55e';
+        }
+    } catch (e) {
+        if (statusEl) { statusEl.innerText = 'Failed to load settings.'; statusEl.style.color = '#ef4444'; }
+    }
+
+    const saveBtn = document.getElementById('settings-save-btn');
+    if (saveBtn) {
+        saveBtn.onclick = async () => {
+            const val = parseInt(inputEl ? inputEl.value : '2');
+            if (isNaN(val) || val < 1 || val > 50) {
+                if (statusEl) { statusEl.innerText = '⚠️ Please enter a number between 1 and 50.'; statusEl.style.color = '#f59e0b'; }
+                return;
+            }
+            saveBtn.disabled = true;
+            saveBtn.innerText = 'Saving...';
+            try {
+                const res = await fetch('/api/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ min_cards: val })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (statusEl) { statusEl.innerText = `✅ Saved! Minimum is now ${data.min_cards} cards.`; statusEl.style.color = '#22c55e'; }
+                } else {
+                    if (statusEl) { statusEl.innerText = `❌ ${data.error}`; statusEl.style.color = '#ef4444'; }
+                }
+            } catch (e) {
+                if (statusEl) { statusEl.innerText = '❌ Save failed.'; statusEl.style.color = '#ef4444'; }
+            }
+            saveBtn.disabled = false;
+            saveBtn.innerText = '💾 Save Settings';
+        };
+    }
+}
 
 async function loadAdminHistory() {
     const listEl = document.getElementById('admin-history-list');

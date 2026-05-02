@@ -282,6 +282,35 @@ def admin_game_history():
     return jsonify(result)
 
 
+@app.route("/api/admin/settings", methods=["GET"])
+@login_required
+def get_admin_settings():
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+    from game_engine import get_min_cards
+    from models import Setting
+    return jsonify({"min_cards": get_min_cards()})
+
+
+@app.route("/api/admin/settings", methods=["POST"])
+@login_required
+def update_admin_settings():
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+    data = request.get_json() or {}
+    min_cards = data.get("min_cards")
+    if min_cards is None or not isinstance(min_cards, int) or min_cards < 1 or min_cards > 50:
+        return jsonify({"error": "min_cards must be an integer between 1 and 50"}), 400
+    from models import Setting
+    s = Setting.query.get('min_cards')
+    if s:
+        s.value = str(min_cards)
+    else:
+        db.session.add(Setting(key='min_cards', value=str(min_cards)))
+    db.session.commit()
+    return jsonify({"success": True, "min_cards": min_cards})
+
+
 @app.route("/api/room-set-playing/<int:stake>", methods=["POST"])
 @login_required
 def room_set_playing(stake):

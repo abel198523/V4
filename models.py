@@ -42,3 +42,8 @@ class OTPStore(db.Model):
     telegram_chat_id = db.Column(db.String(64), unique=True, nullable=False)
     otp = db.Column(db.String(6), nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+class Setting(db.Model):
+    __tablename__ = 'settings'
+    key = db.Column(db.String(64), primary_key=True)
+    value = db.Column(db.String(256), nullable=False)
