@@ -72,7 +72,10 @@ function stopTimerSystem() {
 async function _syncTimers() {
     try {
         const res = await fetch('/api/room-status');
-        if (!res.ok) return;
+        if (!res.ok) {
+            console.warn('[Timer] /api/room-status returned', res.status);
+            return;
+        }
         const data = await res.json();
 
         for (const [stakeStr, info] of Object.entries(data)) {
@@ -120,7 +123,7 @@ async function _syncTimers() {
 
             _prevRoomStatus[stakeStr] = { status: info.status, timer: info.timer };
         }
-    } catch (e) { /* ignore network errors */ }
+    } catch (e) { console.error('[Timer] _syncTimers error:', e); }
 }
 
 function _renderRoomTimer(stake, status, timer) {
@@ -602,64 +605,43 @@ if (verifyOtpBtn) {
     };
 }
 
-// Initialize App
-
-function initApp() {
-    const token = localStorage.getItem("bingo_token");
-    if (token) {
-        // Start global stats sync
-        if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: "AUTH", token }));
-        } else {
-            socket.onopen = () => {
-                socket.send(JSON.stringify({ type: "AUTH", token }));
-            };
-        }
-    }
-}
+// initApp() is defined later and called from window.onload
 
 
-// Auth State Check
+// Auth State Check — this is the single guaranteed entry point after DOM is fully ready
 window.onload = () => {
     const token = localStorage.getItem('bingo_token');
     const userJson = localStorage.getItem('bingo_user');
-    
+
     if (token && userJson) {
         const user = JSON.parse(userJson);
-        document.getElementById('auth-screen').classList.remove('active');
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('main-content').style.display = 'block';
-        
-        // Update UI with user info
+        const authScreen = document.getElementById('auth-screen');
+        const mainContent = document.getElementById('main-content');
+        if (authScreen) { authScreen.classList.remove('active'); authScreen.style.display = 'none'; }
+        if (mainContent) mainContent.style.display = 'block';
+
         const usernameEls = ['username', 'stake-username', 'profile-username-top', 'sel-username'];
         usernameEls.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.innerText = user.username || user.name || "User";
+            if (el) el.innerText = user.username || user.name || 'User';
         });
-        
+
         const profileName = document.getElementById('profile-full-name');
         if (profileName) profileName.innerText = user.name || user.username;
-        
         const profileId = document.getElementById('profile-player-id');
         if (profileId) profileId.innerText = `ID: ${user.player_id || '--'}`;
-        
         const profilePhone = document.getElementById('profile-phone-number');
         if (profilePhone) profilePhone.innerText = user.phone_number || '--';
 
-        // Start global stats sync
         if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: 'AUTH', token }));
         } else {
-            socket.onopen = () => {
-                socket.send(JSON.stringify({ type: 'AUTH', token }));
-            };
+            socket.onopen = () => socket.send(JSON.stringify({ type: 'AUTH', token }));
         }
-        
-        // Initial nav
-        navTo('stake');
     }
-    
-    createBingoNumbers();
+
+    // Always initialise the full app — DOM is guaranteed ready here
+    initApp();
 };
 
 function getBallLetter(num) {
@@ -1668,4 +1650,4 @@ if (sendBroadcastBtn) {
     };
 }
 
-initApp();
+// initApp() is called from window.onload — guaranteed DOM-ready single entry point.
