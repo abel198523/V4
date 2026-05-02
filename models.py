@@ -47,3 +47,25 @@ class Setting(db.Model):
     __tablename__ = 'settings'
     key = db.Column(db.String(64), primary_key=True)
     value = db.Column(db.String(256), nullable=False)
+
+class DepositRequest(db.Model):
+    __tablename__ = 'deposit_requests'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    method = db.Column(db.String(64), nullable=False)
+    transaction_code = db.Column(db.String(128), nullable=False)
+    status = db.Column(db.String(20), default='pending')
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    user = db.relationship('User', backref='deposit_requests')
+
+class WithdrawRequest(db.Model):
+    __tablename__ = 'withdraw_requests'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    method = db.Column(db.String(64), nullable=False)
+    account_details = db.Column(db.String(256), nullable=False)
+    status = db.Column(db.String(20), default='pending')
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    user = db.relationship('User', backref='withdraw_requests')

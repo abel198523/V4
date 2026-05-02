@@ -4,7 +4,7 @@ import telebot
 import random
 from flask import render_template, request, jsonify, redirect, url_for
 from app import app, db
-from models import User, Room, Transaction, GameSession, OTPStore
+from models import User, Room, Transaction, GameSession, OTPStore, DepositRequest, WithdrawRequest
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from bot import bot, BOT_TOKEN
@@ -631,6 +631,208 @@ def buy_card(room_id, card_number):
     db.session.commit()
     return jsonify({"success": True, "new_balance": current_user.balance})
 
+
+# ─── User Deposit / Withdraw Requests ────────────────────────────────────────
+
+@app.route("/api/deposit-request", methods=["POST"])
+@login_required
+def deposit_request():
+    data = request.get_json() or {}
+    amount = data.get("amount")
+    method = data.get("method")
+    code   = data.get("code")
+    if not amount or not method or not code:
+        return jsonify({"error": "ሁሉንም መረጃ ያስገቡ"}), 400
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return jsonify({"error": "የተሳሳተ መጠን"}), 400
+    if amount < 10:
+        return jsonify({"error": "ዝቅተኛ ገደብ 10 ETB ነው"}), 400
+    req = DepositRequest(user_id=current_user.id, amount=amount, method=method, transaction_code=code)
+    db.session.add(req)
+    db.session.commit()
+    return jsonify({"message": f"የ{amount:.0f} ETB ዲፖዚት ጥያቄ ተልኳል። አድሚን ያረጋግጣል።"})
+
+
+@app.route("/api/withdraw-request", methods=["POST"])
+@login_required
+def withdraw_request():
+    data = request.get_json() or {}
+    amount  = data.get("amount")
+    method  = data.get("method")
+    account = data.get("account")
+    if not amount or not method or not account:
+        return jsonify({"error": "ሁሉንም መረጃ ያስገቡ"}), 400
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return jsonify({"error": "የተሳሳተ መጠን"}), 400
+    if amount < 50:
+        return jsonify({"error": "ዝቅተኛ ማስወጣት 50 ETB ነው"}), 400
+    db.session.refresh(current_user)
+    if current_user.balance < amount:
+        return jsonify({"error": f"ያሎት ባላንስ {current_user.balance:.2f} ETB ብቻ ነው"}), 400
+    current_user.balance -= amount
+    req = WithdrawRequest(user_id=current_user.id, amount=amount, method=method, account_details=account)
+    db.session.add(req)
+    db.session.commit()
+    return jsonify({"message": f"የ{amount:.0f} ETB ጥያቄ ተልኳል። አድሚን ያረጋግጣል።"})
+
+
+@app.route("/api/user/balance-history")
+@login_required
+def balance_history():
+    txs = Transaction.query.filter_by(user_id=current_user.id)\
+              .order_by(Transaction.timestamp.desc()).limit(50).all()
+    deps = DepositRequest.query.filter_by(user_id=current_user.id)\
+               .order_by(DepositRequest.created_at.desc()).limit(20).all()
+    wds  = WithdrawRequest.query.filter_by(user_id=current_user.id)\
+               .order_by(WithdrawRequest.created_at.desc()).limit(20).all()
+    rows = []
+    for t in txs:
+        rows.append({"type": "GAME", "description": f"Card #{t.card_number}",
+                     "amount": -t.amount, "created_at": str(t.timestamp)})
+    for d in deps:
+        rows.append({"type": "DEPOSIT", "description": f"{d.method} — {d.status}",
+                     "amount": d.amount, "created_at": str(d.created_at)})
+    for w in wds:
+        rows.append({"type": "WITHDRAW", "description": f"{w.method} — {w.status}",
+                     "amount": -w.amount, "created_at": str(w.created_at)})
+    rows.sort(key=lambda r: r["created_at"], reverse=True)
+    return jsonify(rows[:60])
+
+
+# ─── Admin Deposit / Withdraw Management ─────────────────────────────────────
+
+@app.route("/api/admin/deposits")
+def admin_deposits():
+    if not _admin_ok():
+        return jsonify({"error": "Unauthorized"}), 403
+    reqs = DepositRequest.query.filter_by(status='pending')\
+               .order_by(DepositRequest.created_at.desc()).all()
+    return jsonify([{
+        "id": r.id,
+        "name": r.user.username,
+        "phone_number": r.user.telegram_chat_id or "—",
+        "amount": r.amount,
+        "method": r.method,
+        "transaction_code": r.transaction_code,
+        "created_at": str(r.created_at),
+    } for r in reqs])
+
+
+@app.route("/api/admin/approve-deposit", methods=["POST"])
+def admin_approve_deposit():
+    if not _admin_ok():
+        return jsonify({"error": "Unauthorized"}), 403
+    data = request.get_json() or {}
+    req = DepositRequest.query.get(data.get("depositId"))
+    if not req or req.status != 'pending':
+        return jsonify({"error": "ጥያቄ አልተገኘም ወይም ቀድሞ ታይቷል"}), 404
+    req.status = 'approved'
+    user = User.query.get(req.user_id)
+    if user:
+        user.balance += req.amount
+    db.session.commit()
+    return jsonify({"message": f"{req.amount:.0f} ETB ለ {user.username} ታክሏል"})
+
+
+@app.route("/api/admin/reject-deposit", methods=["POST"])
+def admin_reject_deposit():
+    if not _admin_ok():
+        return jsonify({"error": "Unauthorized"}), 403
+    data = request.get_json() or {}
+    req = DepositRequest.query.get(data.get("depositId"))
+    if not req or req.status != 'pending':
+        return jsonify({"error": "ጥያቄ አልተገኘም"}), 404
+    req.status = 'rejected'
+    db.session.commit()
+    return jsonify({"message": "ጥያቄ ተቀብሏል (rejected)"})
+
+
+@app.route("/api/admin/withdrawals")
+def admin_withdrawals():
+    if not _admin_ok():
+        return jsonify({"error": "Unauthorized"}), 403
+    reqs = WithdrawRequest.query.filter_by(status='pending')\
+               .order_by(WithdrawRequest.created_at.desc()).all()
+    return jsonify([{
+        "id": r.id,
+        "name": r.user.username,
+        "phone_number": r.user.telegram_chat_id or "—",
+        "amount": r.amount,
+        "method": r.method,
+        "account_details": r.account_details,
+        "created_at": str(r.created_at),
+    } for r in reqs])
+
+
+@app.route("/api/admin/handle-withdraw", methods=["POST"])
+def admin_handle_withdraw():
+    if not _admin_ok():
+        return jsonify({"error": "Unauthorized"}), 403
+    data   = request.get_json() or {}
+    req    = WithdrawRequest.query.get(data.get("withdrawId"))
+    action = data.get("action", "")
+    if not req or req.status != 'pending':
+        return jsonify({"error": "ጥያቄ አልተገኘም"}), 404
+    if action == "approve":
+        req.status = 'approved'
+        db.session.commit()
+        return jsonify({"message": f"{req.amount:.0f} ETB ተልኳል — approved"})
+    elif action == "reject":
+        req.status = 'rejected'
+        user = User.query.get(req.user_id)
+        if user:
+            user.balance += req.amount
+        db.session.commit()
+        return jsonify({"message": "ጥያቄ ተቀብሏል — ባላንስ ተመልሷል"})
+    return jsonify({"error": "action required (approve/reject)"}), 400
+
+
+@app.route("/api/admin/promote-user", methods=["POST"])
+def admin_promote_user():
+    if not _admin_ok():
+        return jsonify({"error": "Unauthorized"}), 403
+    data = request.get_json() or {}
+    username    = data.get("username") or data.get("targetPhone")
+    user_id_val = data.get("user_id")
+    user = None
+    if user_id_val:
+        user = User.query.get(int(user_id_val))
+    elif username:
+        user = User.query.filter(
+            (User.username == username) | (User.telegram_chat_id == username)
+        ).first()
+    if not user:
+        return jsonify({"error": "ተጠቃሚ አልተገኘም"}), 404
+    user.is_admin = True
+    db.session.commit()
+    return jsonify({"message": f"{user.username} አድሚን ሆኗል"})
+
+
+@app.route("/api/admin/broadcast", methods=["POST"])
+def admin_broadcast():
+    if not _admin_ok():
+        return jsonify({"error": "Unauthorized"}), 403
+    data    = request.get_json() or {}
+    message = data.get("message", "").strip()
+    if not message:
+        return jsonify({"error": "መልዕክት ያስገቡ"}), 400
+    sent = 0
+    if BOT_TOKEN:
+        users = User.query.filter(User.telegram_chat_id.isnot(None)).all()
+        for u in users:
+            try:
+                bot.send_message(u.telegram_chat_id, message)
+                sent += 1
+            except Exception:
+                pass
+    return jsonify({"message": f"መልዕክት ለ {sent} ተጠቃሚዎች ተልኳል"})
+
+
+# ─── Card Purchase (by stake) ─────────────────────────────────────────────────
 
 @app.route("/api/buy-card-by-stake/<int:stake>/<int:card_number>", methods=["POST"])
 @login_required

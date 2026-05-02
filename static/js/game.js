@@ -89,14 +89,8 @@ async function _syncTimers() {
             const stake = parseInt(stakeStr);
             const prev = _prevRoomStatus[stakeStr] || {};
 
-            // Track max timer seen for ring calculation
-            if (info.status === 'waiting' && info.timer) {
-                const t = parseInt(info.timer);
-                if (!_timerMax[stakeStr] || t > _timerMax[stakeStr]) _timerMax[stakeStr] = t;
-            }
-
-            // Always render the display
-            _renderRoomTimer(stake, info.status, info.timer);
+            // Always render the display (pass countdown_seconds as ring denominator)
+            _renderRoomTimer(stake, info.status, info.timer, info.countdown_seconds);
 
             // Update card/player count badge
             const countEl = document.getElementById(`stake-count-${stake}`);
@@ -151,7 +145,7 @@ async function _syncTimers() {
     } catch (e) { console.error('[Timer] _syncTimers error:', e); }
 }
 
-function _renderRoomTimer(stake, status, timer) {
+function _renderRoomTimer(stake, status, timer, countdownSecs) {
     const isPlaying = status === 'playing';
     const t = isPlaying ? null : parseInt(timer);
     const urgent = !isPlaying && t <= 5;
@@ -185,7 +179,7 @@ function _renderRoomTimer(stake, status, timer) {
         const sLabel = selTimer ? selTimer.nextElementSibling : null;
         if (sLabel) sLabel.style.display = isPlaying ? 'none' : 'inline';
 
-        // Update SVG countdown ring
+        // Update SVG countdown ring (use server-supplied countdownSecs as denominator)
         const ring = document.getElementById('timer-ring-circle');
         if (ring) {
             const circumference = 175.93;
@@ -193,10 +187,22 @@ function _renderRoomTimer(stake, status, timer) {
                 ring.style.strokeDashoffset = circumference;
                 ring.style.stroke = '#22c55e';
             } else {
-                const max = _timerMax[String(stake)] || 120;
+                const max = countdownSecs || 120;
                 const pct = Math.max(0, Math.min(1, t / max));
                 ring.style.strokeDashoffset = circumference * (1 - pct);
                 ring.style.stroke = urgent ? '#ef4444' : '#f59e0b';
+            }
+        }
+
+        // Also update the in-game timer badge (renamed id to avoid duplicate)
+        const gsTimer = document.getElementById('game-screen-timer');
+        if (gsTimer) {
+            if (isPlaying) {
+                gsTimer.innerText = '🎮';
+                gsTimer.style.color = '#22c55e';
+            } else {
+                gsTimer.innerText = t;
+                gsTimer.style.color = urgent ? '#ef4444' : '#f59e0b';
             }
         }
     }
