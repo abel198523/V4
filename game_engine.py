@@ -41,6 +41,18 @@ def get_min_cards():
         return MIN_CARDS
 
 
+def get_countdown_seconds():
+    """Read COUNTDOWN_SECONDS from DB setting; fall back to module default."""
+    try:
+        from app import app, db
+        from models import Setting
+        with app.app_context():
+            s = Setting.query.get('countdown_seconds')
+            return int(s.value) if s else COUNTDOWN_SECONDS
+    except Exception:
+        return COUNTDOWN_SECONDS
+
+
 def _count_session_players(stake):
     """Return number of cards purchased for this room's current active session."""
     try:
@@ -100,12 +112,13 @@ def _find_and_award_winner(stake, called_set):
 def _room_loop(stake):
     logger.info(f"Room timer thread started for {stake} ETB room.")
     while True:
-        # --- WAITING PHASE: count down from COUNTDOWN_SECONDS to 0 ---
+        # --- WAITING PHASE: count down (reads live DB value each round) ---
+        countdown = get_countdown_seconds()
         with _lock:
             room_states[stake]['status'] = 'waiting'
-            room_states[stake]['timer'] = COUNTDOWN_SECONDS
+            room_states[stake]['timer'] = countdown
 
-        for t in range(COUNTDOWN_SECONDS, -1, -1):
+        for t in range(countdown, -1, -1):
             with _lock:
                 room_states[stake]['timer'] = t
             time.sleep(1)
@@ -206,6 +219,7 @@ def get_all_room_status():
             'cards_count': count,
             'prize_pool': prize_pool,
             'min_cards': get_min_cards(),
+            'countdown_seconds': get_countdown_seconds(),
         }
     return result
 

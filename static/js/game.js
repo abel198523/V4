@@ -1419,41 +1419,55 @@ window.switchAdminTab = (tab) => {
 };
 
 async function loadAdminSettings() {
-    const statusEl = document.getElementById('settings-min-cards-status');
-    const inputEl = document.getElementById('settings-min-cards');
-    if (statusEl) statusEl.innerText = 'Loading...';
+    const statusEl  = document.getElementById('settings-status');
+    const minEl     = document.getElementById('settings-min-cards');
+    const countEl   = document.getElementById('settings-countdown');
+
+    if (statusEl) { statusEl.innerText = 'Loading...'; statusEl.style.color = '#6b7280'; }
+
     try {
         const res = await fetch('/api/admin/settings');
-        if (!res.ok) throw new Error('Failed to load settings');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        if (inputEl) inputEl.value = data.min_cards;
+        if (minEl)   minEl.value   = data.min_cards;
+        if (countEl) countEl.value = data.countdown_seconds;
         if (statusEl) {
-            statusEl.innerText = `Current value: ${data.min_cards} cards`;
+            statusEl.innerText = `✅ Loaded — min cards: ${data.min_cards}, countdown: ${data.countdown_seconds}s`;
             statusEl.style.color = '#22c55e';
         }
     } catch (e) {
-        if (statusEl) { statusEl.innerText = 'Failed to load settings.'; statusEl.style.color = '#ef4444'; }
+        if (statusEl) { statusEl.innerText = '❌ Failed to load settings.'; statusEl.style.color = '#ef4444'; }
     }
 
     const saveBtn = document.getElementById('settings-save-btn');
     if (saveBtn) {
         saveBtn.onclick = async () => {
-            const val = parseInt(inputEl ? inputEl.value : '2');
-            if (isNaN(val) || val < 1 || val > 50) {
-                if (statusEl) { statusEl.innerText = '⚠️ Please enter a number between 1 and 50.'; statusEl.style.color = '#f59e0b'; }
+            const minVal   = parseInt(minEl   ? minEl.value   : '2');
+            const cntVal   = parseInt(countEl ? countEl.value : '20');
+
+            if (isNaN(minVal) || minVal < 1 || minVal > 50) {
+                if (statusEl) { statusEl.innerText = '⚠️ Min cards must be 1–50.'; statusEl.style.color = '#f59e0b'; }
                 return;
             }
+            if (isNaN(cntVal) || cntVal < 10 || cntVal > 300) {
+                if (statusEl) { statusEl.innerText = '⚠️ Countdown must be 10–300 seconds.'; statusEl.style.color = '#f59e0b'; }
+                return;
+            }
+
             saveBtn.disabled = true;
             saveBtn.innerText = 'Saving...';
             try {
                 const res = await fetch('/api/admin/settings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ min_cards: val })
+                    body: JSON.stringify({ min_cards: minVal, countdown_seconds: cntVal })
                 });
                 const data = await res.json();
                 if (data.success) {
-                    if (statusEl) { statusEl.innerText = `✅ Saved! Minimum is now ${data.min_cards} cards.`; statusEl.style.color = '#22c55e'; }
+                    if (statusEl) {
+                        statusEl.innerText = `✅ Saved! Min cards: ${data.min_cards}, Countdown: ${data.countdown_seconds}s. Takes effect next round.`;
+                        statusEl.style.color = '#22c55e';
+                    }
                 } else {
                     if (statusEl) { statusEl.innerText = `❌ ${data.error}`; statusEl.style.color = '#ef4444'; }
                 }

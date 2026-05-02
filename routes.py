@@ -287,9 +287,11 @@ def admin_game_history():
 def get_admin_settings():
     if not current_user.is_admin:
         return jsonify({"error": "Unauthorized"}), 403
-    from game_engine import get_min_cards
-    from models import Setting
-    return jsonify({"min_cards": get_min_cards()})
+    from game_engine import get_min_cards, get_countdown_seconds
+    return jsonify({
+        "min_cards": get_min_cards(),
+        "countdown_seconds": get_countdown_seconds(),
+    })
 
 
 @app.route("/api/admin/settings", methods=["POST"])
@@ -298,17 +300,34 @@ def update_admin_settings():
     if not current_user.is_admin:
         return jsonify({"error": "Unauthorized"}), 403
     data = request.get_json() or {}
-    min_cards = data.get("min_cards")
-    if min_cards is None or not isinstance(min_cards, int) or min_cards < 1 or min_cards > 50:
-        return jsonify({"error": "min_cards must be an integer between 1 and 50"}), 400
+    errors = []
     from models import Setting
-    s = Setting.query.get('min_cards')
-    if s:
-        s.value = str(min_cards)
-    else:
-        db.session.add(Setting(key='min_cards', value=str(min_cards)))
+
+    def _save(key, val, lo, hi):
+        if val is None:
+            return
+        if not isinstance(val, int) or val < lo or val > hi:
+            errors.append(f"{key} must be an integer between {lo} and {hi}")
+            return
+        s = Setting.query.get(key)
+        if s:
+            s.value = str(val)
+        else:
+            db.session.add(Setting(key=key, value=str(val)))
+
+    _save('min_cards',         data.get('min_cards'),         1,  50)
+    _save('countdown_seconds', data.get('countdown_seconds'), 10, 300)
+
+    if errors:
+        return jsonify({"error": "; ".join(errors)}), 400
+
     db.session.commit()
-    return jsonify({"success": True, "min_cards": min_cards})
+    from game_engine import get_min_cards, get_countdown_seconds
+    return jsonify({
+        "success": True,
+        "min_cards": get_min_cards(),
+        "countdown_seconds": get_countdown_seconds(),
+    })
 
 
 @app.route("/api/room-set-playing/<int:stake>", methods=["POST"])
