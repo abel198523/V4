@@ -91,6 +91,21 @@ async function _syncTimers() {
                 countEl.style.fontWeight = n > 0 ? 'bold' : 'normal';
             }
 
+            // Update live prize pool badge
+            const prizeEl = document.getElementById(`stake-prize-${stake}`);
+            if (prizeEl) {
+                const pool = info.prize_pool || 0;
+                if (pool > 0) {
+                    prizeEl.innerText = `🏆 Prize Pool: ${pool.toFixed(2)} ETB`;
+                    prizeEl.style.color = '#f59e0b';
+                    prizeEl.style.fontWeight = 'bold';
+                } else {
+                    prizeEl.innerText = '🏆 Prize Pool: 0.00 ETB';
+                    prizeEl.style.color = '#6b7280';
+                    prizeEl.style.fontWeight = 'normal';
+                }
+            }
+
             // Transition: waiting → playing → open game screen
             if (prev.status !== 'playing' && info.status === 'playing') {
                 _gameStarted[stake] = true;
@@ -189,22 +204,10 @@ function handleGameOverReturn(stake) {
 }
 
 function updateRoomStats(stats, prizes) {
+    // Count, prize pool, and timer are all handled live by _syncTimers.
+    // This function is kept as a no-op to avoid errors from any remaining callers.
     globalStats = stats || {};
     globalPrizes = prizes || {};
-    Object.keys(stats).forEach(amount => {
-        const countEl = document.getElementById(`stake-count-${amount}`);
-        if (countEl) {
-            countEl.innerText = `${stats[amount]} Players`;
-            countEl.style.fontWeight = 'bold';
-            countEl.style.color = stats[amount] > 0 ? '#3b82f6' : '#6b7280';
-        }
-        const prizeEl = document.getElementById(`stake-prize-${amount}`);
-        if (prizeEl && prizes && prizes[amount] !== undefined) {
-            prizeEl.innerText = `Prize: ${prizes[amount].toFixed(2)} ETB`;
-            prizeEl.style.display = 'block';
-        }
-        // Timer display handled by _renderRoomTimer via _syncTimers
-    });
 }
 
 // Legacy no-op
@@ -972,9 +975,9 @@ function createStakeList() {
             <div class="stake-badge">${amount} ETB</div>
             <div class="stake-amount">${amount} ETB</div>
             <div class="stake-info">
-                <div class="stake-players" id="stake-count-${amount}">0 Players</div>
-                <div class="stake-timer" id="stake-timer-${amount}">⏰ 0:30</div>
-                <div class="stake-prize" id="stake-prize-${amount}" style="font-size: 0.85rem; color: #22c55e; font-weight: bold; display: none; margin-top: 4px;">Prize: 0.00 ETB</div>
+                <div class="stake-players" id="stake-count-${amount}" style="color:#6b7280;font-size:0.82rem;">0 Cards Purchased</div>
+                <div class="stake-timer" id="stake-timer-${amount}">⏰ 20</div>
+                <div class="stake-prize" id="stake-prize-${amount}" style="font-size:0.82rem;color:#6b7280;margin-top:3px;">🏆 Prize Pool: 0.00 ETB</div>
             </div>
             <button class="join-btn" onclick="joinStake(${amount})">JOIN</button>
         `;

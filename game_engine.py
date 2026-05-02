@@ -184,10 +184,13 @@ def get_all_room_status():
     result = {}
     for stake in STAKES:
         s = states_snapshot[stake]
+        count = _count_session_players(stake)
+        prize_pool = round(count * stake * (1 - HOUSE_FEE), 2)
         result[str(stake)] = {
             'timer': 'PLAYING' if s['status'] == 'playing' else s['timer'],
             'status': s['status'],
-            'cards_count': _count_session_players(stake),
+            'cards_count': count,
+            'prize_pool': prize_pool,
         }
     return result
 
