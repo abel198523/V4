@@ -137,6 +137,19 @@ async function _syncTimers() {
                 }
             }
 
+            // Safety net: if game already running and player is still stuck on
+            // selection screen (e.g. joined mid-game after race condition cleared),
+            // transition them immediately without waiting for another state change.
+            if (info.status === 'playing' && currentRoom == stake && !_gameStarted[stake]) {
+                const selScreen = document.getElementById('selection-screen');
+                const onSel = selScreen && selScreen.classList.contains('active');
+                if (onSel) {
+                    _gameStarted[stake] = true;
+                    _hideUrgencyBanner();
+                    _showGameStartCountdown(startGame);
+                }
+            }
+
             // Transition: playing → waiting → return to selection
             if (prev.status === 'playing' && info.status === 'waiting') {
                 _gameStarted[stake] = false;
@@ -1210,6 +1223,11 @@ function createStakeList() {
 
 window.joinStake = (amount) => {
     currentRoom = amount;
+    // Reset prev-status for this stake so _syncTimers sees the current state as
+    // "fresh" on its next tick — fixes the race where _prevRoomStatus already
+    // holds 'playing' (set before the player joined) and the transition never fires.
+    delete _prevRoomStatus[String(amount)];
+    _gameStarted[amount] = false;
     const token = localStorage.getItem('bingo_token');
     socket.send(JSON.stringify({ type: 'JOIN_ROOM', room: amount, token: token }));
     const stakeLabel = document.getElementById('sel-stake-amount');
