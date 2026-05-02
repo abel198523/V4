@@ -178,12 +178,22 @@ async function pollRoomStatus() {
 }
 
 function handleGameOverReturn(stake) {
+    stopGameStatePoll();
     // Clear game board state for this room
     const state = getRoomState(stake);
     state.myGameCard = null;
     state.currentSelectedCard = null;
     state.currentCardData = null;
+    state.purchasedCard = null;
+    state.bingoFlashed = false;
     state.lastHistory = [];
+    // Reset bingo button
+    const btn = document.getElementById('bingo-btn');
+    if (btn) {
+        btn.style.animation = '';
+        btn.style.background = '';
+        btn.style.boxShadow = '';
+    }
 
     ['master-grid', 'bingo-board', 'recent-balls'].forEach(id => {
         const el = document.getElementById(id);
@@ -299,12 +309,25 @@ function showToast(message) {
     setTimeout(() => toast.classList.remove('active'), 3000);
 }
 
-function showWinnerModal(name, winCard, winPattern) {
+function showWinnerModal(name, winCard, winPattern, prize, isMe) {
     const modal = document.getElementById('winner-modal');
     const nameEl = document.getElementById('winner-display-name');
     const cardCont = document.getElementById('winner-card-container');
+    const titleEl = document.getElementById('winner-title');
     if (!modal || !nameEl || !cardCont) return;
-    nameEl.innerText = name;
+
+    if (isMe) {
+        if (titleEl) titleEl.innerText = '🏆 አሸነፉ! YOU WIN!';
+        nameEl.innerHTML = `<span style="color:#f59e0b;font-size:1.2rem;font-weight:900;">${name}</span>
+            <div style="color:#22c55e;font-size:1rem;font-weight:800;margin-top:6px;">+${prize ? prize.toFixed(2) : '0.00'} ETB</div>`;
+        // Sync balance
+        fetchAndSyncBalance();
+    } else {
+        if (titleEl) titleEl.innerText = 'WINNER!';
+        nameEl.innerHTML = `<span style="color:#f59e0b;">${name}</span>
+            <div style="color:#64748b;font-size:0.85rem;margin-top:4px;">Prize: ${prize ? prize.toFixed(2) : '0.00'} ETB</div>`;
+    }
+
     cardCont.innerHTML = '';
     if (winCard && winPattern) {
         const letters = ['B', 'I', 'N', 'G', 'O'];
@@ -495,25 +518,29 @@ socket.onmessage = (event) => {
 
     const bingoBtn = document.getElementById('bingo-btn');
     if (bingoBtn) {
-        bingoBtn.onclick = () => {
+        bingoBtn.onclick = async () => {
             const state = getRoomState(currentRoom);
-            if (!currentRoom) {
-                showToast("በቅድሚያ ክፍል ይግቡ");
-                return;
-            }
-            
-            // Log for debugging
-            console.log("Bingo claim clicked. Room:", currentRoom, "Card:", state.currentSelectedCard, "MyGameCard:", state.myGameCard);
+            if (!currentRoom) { showToast("በቅድሚያ ክፍል ይግቡ"); return; }
+            if (!state.purchasedCard) { showToast("ካርድ አልተገዛም"); return; }
 
-            socket.send(JSON.stringify({
-                type: 'BINGO_CLAIM',
-                room: currentRoom,
-                cardNumber: state.currentSelectedCard || (state.myGameCard ? state.myGameCard.id : null),
-                cardData: state.myGameCard || state.currentCardData
-            }));
-            
             bingoBtn.style.transform = 'scale(0.95)';
-            setTimeout(() => bingoBtn.style.transform = 'scale(1)', 100);
+            setTimeout(() => bingoBtn.style.transform = '', 150);
+
+            try {
+                const res = await fetch(`/api/bingo-claim/${currentRoom}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ card_number: state.purchasedCard })
+                });
+                const data = await res.json();
+                if (data.valid) {
+                    showToast('🎉 ' + data.message);
+                } else {
+                    showToast('❌ ' + (data.message || 'ቢንጎ አልሆነም'));
+                }
+            } catch (e) {
+                showToast('❌ ከሰርቨር ጋር አልተገናኘም');
+            }
         };
     }
 
@@ -1180,11 +1207,117 @@ function updateUserData(data) {
     if (profileId) profileId.innerText = `ID: ${data.player_id || '--'}`;
 }
 
+// ---- Game State Polling (runs while a room is PLAYING) ----
+let _gameStatePollInterval = null;
+let _lastBallCount = 0;
+let _winnerShown = false;
+
+function startGameStatePoll(stake) {
+    stopGameStatePoll();
+    _lastBallCount = 0;
+    _winnerShown = false;
+    _gameStatePollInterval = setInterval(() => pollGameState(stake), 1000);
+}
+
+function stopGameStatePoll() {
+    if (_gameStatePollInterval) {
+        clearInterval(_gameStatePollInterval);
+        _gameStatePollInterval = null;
+    }
+}
+
+async function pollGameState(stake) {
+    try {
+        const res = await fetch(`/api/game-state/${stake}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.status !== 'playing') {
+            stopGameStatePoll();
+            return;
+        }
+
+        // Update board only when new balls have been called
+        if (data.balls && data.balls.length !== _lastBallCount) {
+            _lastBallCount = data.balls.length;
+            updateGameUI(data.balls);
+            // Flash latest ball
+            const latest = data.balls[data.balls.length - 1];
+            if (latest) {
+                const letter = getBallLetter(latest);
+                const ab = document.getElementById('active-ball');
+                if (ab) {
+                    ab.innerHTML = `<span style="color:${colors[letter]}">${letter}${latest}</span>`;
+                    ab.classList.add('ball-flash');
+                    setTimeout(() => ab.classList.remove('ball-flash'), 600);
+                }
+                checkMyCardForBingo(data.balls);
+            }
+        }
+
+        // Winner announced by server
+        if (data.winner && !_winnerShown) {
+            _winnerShown = true;
+            stopGameStatePoll();
+            const isMe = (data.winner === (window.CURRENT_USERNAME || ''));
+            showWinnerModal(data.winner, null, null, data.prize, isMe);
+            setTimeout(() => {
+                const modal = document.getElementById('winner-modal');
+                if (modal) modal.classList.remove('active');
+                handleGameOverReturn(stake);
+            }, WINNER_DISPLAY_SECONDS * 1000);
+        }
+    } catch (e) { /* silent */ }
+}
+
+const WINNER_DISPLAY_SECONDS = 8;
+
+function checkMyCardForBingo(calledBalls) {
+    const state = getRoomState(currentRoom);
+    if (!state.myGameCard || state.bingoFlashed) return;
+    const called = new Set(calledBalls);
+    const letters = ['B', 'I', 'N', 'G', 'O'];
+    const grid = [];
+    for (let row = 0; row < 5; row++) {
+        const r = [];
+        for (const l of letters) {
+            const val = state.myGameCard[l][row];
+            r.push(val === 'FREE' ? true : called.has(val));
+        }
+        grid.push(r);
+    }
+    let hasBingo = false;
+    for (const row of grid) if (row.every(Boolean)) { hasBingo = true; break; }
+    if (!hasBingo) for (let c = 0; c < 5; c++) if (grid.every(r => r[c])) { hasBingo = true; break; }
+    if (!hasBingo && grid.every((r, i) => r[i])) hasBingo = true;
+    if (!hasBingo && grid.every((r, i) => r[4 - i])) hasBingo = true;
+
+    if (hasBingo) {
+        state.bingoFlashed = true;
+        const btn = document.getElementById('bingo-btn');
+        if (btn) {
+            btn.style.animation = 'bingo-pulse 0.5s ease infinite';
+            btn.style.background = '#22c55e';
+            btn.style.boxShadow = '0 0 20px rgba(34,197,94,0.8)';
+        }
+        showToast('🎉 ቢንጎ አለዎት! BINGO ይንኩ!');
+    }
+}
+
 function startGame() {
     navTo('game');
     const state = getRoomState(currentRoom);
-    state.myGameCard = state.currentCardData;
+    if (state.purchasedCard && !state.myGameCard) {
+        state.myGameCard = state.currentCardData;
+    }
+    state.bingoFlashed = false;
     renderMyGameCard();
+    // Reset game board
+    updateGameUI([]);
+    _lastBallCount = 0;
+    _winnerShown = false;
+    // Start polling for balls
+    if (currentRoom) startGameStatePoll(currentRoom);
 }
 
 function navTo(screenId) {

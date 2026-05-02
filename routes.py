@@ -222,6 +222,37 @@ def room_status():
     return jsonify(get_all_room_status())
 
 
+@app.route("/api/game-state/<int:stake>")
+@login_required
+def game_state(stake):
+    from game_engine import get_room_game_state, STAKES
+    if stake not in STAKES:
+        return jsonify({"error": "Invalid room"}), 400
+    state = get_room_game_state(stake)
+    return jsonify(state)
+
+
+@app.route("/api/bingo-claim/<int:stake>", methods=["POST"])
+@login_required
+def bingo_claim(stake):
+    from game_engine import get_room_game_state, STAKES
+    from card_data import get_card_data, check_bingo
+    if stake not in STAKES:
+        return jsonify({"valid": False, "message": "Invalid room"}), 400
+    state = get_room_game_state(stake)
+    if state['status'] != 'playing':
+        return jsonify({"valid": False, "message": "ጨዋታ አልጀመረም"})
+    data = request.json or {}
+    card_number = data.get('card_number')
+    if not card_number:
+        return jsonify({"valid": False, "message": "ካርድ አልተመረጠም"})
+    called_set = set(state['balls'])
+    card_data = get_card_data(int(card_number))
+    if check_bingo(card_data, called_set):
+        return jsonify({"valid": True, "message": "🎉 ቢንጎ! አሸንፈዋል!"})
+    return jsonify({"valid": False, "message": "ቢንጎ አልሆነም — ቆጠሩ!"})
+
+
 @app.route("/api/room-set-playing/<int:stake>", methods=["POST"])
 @login_required
 def room_set_playing(stake):

@@ -1811,6 +1811,22 @@ header {
     to { transform: scale(1.1); }
 }
 
+@keyframes ball-flash {
+    0%   { transform: scale(1);    opacity: 1; }
+    40%  { transform: scale(1.35); opacity: 1; }
+    100% { transform: scale(1);    opacity: 1; }
+}
+
+.ball-flash {
+    animation: ball-flash 0.6s ease-out !important;
+}
+
+@keyframes bingo-pulse {
+    0%   { transform: scale(1);    box-shadow: 0 0 10px rgba(34,197,94,0.5); }
+    50%  { transform: scale(1.06); box-shadow: 0 0 28px rgba(34,197,94,0.9); }
+    100% { transform: scale(1);    box-shadow: 0 0 10px rgba(34,197,94,0.5); }
+}
+
 .total-called-bar {
     margin-top: 8px;
 }
