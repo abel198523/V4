@@ -53,6 +53,18 @@ def get_countdown_seconds():
         return COUNTDOWN_SECONDS
 
 
+def get_house_fee():
+    """Read HOUSE_FEE (0.0–1.0) from DB setting stored as integer percent; fall back to default."""
+    try:
+        from app import app, db
+        from models import Setting
+        with app.app_context():
+            s = Setting.query.get('house_fee_pct')
+            return round(int(s.value) / 100.0, 4) if s else HOUSE_FEE
+    except Exception:
+        return HOUSE_FEE
+
+
 def _count_session_players(stake):
     """Return number of cards purchased for this room's current active session."""
     try:
@@ -90,7 +102,7 @@ def _find_and_award_winner(stake, called_set):
             if not transactions:
                 return None
 
-            prize = len(transactions) * float(stake) * (1 - HOUSE_FEE)
+            prize = len(transactions) * float(stake) * (1 - get_house_fee())
 
             for tx in transactions:
                 card_data = get_card_data(tx.card_number)
@@ -212,7 +224,7 @@ def get_all_room_status():
     for stake in STAKES:
         s = states_snapshot[stake]
         count = _count_session_players(stake)
-        prize_pool = round(count * stake * (1 - HOUSE_FEE), 2)
+        prize_pool = round(count * stake * (1 - get_house_fee()), 2)
         result[str(stake)] = {
             'timer': 'PLAYING' if s['status'] == 'playing' else s['timer'],
             'status': s['status'],
@@ -220,6 +232,7 @@ def get_all_room_status():
             'prize_pool': prize_pool,
             'min_cards': get_min_cards(),
             'countdown_seconds': get_countdown_seconds(),
+            'house_fee_pct': round(get_house_fee() * 100),
         }
     return result
 

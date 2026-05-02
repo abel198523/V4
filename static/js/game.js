@@ -1422,6 +1422,7 @@ async function loadAdminSettings() {
     const statusEl  = document.getElementById('settings-status');
     const minEl     = document.getElementById('settings-min-cards');
     const countEl   = document.getElementById('settings-countdown');
+    const feeEl     = document.getElementById('settings-house-fee');
 
     if (statusEl) { statusEl.innerText = 'Loading...'; statusEl.style.color = '#6b7280'; }
 
@@ -1431,8 +1432,9 @@ async function loadAdminSettings() {
         const data = await res.json();
         if (minEl)   minEl.value   = data.min_cards;
         if (countEl) countEl.value = data.countdown_seconds;
+        if (feeEl)   feeEl.value   = data.house_fee_pct;
         if (statusEl) {
-            statusEl.innerText = `✅ Loaded — min cards: ${data.min_cards}, countdown: ${data.countdown_seconds}s`;
+            statusEl.innerText = `✅ Loaded — min cards: ${data.min_cards}, countdown: ${data.countdown_seconds}s, commission: ${data.house_fee_pct}%`;
             statusEl.style.color = '#22c55e';
         }
     } catch (e) {
@@ -1442,8 +1444,9 @@ async function loadAdminSettings() {
     const saveBtn = document.getElementById('settings-save-btn');
     if (saveBtn) {
         saveBtn.onclick = async () => {
-            const minVal   = parseInt(minEl   ? minEl.value   : '2');
-            const cntVal   = parseInt(countEl ? countEl.value : '20');
+            const minVal = parseInt(minEl   ? minEl.value   : '2');
+            const cntVal = parseInt(countEl ? countEl.value : '20');
+            const feeVal = parseInt(feeEl   ? feeEl.value   : '10');
 
             if (isNaN(minVal) || minVal < 1 || minVal > 50) {
                 if (statusEl) { statusEl.innerText = '⚠️ Min cards must be 1–50.'; statusEl.style.color = '#f59e0b'; }
@@ -1453,6 +1456,10 @@ async function loadAdminSettings() {
                 if (statusEl) { statusEl.innerText = '⚠️ Countdown must be 10–300 seconds.'; statusEl.style.color = '#f59e0b'; }
                 return;
             }
+            if (isNaN(feeVal) || feeVal < 0 || feeVal > 50) {
+                if (statusEl) { statusEl.innerText = '⚠️ Commission must be 0–50%.'; statusEl.style.color = '#f59e0b'; }
+                return;
+            }
 
             saveBtn.disabled = true;
             saveBtn.innerText = 'Saving...';
@@ -1460,12 +1467,12 @@ async function loadAdminSettings() {
                 const res = await fetch('/api/admin/settings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ min_cards: minVal, countdown_seconds: cntVal })
+                    body: JSON.stringify({ min_cards: minVal, countdown_seconds: cntVal, house_fee_pct: feeVal })
                 });
                 const data = await res.json();
                 if (data.success) {
                     if (statusEl) {
-                        statusEl.innerText = `✅ Saved! Min cards: ${data.min_cards}, Countdown: ${data.countdown_seconds}s. Takes effect next round.`;
+                        statusEl.innerText = `✅ Saved! Min cards: ${data.min_cards} | Countdown: ${data.countdown_seconds}s | Commission: ${data.house_fee_pct}%. Takes effect next round.`;
                         statusEl.style.color = '#22c55e';
                     }
                 } else {

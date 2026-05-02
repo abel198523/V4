@@ -287,10 +287,11 @@ def admin_game_history():
 def get_admin_settings():
     if not current_user.is_admin:
         return jsonify({"error": "Unauthorized"}), 403
-    from game_engine import get_min_cards, get_countdown_seconds
+    from game_engine import get_min_cards, get_countdown_seconds, get_house_fee
     return jsonify({
         "min_cards": get_min_cards(),
         "countdown_seconds": get_countdown_seconds(),
+        "house_fee_pct": round(get_house_fee() * 100),
     })
 
 
@@ -315,18 +316,20 @@ def update_admin_settings():
         else:
             db.session.add(Setting(key=key, value=str(val)))
 
-    _save('min_cards',         data.get('min_cards'),         1,  50)
+    _save('min_cards',         data.get('min_cards'),         1,   50)
     _save('countdown_seconds', data.get('countdown_seconds'), 10, 300)
+    _save('house_fee_pct',     data.get('house_fee_pct'),     0,  50)
 
     if errors:
         return jsonify({"error": "; ".join(errors)}), 400
 
     db.session.commit()
-    from game_engine import get_min_cards, get_countdown_seconds
+    from game_engine import get_min_cards, get_countdown_seconds, get_house_fee
     return jsonify({
         "success": True,
         "min_cards": get_min_cards(),
         "countdown_seconds": get_countdown_seconds(),
+        "house_fee_pct": round(get_house_fee() * 100),
     })
 
 
