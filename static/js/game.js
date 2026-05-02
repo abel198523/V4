@@ -1413,9 +1413,58 @@ window.switchAdminTab = (tab) => {
     document.getElementById(`admin-${tab}-tab`).classList.add('active');
     event.target.classList.add('active');
     
+    if (tab === 'history') loadAdminHistory();
     if (tab === 'deposits') fetchAdminDeposits();
     if (tab === 'withdrawals') fetchAdminWithdrawals();
 };
+
+async function loadAdminHistory() {
+    const listEl = document.getElementById('admin-history-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<p class="empty-msg">Loading...</p>';
+    try {
+        const res = await fetch('/api/admin/game-history');
+        if (!res.ok) throw new Error('Failed');
+        const sessions = await res.json();
+        if (!sessions.length) {
+            listEl.innerHTML = '<p class="empty-msg">ምንም ያለቀ ጨዋታ የለም።</p>';
+            return;
+        }
+        listEl.innerHTML = `
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+            <thead>
+                <tr style="color:#64748b;text-align:left;border-bottom:1px solid rgba(255,255,255,0.08);">
+                    <th style="padding:8px 6px;">#</th>
+                    <th style="padding:8px 6px;">ክፍል</th>
+                    <th style="padding:8px 6px;">ተጫዋቾች</th>
+                    <th style="padding:8px 6px;">አሸናፊ</th>
+                    <th style="padding:8px 6px;">ሽልማት</th>
+                    <th style="padding:8px 6px;">ጊዜ</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${sessions.map(s => `
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                    <td style="padding:8px 6px;color:#475569;">${s.session_id}</td>
+                    <td style="padding:8px 6px;font-weight:700;color:#f59e0b;">${s.stake} ETB</td>
+                    <td style="padding:8px 6px;color:#3b82f6;font-weight:700;">${s.players}</td>
+                    <td style="padding:8px 6px;font-weight:800;color:${s.winner !== '—' ? '#22c55e' : '#475569'};">${s.winner}</td>
+                    <td style="padding:8px 6px;font-weight:800;color:#22c55e;">${s.prize > 0 ? s.prize.toFixed(2) : '—'}</td>
+                    <td style="padding:8px 6px;color:#64748b;white-space:nowrap;">${s.created_at}</td>
+                </tr>`).join('')}
+            </tbody>
+        </table>
+        </div>
+        <div style="margin-top:10px;padding:10px;background:#161b22;border-radius:10px;display:flex;gap:20px;justify-content:center;font-size:0.8rem;">
+            <span style="color:#64748b;">ጠቅላላ: <strong style="color:white;">${sessions.length}</strong> ጨዋታዎች</span>
+            <span style="color:#64748b;">ጠቅላላ ሽልማት: <strong style="color:#22c55e;">${sessions.reduce((a,s)=>a+s.prize,0).toFixed(2)} ETB</strong></span>
+            <span style="color:#64748b;">ጠቅላላ ተጫዋቾች: <strong style="color:#3b82f6;">${sessions.reduce((a,s)=>a+s.players,0)}</strong></span>
+        </div>`;
+    } catch (e) {
+        listEl.innerHTML = '<p class="empty-msg">ስህተት ተፈጥሯል።</p>';
+    }
+}
 
 async function fetchAdminDeposits() {
     const token = localStorage.getItem('bingo_token');

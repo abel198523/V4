@@ -478,6 +478,7 @@
 
                 <div class="admin-tabs">
                     <button class="tab-btn active" onclick="switchAdminTab('users')">Users</button>
+                    <button class="tab-btn" onclick="switchAdminTab('history')">History</button>
                     <button class="tab-btn" onclick="switchAdminTab('deposits')">Deposits</button>
                     <button class="tab-btn" onclick="switchAdminTab('withdrawals')">Withdrawals</button>
                     <button class="tab-btn" onclick="switchAdminTab('broadcast')">Broadcast</button>
@@ -506,6 +507,9 @@
                             <button id="admin-promote-btn" class="auth-btn" style="margin-top:10px;background:#f59e0b;display:none;">Promote to Admin</button>
                         </div>
                     </div>
+                </div>
+                <div id="admin-history-tab" class="admin-tab-content">
+                    <div id="admin-history-list"><p class="empty-msg">Loading...</p></div>
                 </div>
                 <div id="admin-deposits-tab" class="admin-tab-content">
                     <div id="admin-deposits-list"><p class="empty-msg">Loading...</p></div>

@@ -253,6 +253,36 @@ def bingo_claim(stake):
     return jsonify({"valid": False, "message": "ቢንጎ አልሆነም — ቆጠሩ!"})
 
 
+@app.route("/api/admin/game-history")
+@login_required
+def admin_game_history():
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized"}), 403
+    sessions = (GameSession.query
+                .filter(GameSession.status == 'completed')
+                .order_by(GameSession.id.desc())
+                .limit(50)
+                .all())
+    result = []
+    for gs in sessions:
+        room = Room.query.get(gs.room_id)
+        winner = User.query.get(gs.winner_id) if gs.winner_id else None
+        tx_count = Transaction.query.filter_by(session_id=gs.id).count()
+        prize = 0.0
+        if room and tx_count:
+            prize = round(tx_count * room.card_price * 0.9, 2)
+        result.append({
+            'session_id': gs.id,
+            'room': room.name if room else '—',
+            'stake': room.card_price if room else 0,
+            'players': tx_count,
+            'winner': winner.username if winner else '—',
+            'prize': prize,
+            'created_at': gs.created_at.strftime('%Y-%m-%d %H:%M') if gs.created_at else '—',
+        })
+    return jsonify(result)
+
+
 @app.route("/api/room-set-playing/<int:stake>", methods=["POST"])
 @login_required
 def room_set_playing(stake):
