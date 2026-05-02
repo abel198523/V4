@@ -10,6 +10,7 @@ COUNTDOWN_SECONDS = 20
 BALL_INTERVAL = 3
 WINNER_DISPLAY_SECONDS = 8
 HOUSE_FEE = 0.10
+MIN_CARDS = 2  # minimum cards purchased before a game round launches
 
 _lock = threading.Lock()
 
@@ -97,11 +98,11 @@ def _room_loop(stake):
                 room_states[stake]['timer'] = t
             time.sleep(1)
 
-        # Check if anyone bought a card for this round
+        # Check minimum cards threshold before launching
         player_count = _count_session_players(stake)
-        if player_count == 0:
-            logger.info(f"Room {stake} ETB: no players joined — restarting countdown.")
-            continue  # restart countdown, no game
+        if player_count < MIN_CARDS:
+            logger.info(f"Room {stake} ETB: only {player_count}/{MIN_CARDS} cards — restarting countdown.")
+            continue  # restart countdown, not enough cards
 
         # --- AUTO-START GAME ---
         balls = list(range(1, 76))
@@ -191,6 +192,7 @@ def get_all_room_status():
             'status': s['status'],
             'cards_count': count,
             'prize_pool': prize_pool,
+            'min_cards': MIN_CARDS,
         }
     return result
 

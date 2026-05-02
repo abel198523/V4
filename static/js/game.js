@@ -94,9 +94,21 @@ async function _syncTimers() {
             const countEl = document.getElementById(`stake-count-${stake}`);
             if (countEl) {
                 const n = info.cards_count || 0;
-                countEl.innerText = n === 1 ? '1 Card Purchased' : `${n} Cards Purchased`;
-                countEl.style.color = n > 0 ? '#22c55e' : '#6b7280';
-                countEl.style.fontWeight = n > 0 ? 'bold' : 'normal';
+                const minCards = info.min_cards || 2;
+                const needed = Math.max(0, minCards - n);
+                if (info.status === 'playing') {
+                    countEl.innerText = `${n} Cards in Game`;
+                    countEl.style.color = '#22c55e';
+                    countEl.style.fontWeight = 'bold';
+                } else if (needed > 0) {
+                    countEl.innerText = `⚠️ Need ${needed} more card${needed > 1 ? 's' : ''} to start (${n}/${minCards})`;
+                    countEl.style.color = '#f59e0b';
+                    countEl.style.fontWeight = 'bold';
+                } else {
+                    countEl.innerText = `✅ ${n} Cards — Ready to start!`;
+                    countEl.style.color = '#22c55e';
+                    countEl.style.fontWeight = 'bold';
+                }
             }
 
             // Update live prize pool badge
