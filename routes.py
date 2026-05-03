@@ -77,7 +77,15 @@ def game_page():
     if not rooms:
         rooms = []
 
-    response = render_template("index.html", rooms=rooms, balance=current_user.balance)
+    tg_link_status = request.args.get('tg_link', '')
+    response = render_template(
+        "index.html",
+        rooms=rooms,
+        balance=current_user.balance,
+        bot_username=BOT_USERNAME,
+        has_telegram=bool(current_user.telegram_chat_id),
+        tg_link_status=tg_link_status,
+    )
     from flask import make_response
     resp = make_response(response)
     resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
@@ -193,6 +201,39 @@ def telegram_auth():
 
     login_user(user, remember=True)
     return redirect(url_for('game_page'))
+
+
+@app.route("/auth/telegram/link")
+@login_required
+def telegram_link():
+    """Link a Telegram account to an already-logged-in user."""
+    import hashlib, hmac, time
+    data = request.args.to_dict()
+    received_hash = data.pop('hash', '')
+
+    if not BOT_TOKEN or not received_hash:
+        return redirect(url_for('game_page'))
+
+    data_check_string = '\n'.join(sorted(f"{k}={v}" for k, v in data.items()))
+    secret_key = hashlib.sha256(BOT_TOKEN.encode()).digest()
+    computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+    if not hmac.compare_digest(computed_hash, received_hash):
+        return redirect(url_for('game_page') + '?tg_link=fail')
+
+    if abs(time.time() - int(data.get('auth_date', 0))) > 86400:
+        return redirect(url_for('game_page') + '?tg_link=expired')
+
+    tg_id = str(data.get('id', ''))
+
+    # Make sure no other account owns this tg_id
+    existing = User.query.filter_by(telegram_chat_id=tg_id).first()
+    if existing and existing.id != current_user.id:
+        return redirect(url_for('game_page') + '?tg_link=taken')
+
+    current_user.telegram_chat_id = tg_id
+    db.session.commit()
+    return redirect(url_for('game_page') + '?tg_link=ok')
 
 
 def _apply_referral_bonus(new_user, ref_code):

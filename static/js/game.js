@@ -1258,6 +1258,30 @@ window.joinStake = (amount) => {
 };
 
 function initApp() {
+    // Handle Telegram link callback status from URL params
+    (function _handleTgLinkStatus() {
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get('tg_link');
+        if (!status) return;
+        // Clean the URL so refresh doesn't re-trigger
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+        const messages = {
+            ok:      { text: '✅ Telegram account ተያያዘ!',              color: '#4ade80' },
+            fail:    { text: '❌ Telegram verification ሳይሳካ ቀረ',        color: '#f87171' },
+            expired: { text: '⏰ Auth token ጊዜው አልፏል — ዳግም ሞክሩ',      color: '#f59e0b' },
+            taken:   { text: '⚠️ ይህ Telegram account ሌላ user ላይ አለ',   color: '#f59e0b' },
+        };
+        const m = messages[status];
+        if (m) {
+            setTimeout(() => {
+                showToast(m.text);
+                // Navigate to profile so user sees the updated card
+                navTo('profile');
+            }, 400);
+        }
+    })();
+
     createBingoNumbers();
     createStakeList();      // builds stake-timer-* / stake-count-* / stake-prize-* elements
     createAvailableCards();
