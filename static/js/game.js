@@ -184,6 +184,15 @@ async function _syncTimers() {
         const firstInfo = Object.values(data)[0];
         if (firstInfo) _handleBroadcastAlert(firstInfo.broadcast_alert || null);
 
+        // ── Rebuild lobby if server rooms differ from current DOM ─────────
+        const apiStakes = Object.keys(data).map(Number).sort((a, b) => a - b);
+        const domStakes = Array.from(
+            document.querySelectorAll('#stake-list .stake-row[data-stake]')
+        ).map(el => parseInt(el.dataset.stake));
+        const listsMatch = apiStakes.length === domStakes.length &&
+            apiStakes.every((s, i) => s === domStakes[i]);
+        if (!listsMatch) createStakeList();
+
     } catch (e) { console.error('[Status] _syncTimers error:', e); }
 }
 
@@ -480,7 +489,7 @@ function updateRoomStats(stats, prizes) {
 // Legacy no-op
 function updateCountdown(seconds) {}
 
-const STAKES = [10, 50, 100, 200];
+let STAKES = [10, 50, 100, 200]; // kept as fallback; synced dynamically from server
 
 const staticCards = [{"id":1,"data":{"B":[7,10,13,14,15],"I":[18,21,23,29,30],"N":[35,36,"FREE",40,43],"G":[46,47,48,49,56],"O":[65,67,69,70,75]}},{"id":2,"data":{"B":[2,7,11,14,15],"I":[16,18,20,21,25],"N":[31,32,"FREE",39,43],"G":[50,53,56,58,60],"O":[63,66,72,73,74]}},{"id":3,"data":{"B":[2,4,12,13,14],"I":[16,22,24,29,30],"N":[32,33,"FREE",44,45],"G":[47,52,56,59,60],"O":[61,62,64,66,68]}},{"id":4,"data":{"B":[3,6,7,10,13],"I":[16,21,24,26,30],"N":[32,33,"FREE",36,41],"G":[46,48,52,54,59],"O":[63,65,66,72,75]}},{"id":5,"data":{"B":[1,4,7,12,15],"I":[17,19,26,29,30],"N":[31,32,"FREE",36,37],"G":[46,51,52,54,58],"O":[64,68,71,73,74]}},{"id":6,"data":{"B":[3,4,5,6,10],"I":[18,20,25,26,27],"N":[32,34,"FREE",41,45],"G":[48,50,51,53,54],"O":[62,63,65,67,75]}},{"id":7,"data":{"B":[1,2,4,5,6],"I":[17,21,24,27,30],"N":[31,33,"FREE",42,45],"G":[48,49,50,56,57],"O":[67,68,71,73,74]}},{"id":8,"data":{"B":[1,6,7,9,12],"I":[17,19,21,27,28],"N":[31,40,"FREE",42,43],"G":[47,49,50,51,57],"O":[64,65,66,70,74]}},{"id":9,"data":{"B":[3,6,9,12,14],"I":[16,17,20,22,27],"N":[31,37,"FREE",39,40],"G":[49,54,55,57,59],"O":[63,67,69,70,74]}},{"id":10,"data":{"B":[1,5,9,10,15],"I":[23,24,27,29,30],"N":[35,39,"FREE",43,45],"G":[47,52,56,58,59],"O":[62,63,64,67,71]}},{"id":11,"data":{"B":[1,2,6,12,14],"I":[16,18,21,28,30],"N":[31,37,"FREE",41,45],"G":[46,52,54,55,56],"O":[63,68,71,72,73]}},{"id":12,"data":{"B":[1,6,7,12,14],"I":[16,17,18,21,29],"N":[31,33,"FREE",43,45],"G":[46,54,55,56,59],"O":[62,63,65,69,70]}},{"id":13,"data":{"B":[1,6,8,11,15],"I":[16,19,20,22,30],"N":[35,38,"FREE",41,42],"G":[48,51,53,56,58],"O":[68,69,70,73,75]}},{"id":14,"data":{"B":[2,9,11,14,15],"I":[16,21,22,25,29],"N":[35,38,"FREE",41,45],"G":[46,51,52,54,57],"O":[66,67,69,72,75]}},{"id":15,"data":{"B":[5,7,11,12,14],"I":[18,19,22,25,26],"N":[33,41,"FREE",44,45],"G":[46,51,53,54,55],"O":[63,67,70,73,74]}},{"id":16,"data":{"B":[1,7,8,14,15],"I":[17,19,25,27,30],"N":[32,37,"FREE",42,44],"G":[50,52,55,56,58],"O":[61,62,65,69,70]}}];
 
@@ -1200,25 +1209,47 @@ if (confirmCard) {
     };
 }
 
-function createStakeList() {
+function _buildStakeRow(amount) {
+    const row = document.createElement('div');
+    row.className = 'stake-row premium';
+    row.dataset.stake = amount;
+    row.innerHTML = `
+        <div class="stake-badge">${amount} ETB</div>
+        <div class="stake-amount">${amount} ETB</div>
+        <div class="stake-info">
+            <div class="stake-players" id="stake-count-${amount}" style="color:#6b7280;font-size:0.82rem;">0 Cards Purchased</div>
+            <div class="stake-timer" id="stake-timer-${amount}">⏰ 20</div>
+            <div class="stake-prize" id="stake-prize-${amount}" style="font-size:0.82rem;color:#6b7280;margin-top:3px;">🏆 Prize Pool: 0.00 ETB</div>
+        </div>
+        <button class="join-btn" onclick="joinStake(${amount})">JOIN</button>
+    `;
+    return row;
+}
+
+async function createStakeList() {
     const list = document.getElementById('stake-list');
     if (!list) return;
+
+    // Try to load rooms dynamically from server
+    let serverStakes = null;
+    try {
+        const res = await fetch('/api/room-status');
+        if (res.ok) {
+            const data = await res.json();
+            serverStakes = Object.keys(data).map(Number).sort((a, b) => a - b);
+        }
+    } catch (e) { /* fallback to STAKES */ }
+
+    const stakes = serverStakes || STAKES;
+    STAKES = stakes;
+
+    // Check if the DOM already matches — skip full rebuild if so
+    const existing = Array.from(list.querySelectorAll('.stake-row[data-stake]')).map(el => parseInt(el.dataset.stake));
+    const same = existing.length === stakes.length && stakes.every((s, i) => s === existing[i]);
+    if (same) return;
+
     list.innerHTML = '';
-    STAKES.forEach(amount => {
-        const row = document.createElement('div');
-        row.className = 'stake-row premium';
-        row.innerHTML = `
-            <div class="stake-badge">${amount} ETB</div>
-            <div class="stake-amount">${amount} ETB</div>
-            <div class="stake-info">
-                <div class="stake-players" id="stake-count-${amount}" style="color:#6b7280;font-size:0.82rem;">0 Cards Purchased</div>
-                <div class="stake-timer" id="stake-timer-${amount}">⏰ 20</div>
-                <div class="stake-prize" id="stake-prize-${amount}" style="font-size:0.82rem;color:#6b7280;margin-top:3px;">🏆 Prize Pool: 0.00 ETB</div>
-            </div>
-            <button class="join-btn" onclick="joinStake(${amount})">JOIN</button>
-        `;
-        list.appendChild(row);
-    });
+    stakes.forEach(amount => list.appendChild(_buildStakeRow(amount)));
 }
 
 window.joinStake = (amount) => {
@@ -1257,7 +1288,7 @@ window.joinStake = (amount) => {
     fetchRoomHistory();
 };
 
-function initApp() {
+async function initApp() {
     // Handle Telegram link callback status from URL params
     (function _handleTgLinkStatus() {
         const params = new URLSearchParams(window.location.search);
@@ -1283,7 +1314,7 @@ function initApp() {
     })();
 
     createBingoNumbers();
-    createStakeList();      // builds stake-timer-* / stake-count-* / stake-prize-* elements
+    await createStakeList(); // builds stake-timer-* / stake-count-* / stake-prize-* elements
     createAvailableCards();
 
     // Start server-driven timer system AFTER DOM elements exist
@@ -1942,18 +1973,30 @@ async function loadWithdrawHistory() {
 }
 
 // Admin UI Switcher
+let _roomsRefreshId = null;
+
 window.switchAdminTab = (tab) => {
     document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(`admin-${tab}-tab`).classList.add('active');
     event.target.classList.add('active');
 
+    // Stop rooms auto-refresh when leaving that tab
+    if (_roomsRefreshId && tab !== 'rooms') {
+        clearInterval(_roomsRefreshId);
+        _roomsRefreshId = null;
+    }
+
     if (tab === 'revenue') loadAdminRevenue();
     if (tab === 'history') loadAdminHistory();
     if (tab === 'deposits') fetchAdminDeposits();
     if (tab === 'withdrawals') fetchAdminWithdrawals();
     if (tab === 'settings') loadAdminSettings();
-    if (tab === 'rooms') loadAdminRooms();
+    if (tab === 'rooms') {
+        loadAdminRooms();
+        if (_roomsRefreshId) clearInterval(_roomsRefreshId);
+        _roomsRefreshId = setInterval(loadAdminRooms, 4000);
+    }
 };
 
 // ── Admin Rooms Management ────────────────────────────────────────────────────
@@ -1970,7 +2013,8 @@ async function loadAdminRooms() {
         listEl.innerHTML = rooms.map(r => {
             const statusColor = r.status === 'playing' ? '#22c55e' : r.status === 'launching' ? '#f59e0b' : r.status === 'waiting' ? '#3b82f6' : '#6b7280';
             const statusLabel = r.status === 'playing' ? '🎮 PLAYING' : r.status === 'launching' ? '🚀 Launching' : r.status === 'waiting' ? '⏳ Waiting' : '⛔ Stopped';
-            const canDelete = r.status === 'waiting';
+            const canDelete = r.status !== 'playing' && r.status !== 'launching';
+            const blockReason = r.status === 'playing' ? 'ጨዋታ በሂደት ላይ ነው' : r.status === 'launching' ? 'ጨዋታ እየጀመረ ነው' : '';
             return `
             <div style="background:#1e2435;border-radius:12px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(255,255,255,0.07);">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
@@ -1989,7 +2033,7 @@ async function loadAdminRooms() {
                         color:${canDelete ? '#ef4444' : '#4b5563'};
                         border-radius:8px;padding:6px 12px;font-size:0.75rem;font-weight:700;
                         cursor:${canDelete ? 'pointer' : 'not-allowed'};flex-shrink:0;
-                    " ${canDelete ? '' : 'disabled title="ጨዋታ በሂደት ላይ ነው"'}>🗑 ሰርዝ</button>
+                    " ${canDelete ? '' : `disabled title="${blockReason}"`}>🗑 ሰርዝ</button>
                 </div>
             </div>`;
         }).join('');

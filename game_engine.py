@@ -253,13 +253,14 @@ def add_stake(stake):
 
 
 def remove_stake(stake):
-    """Dynamically remove a stake/room (only if it is in 'waiting' state)."""
+    """Dynamically remove a stake/room. Blocks only during active play/launching."""
     stake = int(stake)
     with _lock:
         if stake not in STAKES:
-            return False, "ሩሙ አልተገኘም"
+            # Already stopped or never started — treat as success
+            return True, "ሩሙ ቀደም ብሎ ቆሟል"
         state = room_states.get(stake, {})
-        if state.get('status') != 'waiting':
+        if state.get('status') in ('playing', 'launching'):
             return False, "ጨዋታ በሂደት ላይ ነው — ሩም ሊሰረዝ አይችልም"
         _stopped_stakes.add(stake)
         STAKES.remove(stake)
