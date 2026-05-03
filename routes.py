@@ -1415,6 +1415,66 @@ def admin_send_daily_report():
     return jsonify({"success": True, "message": "📊 Daily report is being sent to admins via Telegram."})
 
 
+@app.route("/api/admin/streak-broadcast", methods=["GET", "POST"])
+def admin_streak_broadcast():
+    if not _admin_ok():
+        return jsonify({"error": "Unauthorized"}), 403
+    if request.method == "GET":
+        try:
+            milestone = int(request.args.get("milestone", 7))
+        except ValueError:
+            milestone = 7
+        count = User.query.filter(
+            User.current_streak >= milestone,
+            User.telegram_chat_id.isnot(None)
+        ).count()
+        saved_key = f"streak_msg_{milestone}"
+        saved = Setting.query.get(saved_key)
+        return jsonify({
+            "user_count": count,
+            "saved_message": saved.value if saved else "",
+        })
+    data      = request.get_json() or {}
+    try:
+        milestone = int(data.get("milestone", 7))
+    except ValueError:
+        milestone = 7
+    template  = data.get("message", "").strip()
+    if not template:
+        template = (
+            "🔥 *{streak} ቀን Streak!* ሰላም {username}!\n\n"
+            "ለ{streak} ቀን ተከታታይ ጨዋታ በጣም አደንቃለሁ! 🏆\n"
+            "ቦነስ ቀጥሎ ወደ *{bonus} ETB* ይደርሳል — ጨዋታ አቁሙ !"
+        )
+    saved_key = f"streak_msg_{milestone}"
+    s = Setting.query.get(saved_key)
+    if not s:
+        s = Setting(key=saved_key, value=template)
+        db.session.add(s)
+    else:
+        s.value = template
+    db.session.commit()
+    users = User.query.filter(
+        User.current_streak >= milestone,
+        User.telegram_chat_id.isnot(None)
+    ).all()
+    sent = 0
+    for u in users:
+        try:
+            bonus = _get_streak_reward(int(u.current_streak or 0) + 1)
+            msg = template.replace("{username}", u.username or "ጨዋታ") \
+                          .replace("{streak}", str(u.current_streak or 0)) \
+                          .replace("{bonus}", str(bonus))
+            bot.send_message(u.telegram_chat_id, msg, parse_mode="Markdown")
+            sent += 1
+        except Exception:
+            pass
+    return jsonify({
+        "success": True,
+        "message": f"🔥 Streak broadcast sent to {sent} user{'' if sent==1 else 's'} (streak ≥ {milestone})",
+    })
+
+
 @app.route("/api/admin/broadcast", methods=["POST"])
 def admin_broadcast():
     if not _admin_ok():

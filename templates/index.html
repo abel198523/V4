@@ -999,6 +999,53 @@
                         <div id="alert-status" style="margin-top:10px;font-size:0.8rem;color:#6b7280;min-height:18px;"></div>
                     </div>
 
+                    <!-- Streak Milestone Broadcast -->
+                    <div style="background:#1e2435;border-radius:12px;padding:16px;margin-bottom:18px;border:1px solid rgba(245,158,11,0.25);">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                            <span style="font-size:1.1rem;">🔥</span>
+                            <span style="font-weight:700;font-size:0.9rem;color:#f59e0b;">Streak Milestone Broadcast</span>
+                        </div>
+                        <p style="font-size:0.75rem;color:#6b7280;margin-bottom:12px;line-height:1.5;">
+                            የተወሰነ streak milestone ያላቸው ተጠቃሚዎች ብቻ personalized Telegram message ይደርሳቸዋል።<br>
+                            Placeholders: <code style="background:rgba(245,158,11,0.12);padding:1px 5px;border-radius:4px;color:#fbbf24;">{username}</code>
+                            <code style="background:rgba(245,158,11,0.12);padding:1px 5px;border-radius:4px;color:#fbbf24;">{streak}</code>
+                            <code style="background:rgba(245,158,11,0.12);padding:1px 5px;border-radius:4px;color:#fbbf24;">{bonus}</code>
+                        </p>
+                        <!-- Milestone selector + counter -->
+                        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-end;">
+                            <div style="flex:1;">
+                                <label style="font-size:0.68rem;color:#64748b;font-weight:700;display:block;margin-bottom:4px;">MILESTONE (ቀናት)</label>
+                                <select id="streak-milestone-select" class="form-input" style="font-size:0.9rem;">
+                                    <option value="3">🔥 Day 3+</option>
+                                    <option value="7" selected>🔥🔥 Day 7+</option>
+                                    <option value="14">🔥🔥🔥 Day 14+</option>
+                                    <option value="21">🏆 Day 21+</option>
+                                    <option value="30">👑 Day 30+</option>
+                                </select>
+                            </div>
+                            <div style="padding-bottom:2px;">
+                                <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:8px 14px;text-align:center;">
+                                    <div id="streak-bc-count" style="font-size:1.3rem;font-weight:900;color:#f59e0b;line-height:1;">—</div>
+                                    <div style="font-size:0.6rem;color:#6b7280;font-weight:700;margin-top:2px;">USERS</div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Custom message template -->
+                        <label style="font-size:0.68rem;color:#64748b;font-weight:700;display:block;margin-bottom:4px;">CUSTOM MESSAGE (ምርጫ)</label>
+                        <textarea id="streak-bc-message" class="form-input" rows="4"
+                            placeholder="ባዶ ቢተዉ default message ይሄዳል:&#10;🔥 {streak} ቀን Streak! ሰላም {username}!&#10;ቦነስ → {bonus} ETB"></textarea>
+                        <div style="display:flex;gap:8px;margin-top:10px;">
+                            <button id="streak-bc-preview-btn" class="auth-btn" style="background:#1a2035;border:1px solid rgba(245,158,11,0.3);color:#f59e0b;flex:0 0 auto;padding:10px 14px;font-size:0.8rem;">
+                                👁 Preview
+                            </button>
+                            <button id="streak-bc-send-btn" class="auth-btn" style="background:linear-gradient(135deg,#d97706,#92400e);flex:1;margin-bottom:0;">
+                                🔥 Send Streak Broadcast
+                            </button>
+                        </div>
+                        <div id="streak-bc-preview-box" style="display:none;margin-top:10px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:12px;font-size:0.78rem;color:#d1d5db;white-space:pre-wrap;line-height:1.6;"></div>
+                        <div id="streak-bc-status" style="margin-top:10px;font-size:0.8rem;color:#6b7280;min-height:18px;"></div>
+                    </div>
+
                     <!-- Telegram Broadcast Message -->
                     <div style="background:#1e2435;border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.06);">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">

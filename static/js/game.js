@@ -2739,6 +2739,63 @@ if (sendDailyReportBtn) {
     };
 }
 
+// ── Streak Milestone Broadcast ────────────────────────────────────────────────
+async function loadStreakBcCount() {
+    const ms = document.getElementById('streak-milestone-select')?.value || 7;
+    const countEl = document.getElementById('streak-bc-count');
+    const savedEl = document.getElementById('streak-bc-message');
+    try {
+        const res = await fetch(`/api/admin/streak-broadcast?milestone=${ms}`, { headers: _ah() });
+        if (!res.ok) return;
+        const d = await res.json();
+        if (countEl) countEl.innerText = d.user_count ?? '—';
+        if (savedEl && d.saved_message) savedEl.value = d.saved_message;
+    } catch(e) {}
+}
+const streakMsSelect = document.getElementById('streak-milestone-select');
+if (streakMsSelect) {
+    streakMsSelect.onchange = loadStreakBcCount;
+    loadStreakBcCount();
+}
+const streakBcPreviewBtn = document.getElementById('streak-bc-preview-btn');
+if (streakBcPreviewBtn) {
+    streakBcPreviewBtn.onclick = () => {
+        const ms  = document.getElementById('streak-milestone-select')?.value || 7;
+        let tmpl  = document.getElementById('streak-bc-message')?.value?.trim();
+        if (!tmpl) tmpl = `🔥 *${ms} ቀን Streak!* ሰላም {username}!\n\nለ{streak} ቀን ተከታታይ ጨዋታ በጣም አደንቃለሁ! 🏆\nቦነስ ቀጥሎ → *{bonus} ETB*`;
+        const sample = tmpl.replace(/{username}/g, 'አበበ')
+                           .replace(/{streak}/g, ms)
+                           .replace(/{bonus}/g, ms >= 7 ? '20' : ms >= 5 ? '10' : ms >= 3 ? '5' : '3');
+        const box = document.getElementById('streak-bc-preview-box');
+        if (box) { box.innerText = sample; box.style.display = 'block'; }
+    };
+}
+const streakBcSendBtn = document.getElementById('streak-bc-send-btn');
+if (streakBcSendBtn) {
+    streakBcSendBtn.onclick = async () => {
+        const ms      = document.getElementById('streak-milestone-select')?.value || 7;
+        const message = document.getElementById('streak-bc-message')?.value?.trim() || '';
+        const statusEl = document.getElementById('streak-bc-status');
+        streakBcSendBtn.disabled  = true;
+        streakBcSendBtn.innerText = 'Sending...';
+        try {
+            const res  = await fetch('/api/admin/streak-broadcast', {
+                method: 'POST', headers: _ah(),
+                body: JSON.stringify({ milestone: parseInt(ms), message }),
+            });
+            const data = await res.json();
+            if (statusEl) {
+                statusEl.innerText   = data.message || data.error || '';
+                statusEl.style.color = res.ok ? '#22c55e' : '#ef4444';
+            }
+        } catch(e) {
+            if (statusEl) { statusEl.innerText = '❌ Network error'; statusEl.style.color = '#ef4444'; }
+        }
+        streakBcSendBtn.disabled  = false;
+        streakBcSendBtn.innerText = '🔥 Send Streak Broadcast';
+    };
+}
+
 const sendBroadcastBtn = document.getElementById('send-broadcast');
 if (sendBroadcastBtn) {
     sendBroadcastBtn.onclick = async () => {
