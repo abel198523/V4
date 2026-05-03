@@ -64,7 +64,7 @@ def game_page():
         db.create_all()
         rooms = Room.query.all()
 
-    stakes_needed = [10]
+    stakes_needed = [10, 50, 100, 200]
     existing_prices = {r.card_price for r in rooms}
     for s in stakes_needed:
         if float(s) not in existing_prices:
