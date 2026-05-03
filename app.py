@@ -105,6 +105,16 @@ with app.app_context():
     except Exception:
         db.session.rollback()
 
+    # Migration: add bonus_expires_at column if not present
+    try:
+        db.session.execute(db.text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS bonus_expires_at TIMESTAMP NULL"
+        ))
+        db.session.commit()
+        logger.info("Migration: bonus_expires_at column added.")
+    except Exception:
+        db.session.rollback()
+
     # Generate referral codes for users who don't have one
     try:
         import secrets as _sec

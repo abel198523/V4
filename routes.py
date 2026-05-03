@@ -259,18 +259,26 @@ def _apply_first_deposit_referral_bonus(user):
     bonus = _get_referral_bonus()
     if bonus <= 0:
         return
+    from datetime import datetime, timezone, timedelta
+    expiry_days  = _get_bonus_expiry_days()
+    new_exp      = datetime.now(timezone.utc) + timedelta(days=expiry_days)
     user.bonus_balance        = round(float(user.bonus_balance or 0) + bonus, 2)
+    user.bonus_expires_at     = new_exp
     referrer.bonus_balance    = round(float(referrer.bonus_balance or 0) + bonus, 2)
+    referrer.bonus_expires_at = new_exp
     user.referral_bonus_paid  = True
     db.session.flush()
+    exp_str = new_exp.strftime("%Y-%m-%d")
     _notify_user_telegram(referrer,
         f"🎁 *Referral Bonus ተሰጥቶዎታል!*\n\n"
         f"ወዳጆዎ *{user.username}* ለመጀመሪያ ጊዜ ዲፖዚት አድርጓል!\n"
-        f"💰 Bonus: *{bonus:.2f} ETB* ወደ ባላንስዎ ታክሏል። 🎉"
+        f"💰 Bonus: *{bonus:.2f} ETB* ወደ ቦነስ ባላንስዎ ታክሏል።\n"
+        f"⏳ ጊዜ ያልፋል: *{exp_str}* (ካልተጫወቱ ይሰረዛል)"
     )
     _notify_user_telegram(user,
         f"🎁 *Referral Bonus ተሰጥቶዎታል!*\n\n"
-        f"ለመጀመሪያ ዲፖዚት ምስጋና! *{bonus:.2f} ETB* ተጨምሯል። 🎉"
+        f"ለመጀመሪያ ዲፖዚት ምስጋና! *{bonus:.2f} ETB* bonus ተጨምሯል።\n"
+        f"⏳ ጊዜ ያልፋል: *{exp_str}* (ካልተጫወቱ ይሰረዛል)"
     )
 
 
@@ -379,13 +387,17 @@ def do_signup():
 @login_required
 def get_balance():
     db.session.refresh(current_user)
+    _maybe_expire_user_bonus(current_user)
+    db.session.commit()
     dep   = round(float(current_user.balance or 0), 2)
     bonus = round(float(current_user.bonus_balance or 0), 2)
+    exp   = current_user.bonus_expires_at.isoformat() if current_user.bonus_expires_at else None
     return jsonify({
-        "balance":       dep,
-        "bonus_balance": bonus,
-        "total_balance": round(dep + bonus, 2),
-        "username":      current_user.username,
+        "balance":          dep,
+        "bonus_balance":    bonus,
+        "total_balance":    round(dep + bonus, 2),
+        "bonus_expires_at": exp,
+        "username":         current_user.username,
     })
 
 
@@ -654,6 +666,32 @@ def _get_referral_bonus():
         return 5.0
 
 
+def _get_bonus_expiry_days():
+    from models import Setting
+    s = Setting.query.get('bonus_expiry_days')
+    try:
+        v = int(s.value) if s else 30
+        return max(1, v)
+    except Exception:
+        return 30
+
+
+def _maybe_expire_user_bonus(user):
+    """Zero bonus_balance if it has expired. Returns True if it was expired."""
+    from datetime import datetime, timezone
+    if user.bonus_balance and user.bonus_balance > 0 and user.bonus_expires_at:
+        now = datetime.now(timezone.utc)
+        exp = user.bonus_expires_at
+        if exp.tzinfo is None:
+            from datetime import timezone as tz
+            exp = exp.replace(tzinfo=tz.utc)
+        if now >= exp:
+            user.bonus_balance   = 0.0
+            user.bonus_expires_at = None
+            return True
+    return False
+
+
 @app.route("/api/user/referral")
 @login_required
 def user_referral():
@@ -735,13 +773,14 @@ def get_admin_settings():
         return jsonify({"error": "Unauthorized"}), 403
     from game_engine import get_min_cards, get_launch_countdown, get_house_fee
     return jsonify({
-        "min_cards":        get_min_cards(),
-        "launch_countdown": get_launch_countdown(),
-        "house_fee_pct":    round(get_house_fee() * 100),
-        "referral_bonus":   _get_referral_bonus(),
-        "withdraw_min":     _get_withdraw_min(),
-        "withdraw_max":     _get_withdraw_max(),
-        "payment_methods":  _get_payment_methods_config(),
+        "min_cards":          get_min_cards(),
+        "launch_countdown":   get_launch_countdown(),
+        "house_fee_pct":      round(get_house_fee() * 100),
+        "referral_bonus":     _get_referral_bonus(),
+        "bonus_expiry_days":  _get_bonus_expiry_days(),
+        "withdraw_min":       _get_withdraw_min(),
+        "withdraw_max":       _get_withdraw_max(),
+        "payment_methods":    _get_payment_methods_config(),
     })
 
 
@@ -784,6 +823,22 @@ def update_admin_settings():
                     db.session.add(Setting(key='referral_bonus', value=str(rb_f)))
         except (ValueError, TypeError):
             errors.append("referral_bonus must be a number")
+
+    # bonus_expiry_days: int 1–365
+    bed = data.get('bonus_expiry_days')
+    if bed is not None:
+        try:
+            bed_i = int(bed)
+            if bed_i < 1 or bed_i > 365:
+                errors.append("bonus_expiry_days must be 1–365")
+            else:
+                s = Setting.query.get('bonus_expiry_days')
+                if s:
+                    s.value = str(bed_i)
+                else:
+                    db.session.add(Setting(key='bonus_expiry_days', value=str(bed_i)))
+        except (ValueError, TypeError):
+            errors.append("bonus_expiry_days must be an integer")
 
     # withdraw_min / withdraw_max: float ETB
     for key, default_lo, default_hi in [('withdraw_min', 10, 50000), ('withdraw_max', 10, 50000)]:
@@ -842,10 +897,11 @@ def update_admin_settings():
         "min_cards":        get_min_cards(),
         "launch_countdown": get_launch_countdown(),
         "house_fee_pct":    round(get_house_fee() * 100),
-        "referral_bonus":   _get_referral_bonus(),
-        "withdraw_min":     _get_withdraw_min(),
-        "withdraw_max":     _get_withdraw_max(),
-        "payment_methods":  _get_payment_methods_config(),
+        "referral_bonus":    _get_referral_bonus(),
+        "bonus_expiry_days": _get_bonus_expiry_days(),
+        "withdraw_min":      _get_withdraw_min(),
+        "withdraw_max":      _get_withdraw_max(),
+        "payment_methods":   _get_payment_methods_config(),
     })
 
 
@@ -1014,6 +1070,7 @@ def logout():
 @login_required
 def buy_card(room_id, card_number):
     room = Room.query.get_or_404(room_id)
+    _maybe_expire_user_bonus(current_user)
     price = room.card_price
     dep   = float(current_user.balance or 0)
     bonus = float(current_user.bonus_balance or 0)
@@ -1338,6 +1395,7 @@ def buy_card_by_stake(stake, card_number):
     if not room:
         return jsonify({"success": False, "message": "Room not found"}), 404
     db.session.refresh(current_user)
+    _maybe_expire_user_bonus(current_user)
     price = room.card_price
     dep   = float(current_user.balance or 0)
     bonus = float(current_user.bonus_balance or 0)

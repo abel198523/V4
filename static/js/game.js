@@ -1426,6 +1426,22 @@ async function fetchAndSyncBalance() {
             const el = document.getElementById(id);
             if (el) el.innerText = val;
         });
+
+        // Update bonus expiry display
+        const expiryRow  = document.getElementById('wallet-bonus-expiry');
+        const expiryDate = document.getElementById('wallet-bonus-expiry-date');
+        if (expiryRow && expiryDate) {
+            if (bonus > 0 && data.bonus_expires_at) {
+                const d = new Date(data.bonus_expires_at);
+                const daysLeft = Math.ceil((d - Date.now()) / 86400000);
+                const dateStr = d.toLocaleDateString('am-ET', {year:'numeric', month:'short', day:'numeric'});
+                expiryDate.innerText = `${dateStr} (${daysLeft} ቀን)`;
+                expiryRow.style.display = 'block';
+                expiryRow.style.color = daysLeft <= 3 ? '#ef4444' : '#92400e';
+            } else {
+                expiryRow.style.display = 'none';
+            }
+        }
     } catch (e) { /* silent */ }
 }
 
@@ -2174,13 +2190,14 @@ async function loadAdminRevenue() {
 }
 
 async function loadAdminSettings() {
-    const statusEl   = document.getElementById('settings-status');
-    const minEl      = document.getElementById('settings-min-cards');
-    const countEl    = document.getElementById('settings-countdown');
-    const feeEl      = document.getElementById('settings-house-fee');
-    const refBonEl   = document.getElementById('settings-referral-bonus');
-    const wMinEl     = document.getElementById('settings-withdraw-min');
-    const wMaxEl     = document.getElementById('settings-withdraw-max');
+    const statusEl     = document.getElementById('settings-status');
+    const minEl        = document.getElementById('settings-min-cards');
+    const countEl      = document.getElementById('settings-countdown');
+    const feeEl        = document.getElementById('settings-house-fee');
+    const refBonEl     = document.getElementById('settings-referral-bonus');
+    const bonExpEl     = document.getElementById('settings-bonus-expiry-days');
+    const wMinEl       = document.getElementById('settings-withdraw-min');
+    const wMaxEl       = document.getElementById('settings-withdraw-max');
 
     if (statusEl) { statusEl.innerText = 'Loading...'; statusEl.style.color = '#6b7280'; }
 
@@ -2192,6 +2209,7 @@ async function loadAdminSettings() {
         if (countEl)  countEl.value  = data.launch_countdown;
         if (feeEl)    feeEl.value    = data.house_fee_pct;
         if (refBonEl) refBonEl.value = data.referral_bonus;
+        if (bonExpEl) bonExpEl.value = data.bonus_expiry_days ?? 30;
         if (wMinEl)   wMinEl.value   = data.withdraw_min;
         if (wMaxEl)   wMaxEl.value   = data.withdraw_max;
 
@@ -2225,7 +2243,7 @@ async function loadAdminSettings() {
         }
 
         if (statusEl) {
-            statusEl.innerText = `✅ Loaded — cards: ${data.min_cards}, launch: ${data.launch_countdown}s, fee: ${data.house_fee_pct}%, referral: ${data.referral_bonus} ETB, withdraw: ${data.withdraw_min}–${data.withdraw_max} ETB`;
+            statusEl.innerText = `✅ Loaded — cards: ${data.min_cards}, fee: ${data.house_fee_pct}%, referral: ${data.referral_bonus} ETB, bonus expiry: ${data.bonus_expiry_days ?? 30} days`;
             statusEl.style.color = '#22c55e';
         }
     } catch (e) {
@@ -2239,6 +2257,7 @@ async function loadAdminSettings() {
             const cntVal    = parseInt(countEl  ? countEl.value  : '10');
             const feeVal    = parseInt(feeEl    ? feeEl.value    : '10');
             const refBonVal = parseFloat(refBonEl ? refBonEl.value : '5');
+            const bonExpVal = parseInt(bonExpEl ? bonExpEl.value : '30');
             const wMinVal   = parseFloat(wMinEl ? wMinEl.value : '50');
             const wMaxVal   = parseFloat(wMaxEl ? wMaxEl.value : '10000');
 
@@ -2283,13 +2302,14 @@ async function loadAdminSettings() {
                     method: 'POST',
                     headers: _ah(),
                     body: JSON.stringify({
-                        min_cards:        minVal,
-                        launch_countdown: cntVal,
-                        house_fee_pct:    feeVal,
-                        referral_bonus:   refBonVal,
-                        withdraw_min:     wMinVal,
-                        withdraw_max:     wMaxVal,
-                        payment_methods:  pmPayload,
+                        min_cards:          minVal,
+                        launch_countdown:   cntVal,
+                        house_fee_pct:      feeVal,
+                        referral_bonus:     refBonVal,
+                        bonus_expiry_days:  bonExpVal,
+                        withdraw_min:       wMinVal,
+                        withdraw_max:       wMaxVal,
+                        payment_methods:    pmPayload,
                     })
                 });
                 const data = await res.json();

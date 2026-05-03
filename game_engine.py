@@ -473,6 +473,82 @@ def _send_daily_revenue_report(manual=False):
         return False
 
 
+def _expire_bonuses():
+    """Zero out expired bonus balances and notify affected users via Telegram."""
+    try:
+        from app import app as _app, db as _db
+        from models import User
+        from datetime import datetime, timezone
+        with _app.app_context():
+            now = datetime.now(timezone.utc)
+            expired = User.query.filter(
+                User.bonus_balance > 0,
+                User.bonus_expires_at != None,
+                User.bonus_expires_at <= now
+            ).all()
+            count = 0
+            for u in expired:
+                amt = u.bonus_balance
+                u.bonus_balance    = 0.0
+                u.bonus_expires_at = None
+                count += 1
+                if u.telegram_chat_id:
+                    try:
+                        import telebot
+                        import os
+                        bot = telebot.TeleBot(os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+                        bot.send_message(
+                            u.telegram_chat_id,
+                            f"⏰ *Bonus ጊዜው አልፏል!*\n\n"
+                            f"ያሎት *{amt:.2f} ETB* bonus balance ጊዜው ስላለፈ ተሰርዟል።\n"
+                            f"💡 ወደፊት bonus ለማሳደር referral link ያጋሩ!",
+                            parse_mode='Markdown'
+                        )
+                    except Exception:
+                        pass
+            if count:
+                _db.session.commit()
+                logger.info(f"Bonus expiry: zeroed bonus for {count} user(s).")
+    except Exception as e:
+        logger.error(f"_expire_bonuses error: {e}")
+
+
+def _warn_expiring_bonuses():
+    """Warn users whose bonus expires within 3 days."""
+    try:
+        from app import app as _app
+        from models import User
+        from datetime import datetime, timezone, timedelta
+        with _app.app_context():
+            now       = datetime.now(timezone.utc)
+            warn_end  = now + timedelta(days=3)
+            expiring  = User.query.filter(
+                User.bonus_balance > 0,
+                User.bonus_expires_at != None,
+                User.bonus_expires_at > now,
+                User.bonus_expires_at <= warn_end
+            ).all()
+            for u in expiring:
+                if u.telegram_chat_id:
+                    days_left = max(1, (u.bonus_expires_at.replace(tzinfo=timezone.utc) - now).days)
+                    try:
+                        import telebot, os
+                        bot = telebot.TeleBot(os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+                        bot.send_message(
+                            u.telegram_chat_id,
+                            f"⚠️ *Bonus ጊዜ ማስጠንቀቂያ!*\n\n"
+                            f"ያሎት *{u.bonus_balance:.2f} ETB* bonus ከ *{days_left}* ቀን ውስጥ ያልፋል!\n"
+                            f"🎮 አሁኑኑ ጨዋታ ይጀምሩ — bonus ሲያልፍ ይሰረዛል።",
+                            parse_mode='Markdown'
+                        )
+                    except Exception:
+                        pass
+            if expiring:
+                logger.info(f"Bonus expiry warning sent to {len(expiring)} user(s).")
+    except Exception as e:
+        logger.error(f"_warn_expiring_bonuses error: {e}")
+
+
 def _daily_report_loop():
     """Daemon thread: fire daily revenue report at 06:00 UTC every day (= 09:00 EAT)."""
     from datetime import datetime, timezone, timedelta
@@ -489,6 +565,8 @@ def _daily_report_loop():
         )
         time.sleep(sleep_secs)
         _send_daily_revenue_report(manual=False)
+        _expire_bonuses()
+        _warn_expiring_bonuses()
 
 
 def start_all_room_timers():
