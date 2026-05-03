@@ -1953,7 +1953,101 @@ window.switchAdminTab = (tab) => {
     if (tab === 'deposits') fetchAdminDeposits();
     if (tab === 'withdrawals') fetchAdminWithdrawals();
     if (tab === 'settings') loadAdminSettings();
+    if (tab === 'rooms') loadAdminRooms();
 };
+
+// ── Admin Rooms Management ────────────────────────────────────────────────────
+async function loadAdminRooms() {
+    const listEl = document.getElementById('admin-rooms-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<p style="font-size:0.85rem;color:#6b7280;text-align:center;padding:16px 0;">Loading...</p>';
+    try {
+        const res = await fetch('/api/admin/rooms', { headers: _ah() });
+        if (!res.ok) { listEl.innerHTML = '<p style="color:#ef4444;">Error loading rooms</p>'; return; }
+        const rooms = await res.json();
+        if (!rooms.length) { listEl.innerHTML = '<p style="font-size:0.85rem;color:#6b7280;text-align:center;padding:16px;">ምንም ሩም የለም</p>'; return; }
+
+        listEl.innerHTML = rooms.map(r => {
+            const statusColor = r.status === 'playing' ? '#22c55e' : r.status === 'launching' ? '#f59e0b' : r.status === 'waiting' ? '#3b82f6' : '#6b7280';
+            const statusLabel = r.status === 'playing' ? '🎮 PLAYING' : r.status === 'launching' ? '🚀 Launching' : r.status === 'waiting' ? '⏳ Waiting' : '⛔ Stopped';
+            const canDelete = r.status === 'waiting';
+            return `
+            <div style="background:#1e2435;border-radius:12px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(255,255,255,0.07);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+                    <div style="flex:1;">
+                        <div style="font-size:1rem;font-weight:800;color:#e2e8f0;">${r.stake % 1 === 0 ? r.stake.toFixed(0) : r.stake} ETB <span style="font-size:0.7rem;color:#64748b;font-weight:600;">per card</span></div>
+                        <div style="margin-top:5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <span style="font-size:0.72rem;font-weight:700;color:${statusColor};background:${statusColor}1a;padding:2px 8px;border-radius:6px;">${statusLabel}</span>
+                            <span style="font-size:0.7rem;color:#64748b;">🃏 ${r.cards_in_game} cards</span>
+                            <span style="font-size:0.7rem;color:#f59e0b;">🏆 ${r.prize_pool} ETB pool</span>
+                            <span style="font-size:0.7rem;color:#64748b;">${r.total_sessions} ዙሮች</span>
+                        </div>
+                    </div>
+                    <button onclick="deleteAdminRoom(${r.id}, ${r.stake})" style="
+                        background:${canDelete ? 'rgba(239,68,68,0.12)' : 'rgba(100,116,139,0.08)'};
+                        border:1px solid ${canDelete ? 'rgba(239,68,68,0.3)' : 'rgba(100,116,139,0.2)'};
+                        color:${canDelete ? '#ef4444' : '#4b5563'};
+                        border-radius:8px;padding:6px 12px;font-size:0.75rem;font-weight:700;
+                        cursor:${canDelete ? 'pointer' : 'not-allowed'};flex-shrink:0;
+                    " ${canDelete ? '' : 'disabled title="ጨዋታ በሂደት ላይ ነው"'}>🗑 ሰርዝ</button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        listEl.innerHTML = '<p style="color:#ef4444;">Error loading rooms</p>';
+    }
+}
+
+window.deleteAdminRoom = async function(roomId, stake) {
+    if (!confirm(`${stake} ETB ሩሙን እርግጠኛ ሆነው መሰረዝ ይፈልጋሉ?`)) return;
+    try {
+        const res = await fetch(`/api/admin/rooms/${roomId}`, { method: 'DELETE', headers: _ah() });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message);
+            loadAdminRooms();
+        } else {
+            showToast(`❌ ${data.error || 'ሊሰረዝ አልቻለም'}`);
+        }
+    } catch(e) {
+        showToast('❌ ግንኙነት ተሳስቷል');
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const addBtn = document.getElementById('add-room-btn');
+    const stakeInput = document.getElementById('new-room-stake');
+    const statusEl = document.getElementById('add-room-status');
+    if (!addBtn || !stakeInput) return;
+
+    addBtn.addEventListener('click', async () => {
+        const stake = parseInt(stakeInput.value);
+        if (!stake || stake < 1) { if(statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">ትክክለኛ የብር መጠን ያስገቡ</span>'; return; }
+        addBtn.disabled = true;
+        addBtn.innerText = '⏳ እየተጨመረ...';
+        if (statusEl) statusEl.innerText = '';
+        try {
+            const res = await fetch('/api/admin/rooms/add', {
+                method: 'POST',
+                headers: { ..._ah(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stake })
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (statusEl) statusEl.innerHTML = `<span style="color:#22c55e;">${data.message}</span>`;
+                stakeInput.value = '';
+                loadAdminRooms();
+            } else {
+                if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">${data.error || 'ሊጨመር አልቻለም'}</span>`;
+            }
+        } catch(e) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">ግንኙነት ተሳስቷል</span>';
+        } finally {
+            addBtn.disabled = false;
+            addBtn.innerText = '➕ ሩም ጨምር';
+        }
+    });
+});
 
 let _revInterval = null;
 

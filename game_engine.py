@@ -21,7 +21,7 @@ _lock = threading.Lock()
 room_states = {
     s: {
         'status': 'waiting',
-        'launch_timer': 0,    # seconds left in launch countdown (only while 'launching')
+        'launch_timer': 0,
         'balls': [],
         'winner': None,
         'winner_card': None,
@@ -31,6 +31,7 @@ room_states = {
 }
 
 _timer_threads = {}
+_stopped_stakes = set()  # stakes whose loops should exit
 
 # ─── In-game broadcast alert ─────────────────────────────────────────────────
 _broadcast_alert = {
@@ -227,9 +228,55 @@ def _notify_admins_game_result(stake, cards, winner, prize):
         logger.warning(f"_notify_admins_game_result error: {e}")
 
 
+def add_stake(stake):
+    """Dynamically add a new stake/room and start its game loop."""
+    stake = int(stake)
+    with _lock:
+        if stake in STAKES:
+            return False, "ሩሙ አስቀድሞ አለ"
+        STAKES.append(stake)
+        room_states[stake] = {
+            'status': 'waiting',
+            'launch_timer': 0,
+            'balls': [],
+            'winner': None,
+            'winner_card': None,
+            'prize': 0.0,
+        }
+        _stopped_stakes.discard(stake)
+    t = threading.Thread(target=_room_loop, args=(stake,), daemon=True)
+    t.name = f"room-loop-{stake}"
+    _timer_threads[stake] = t
+    t.start()
+    logger.info(f"Dynamic room added: {stake} ETB")
+    return True, "ሩም ተጨምሯል"
+
+
+def remove_stake(stake):
+    """Dynamically remove a stake/room (only if it is in 'waiting' state)."""
+    stake = int(stake)
+    with _lock:
+        if stake not in STAKES:
+            return False, "ሩሙ አልተገኘም"
+        state = room_states.get(stake, {})
+        if state.get('status') != 'waiting':
+            return False, "ጨዋታ በሂደት ላይ ነው — ሩም ሊሰረዝ አይችልም"
+        _stopped_stakes.add(stake)
+        STAKES.remove(stake)
+        room_states.pop(stake, None)
+    logger.info(f"Dynamic room removed: {stake} ETB")
+    return True, "ሩም ተሰርዟል"
+
+
 def _room_loop(stake):
     logger.info(f"Room loop started for {stake} ETB room.")
     while True:
+        # ── Check if this room has been removed ───────────────────────────
+        with _lock:
+            if stake in _stopped_stakes:
+                logger.info(f"Room {stake} ETB: loop stopping (room removed).")
+                return
+
         # ── WAITING PHASE: poll until enough cards are purchased ──────────
         min_cards = get_min_cards()
         with _lock:
@@ -239,6 +286,9 @@ def _room_loop(stake):
         logger.info(f"Room {stake} ETB: WAITING — need {min_cards} cards to launch.")
 
         while True:
+            with _lock:
+                if stake in _stopped_stakes:
+                    return
             player_count = _count_session_players(stake)
             min_cards = get_min_cards()
             if player_count >= min_cards:
