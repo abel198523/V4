@@ -1305,14 +1305,18 @@
     <!-- Card Preview Overlay -->
     <div id="preview-overlay" class="preview-overlay">
         <div class="preview-modal">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                <span id="preview-card-number" style="font-size:1.1rem;font-weight:800;color:#f59e0b;">Card #</span>
-                <button id="close-preview" style="background:none;border:none;color:#64748b;font-size:1.5rem;cursor:pointer;">✕</button>
+            <div class="preview-modal-header">
+                <div class="preview-card-badge">
+                    <span class="preview-card-badge-icon">🎴</span>
+                    <span id="preview-card-number">Card #</span>
+                </div>
+                <button id="close-preview" class="preview-close-btn">✕</button>
             </div>
+            <div class="preview-selected-label">ይህንን ካርድ ይግዙ? — ቁጥሮቹን ያረጋግጡ</div>
             <div id="modal-card-content" class="modal-card-content"></div>
             <div class="preview-actions">
-                <button id="reject-card" class="action-btn reject">ሰርዝ</button>
-                <button id="confirm-card" class="action-btn confirm">✓ ግዛ / Buy</button>
+                <button id="reject-card" class="action-btn reject">✕ ሰርዝ</button>
+                <button id="confirm-card" class="action-btn confirm">✓ ግዛ</button>
             </div>
         </div>
     </div>

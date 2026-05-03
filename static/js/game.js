@@ -1062,7 +1062,6 @@ window.manualRefreshBalance = async function() {
 };
 
 async function showCardPreview(num) {
-    // Always pull fresh balance from DB before checking
     await fetchAndSyncBalance();
     const roomPrice = getRoomPrice();
     if (userBalance < roomPrice) {
@@ -1074,16 +1073,6 @@ async function showCardPreview(num) {
     state.currentCardData = getCardById(num);
     previewCardNumber.innerText = `Card #${num}`;
     modalCardContent.innerHTML = '';
-    
-    // Add character to preview
-    const charHeader = document.createElement('div');
-    charHeader.className = 'preview-character-header';
-    charHeader.innerHTML = `
-        <img src="static/images/card_confirm.png" alt="Confirm">
-        <span style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">ይህንን ካርድ መርጠዋል</span>
-    `;
-    modalCardContent.appendChild(charHeader);
-    
     modalCardContent.appendChild(createCardPreview(state.currentCardData));
     previewOverlay.classList.add('active');
 }
@@ -1099,18 +1088,34 @@ function createCardPreview(cardData) {
     const container = document.createElement('div');
     container.className = 'card-preview';
     const letters = ['B', 'I', 'N', 'G', 'O'];
+    const cols = {
+        B: { bg: 'rgba(59,130,246,0.18)',  border: 'rgba(59,130,246,0.45)',  text: '#93c5fd', hdr: '#3b82f6',  hdrBg: 'rgba(59,130,246,0.15)'  },
+        I: { bg: 'rgba(139,92,246,0.18)',  border: 'rgba(139,92,246,0.45)', text: '#c4b5fd', hdr: '#a78bfa', hdrBg: 'rgba(139,92,246,0.15)' },
+        N: { bg: 'rgba(245,158,11,0.18)',  border: 'rgba(245,158,11,0.45)', text: '#fde68a', hdr: '#fbbf24', hdrBg: 'rgba(245,158,11,0.15)' },
+        G: { bg: 'rgba(34,197,94,0.18)',   border: 'rgba(34,197,94,0.45)',  text: '#86efac', hdr: '#4ade80',  hdrBg: 'rgba(34,197,94,0.15)'  },
+        O: { bg: 'rgba(239,68,68,0.18)',   border: 'rgba(239,68,68,0.45)',  text: '#fca5a5', hdr: '#f87171',  hdrBg: 'rgba(239,68,68,0.15)'  },
+    };
     letters.forEach(l => {
+        const c = cols[l];
         const header = document.createElement('div');
         header.className = 'preview-header';
         header.innerText = l;
+        header.style.cssText = `background:${c.hdrBg};color:${c.hdr};border:1px solid ${c.border};`;
         container.appendChild(header);
     });
     for (let row = 0; row < 5; row++) {
         letters.forEach(l => {
+            const c = cols[l];
             const cell = document.createElement('div');
             cell.className = 'preview-cell';
-            if (cardData[l][row] === 'FREE') cell.classList.add('free-spot');
-            cell.innerText = cardData[l][row];
+            if (cardData[l][row] === 'FREE') {
+                cell.classList.add('free-spot');
+                cell.innerText = '★';
+                cell.style.cssText = `background:linear-gradient(135deg,rgba(245,158,11,0.28),rgba(234,179,8,0.18));border:1px solid rgba(245,158,11,0.55);color:#fbbf24;text-shadow:0 0 8px rgba(251,191,36,0.6);`;
+            } else {
+                cell.innerText = cardData[l][row];
+                cell.style.cssText = `background:${c.bg};border:1px solid ${c.border};color:${c.text};`;
+            }
             container.appendChild(cell);
         });
     }
