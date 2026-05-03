@@ -717,9 +717,17 @@ def user_streak():
     from datetime import datetime, timezone, timedelta
     EAT = timezone(timedelta(hours=3))
     today = datetime.now(EAT).date()
-    streak = int(current_user.current_streak or 0)
-    played_today = (current_user.last_play_date == today)
-    next_day = streak + 1 if played_today else streak + 1
+    last  = current_user.last_play_date
+
+    # Break streak if user hasn't played today or yesterday
+    streak_valid = last is not None and (today - last).days <= 1
+    if not streak_valid and int(current_user.current_streak or 0) > 0:
+        current_user.current_streak = 0
+        db.session.commit()
+
+    streak      = int(current_user.current_streak or 0)
+    played_today = (last == today)
+    next_day    = (streak % 7) + 1
     return jsonify({
         "streak":       streak,
         "played_today": played_today,
