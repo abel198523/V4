@@ -1566,19 +1566,71 @@ async function loadProfileData() {
     } catch (e) { /* silent */ }
 }
 
-function copyReferralLink() {
+function _getReferralLink() {
     const box = document.getElementById('ref-link-box');
+    return (box && box.dataset.link) ? box.dataset.link : (box ? box.innerText.trim() : '');
+}
+
+function copyReferralLink() {
+    const link = _getReferralLink();
+    const statusEl  = document.getElementById('ref-copy-status');
+    const labelEl   = document.getElementById('ref-copy-label');
+    if (!link || link === 'Loading...') {
+        if (statusEl) { statusEl.innerText = '⚠️ Link ገና አልተዘጋጀም'; statusEl.style.color = '#f59e0b'; }
+        return;
+    }
+
+    const _onCopied = () => {
+        if (labelEl)  { labelEl.innerText = 'Copied! ✓'; setTimeout(() => { labelEl.innerText = 'Copy Link'; }, 2200); }
+        if (statusEl) { statusEl.innerText = '✅ Link ተቀዳ!'; statusEl.style.color = '#4ade80'; setTimeout(() => { statusEl.innerText = ''; }, 2500); }
+    };
+    const _onFail = () => {
+        // Fallback: create a temp textarea and execCommand
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = link;
+            ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+            document.body.appendChild(ta);
+            ta.focus(); ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            _onCopied();
+        } catch {
+            if (statusEl) { statusEl.innerText = '⚠️ Manually copy: ' + link; statusEl.style.color = '#f59e0b'; }
+        }
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(_onCopied).catch(_onFail);
+    } else {
+        _onFail();
+    }
+}
+
+function shareReferralLink() {
+    const link     = _getReferralLink();
     const statusEl = document.getElementById('ref-copy-status');
-    const link = (box && box.dataset.link) ? box.dataset.link : (box ? box.innerText : '');
     if (!link || link === 'Loading...') return;
-    navigator.clipboard.writeText(link).then(() => {
-        if (statusEl) { statusEl.innerText = '✅ Link copied!'; }
-        const btn = document.getElementById('ref-copy-btn');
-        if (btn) { btn.innerText = 'Copied!'; setTimeout(() => { btn.innerText = 'Copy'; }, 2000); }
-        if (statusEl) setTimeout(() => { statusEl.innerText = ''; }, 2500);
-    }).catch(() => {
-        if (statusEl) { statusEl.innerText = '⚠️ Could not copy — please copy manually.'; }
-    });
+
+    const shareData = {
+        title: '🎮 Nova Bingo — ይጫወቱ ያሸንፉ!',
+        text:  '🏆 Nova Bingo ይቀላቀሉ — ካርድ ይግዙ ያሸንፉ! ሲቀላቀሉ ሁለታቹም bonus ትቀበሉ 🎉\n',
+        url:   link,
+    };
+
+    if (navigator.share) {
+        navigator.share(shareData).catch(() => {});
+    } else {
+        // Fallback: copy the message + link
+        const fullText = shareData.text + link;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(fullText).then(() => {
+                if (statusEl) { statusEl.innerText = '✅ Share message copied!'; statusEl.style.color = '#60a5fa'; setTimeout(() => { statusEl.innerText = ''; }, 2500); }
+            }).catch(() => copyReferralLink());
+        } else {
+            copyReferralLink();
+        }
+    }
 }
 
 let _lbData = [];

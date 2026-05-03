@@ -4,7 +4,7 @@ import telebot
 import random
 from flask import render_template, request, jsonify, redirect, url_for
 from app import app, db
-from models import User, Room, Transaction, GameSession, OTPStore, DepositRequest, WithdrawRequest
+from models import User, Room, Transaction, GameSession, OTPStore, DepositRequest, WithdrawRequest, Setting
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from bot import bot, BOT_TOKEN
