@@ -1,7 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
 <div id="main-content" class="d-flex flex-column justify-content-center align-items-center text-center">
-    <div class="animate-in">
+
+    <!-- Loading state (shown while Mini App auto-login runs) -->
+    <div id="tma-loading" style="display:none;">
+        <div class="mb-4">
+            <div class="d-inline-flex p-4 rounded-circle bg-primary bg-opacity-10 shadow-lg border border-primary border-opacity-20">
+                <i class="bi bi-trophy-fill text-primary display-3"></i>
+            </div>
+        </div>
+        <h1 class="display-4 fw-bold mb-3 text-white">NOVA BINGO</h1>
+        <div class="d-flex align-items-center justify-content-center gap-2 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <span>እየገባን ነው...</span>
+        </div>
+    </div>
+
+    <!-- Normal (non-Mini App) landing -->
+    <div id="normal-landing" class="animate-in">
         <div class="mb-4">
             <div class="d-inline-flex p-4 rounded-circle bg-primary bg-opacity-10 shadow-lg border border-primary border-opacity-20 floating">
                 <i class="bi bi-trophy-fill text-primary display-3"></i>
@@ -9,44 +25,57 @@
         </div>
         <h1 class="display-4 fw-bold mb-2 tracking-tight text-white">NOVA BINGO</h1>
         <p class="lead text-muted mb-5 px-3">Premium Gaming. Instant Rewards.</p>
+
+        <div class="d-grid gap-3 w-100 px-4" style="max-width: 360px;">
+            {% if bot_username %}
+            <a href="https://t.me/{{ bot_username }}" target="_blank"
+               class="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center gap-2">
+                <i class="bi bi-telegram fs-4"></i>
+                ቦቱ ላይ ተመዝገብ / Login
+            </a>
+            {% else %}
+            <a href="https://t.me/" target="_blank"
+               class="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center gap-2">
+                <i class="bi bi-telegram fs-4"></i>
+                ቦቱ ላይ ተመዝገብ / Login
+            </a>
+            {% endif %}
+
+            <div class="mt-2" style="color:#64748b;font-size:0.82rem;line-height:1.6;">
+                <i class="bi bi-info-circle me-1"></i>
+                ቦቱ ላይ /start ጫኑ → ቁጥርዎን ያጋሩ → ወደ ጨዋታ ይገቡ
+            </div>
+        </div>
+
+        <div class="mt-5 px-4" style="max-width:340px;">
+            <div class="d-flex flex-column gap-2" style="background:#1a1f29;border-radius:16px;padding:18px;border:1px solid rgba(255,255,255,0.06);">
+                <div class="d-flex align-items-center gap-3">
+                    <span style="font-size:1.4rem;">1️⃣</span>
+                    <span style="font-size:0.88rem;color:#cbd5e1;">ቦቱን ክፈቱ → <strong style="color:#38bdf8;">/start</strong> ይጫኑ</span>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span style="font-size:1.4rem;">2️⃣</span>
+                    <span style="font-size:0.88rem;color:#cbd5e1;"><strong>🎮 ጨዋታ ጀምር</strong> ቁልፍ ይጫኑ</span>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span style="font-size:1.4rem;">3️⃣</span>
+                    <span style="font-size:0.88rem;color:#cbd5e1;">ራስዎ ሳይወጡ ወዲያው ጨዋታ ይጀምሩ 🎮</span>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="d-grid gap-3 w-100 px-4" style="max-width: 360px;">
+    <!-- Error state -->
+    <div id="tma-error" style="display:none;" class="px-4" style="max-width:340px;">
+        <div class="mb-3">
+            <i class="bi bi-exclamation-triangle-fill text-warning display-4"></i>
+        </div>
+        <p class="text-muted" id="tma-error-msg">ግባት አልተሳካም። እንደገና ይሞክሩ።</p>
         {% if bot_username %}
-        <a href="https://t.me/{{ bot_username }}" target="_blank"
-           class="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center gap-2">
-            <i class="bi bi-telegram fs-4"></i>
-            ቦቱ ላይ ተመዝገብ / Login
-        </a>
-        {% else %}
-        <a href="https://t.me/" target="_blank"
-           class="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center gap-2">
-            <i class="bi bi-telegram fs-4"></i>
-            ቦቱ ላይ ተመዝገብ / Login
+        <a href="https://t.me/{{ bot_username }}" class="btn btn-primary mt-2">
+            <i class="bi bi-telegram me-2"></i>ቦቱን ክፈቱ
         </a>
         {% endif %}
-
-        <div class="mt-2" style="color:#64748b;font-size:0.82rem;line-height:1.6;">
-            <i class="bi bi-info-circle me-1"></i>
-            ቦቱ ላይ /start ጫኑ → ቁጥርዎን ያጋሩ → ወደ ጨዋታ ይገቡ
-        </div>
-    </div>
-
-    <div class="mt-5 px-4" style="max-width:340px;">
-        <div class="d-flex flex-column gap-2" style="background:#1a1f29;border-radius:16px;padding:18px;border:1px solid rgba(255,255,255,0.06);">
-            <div class="d-flex align-items-center gap-3">
-                <span style="font-size:1.4rem;">1️⃣</span>
-                <span style="font-size:0.88rem;color:#cbd5e1;">ቦቱን ክፈቱ → <strong style="color:#38bdf8;">/start</strong> ይጫኑ</span>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-                <span style="font-size:1.4rem;">2️⃣</span>
-                <span style="font-size:0.88rem;color:#cbd5e1;"><strong>Share My Contact</strong> ቁልፍ ይጫኑ</span>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-                <span style="font-size:1.4rem;">3️⃣</span>
-                <span style="font-size:0.88rem;color:#cbd5e1;">ቦቱ ሊንክ ይልካልዎ → ጨዋታ ይጀምሩ 🎮</span>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -62,4 +91,48 @@
         to { opacity: 1; transform: translateY(0); }
     }
 </style>
+
+<script>
+(function () {
+    var tg = window.Telegram && window.Telegram.WebApp;
+
+    if (tg && tg.initData && tg.initData.length > 0) {
+        // We are inside a Telegram Mini App — hide normal UI, show loader
+        document.getElementById('normal-landing').style.display = 'none';
+        document.getElementById('tma-loading').style.display = 'block';
+
+        // Tell Telegram the app is ready
+        tg.ready();
+        tg.expand();
+
+        // Extract ref param from startParam if present
+        var ref = tg.initDataUnsafe && tg.initDataUnsafe.start_param
+            ? tg.initDataUnsafe.start_param
+            : '';
+
+        fetch('/api/tg-miniapp-auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData: tg.initData, ref: ref })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                window.location.href = data.redirect || '/game';
+            } else {
+                showError(data.error || 'ግባት አልተሳካም።');
+            }
+        })
+        .catch(function () {
+            showError('የኔትወርክ ችግር። እንደገና ይሞክሩ።');
+        });
+    }
+
+    function showError(msg) {
+        document.getElementById('tma-loading').style.display = 'none';
+        document.getElementById('tma-error-msg').textContent = msg;
+        document.getElementById('tma-error').style.display = 'block';
+    }
+})();
+</script>
 {% endblock %}

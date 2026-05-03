@@ -163,6 +163,96 @@ def tg_login(token):
     return redirect(url_for('game_page'))
 
 
+@app.route("/api/tg-miniapp-auth", methods=["POST"])
+def tg_miniapp_auth():
+    """Authenticate user via Telegram Mini App initData."""
+    import hmac
+    import hashlib
+    import json
+    import urllib.parse
+    import secrets as sec_mod
+
+    data = request.get_json(force=True) or {}
+    init_data = data.get("initData", "")
+
+    if not init_data:
+        return jsonify({"success": False, "error": "No initData"}), 400
+
+    if not BOT_TOKEN:
+        return jsonify({"success": False, "error": "Bot not configured"}), 500
+
+    # Validate initData HMAC
+    params = dict(urllib.parse.parse_qsl(init_data, keep_blank_values=True))
+    received_hash = params.pop("hash", None)
+    if not received_hash:
+        return jsonify({"success": False, "error": "Missing hash"}), 400
+
+    data_check_string = "\n".join(
+        f"{k}={v}" for k, v in sorted(params.items())
+    )
+    secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+    computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+    if not hmac.compare_digest(computed_hash, received_hash):
+        return jsonify({"success": False, "error": "Invalid initData"}), 403
+
+    # Parse user info from initData
+    user_str = params.get("user")
+    if not user_str:
+        return jsonify({"success": False, "error": "No user in initData"}), 400
+
+    try:
+        tg_user = json.loads(user_str)
+    except Exception:
+        return jsonify({"success": False, "error": "Bad user data"}), 400
+
+    tg_id = str(tg_user.get("id", ""))
+    first_name = tg_user.get("first_name", "")
+    last_name = tg_user.get("last_name", "")
+    tg_username = tg_user.get("username", "")
+    ref_code = data.get("ref", "").strip()
+
+    if not tg_id:
+        return jsonify({"success": False, "error": "No Telegram ID"}), 400
+
+    # Get or create user
+    user = User.query.filter_by(telegram_chat_id=tg_id).first()
+    if not user:
+        base_un = tg_username or first_name or f"user{tg_id[-6:]}"
+        base_un = base_un.replace(" ", "_").lower()
+        uname = base_un
+        counter = 1
+        while User.query.filter_by(username=uname).first():
+            uname = f"{base_un}{counter}"
+            counter += 1
+
+        code = None
+        for _ in range(20):
+            c = sec_mod.token_urlsafe(6)
+            if not User.query.filter_by(referral_code=c).first():
+                code = c
+                break
+
+        user = User(
+            username=uname,
+            telegram_chat_id=tg_id,
+            password_hash=None,
+            referral_code=code,
+        )
+        db.session.add(user)
+        db.session.flush()
+
+        if ref_code:
+            referrer = User.query.filter_by(referral_code=ref_code).first()
+            if referrer and referrer.id != user.id:
+                user.referred_by = ref_code
+
+        db.session.commit()
+
+    login_user(user, remember=True)
+    return jsonify({"success": True, "redirect": url_for("game_page")})
+
+
 @app.route("/auth/telegram")
 def telegram_auth():
     """Legacy Telegram widget auth — redirect to bot instructions."""

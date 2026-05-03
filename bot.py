@@ -97,39 +97,39 @@ if BOT_TOKEN:
         chat_id = message.chat.id
         first_name = message.from_user.first_name or ''
 
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        btn = types.KeyboardButton(
-            "📱 ቁጥሬን አጋራ / Share My Contact",
-            request_contact=True
-        )
-        markup.add(btn)
+        web_url = _get_web_url()
+        # Append ref code as startapp param so Mini App can pick it up
+        mini_app_url = f"{web_url}/?ref={ref_code}" if ref_code else web_url
 
-        # Store ref_code temporarily in a simple in-memory dict via a Setting
-        # We tag it to the chat_id so we can retrieve it when contact arrives
-        try:
-            from app import app, db
-            from models import Setting
-            with app.app_context():
-                key = f"ref_{chat_id}"
-                s = Setting.query.get(key)
-                if s:
-                    s.value = ref_code or ''
-                else:
-                    s = Setting(key=key, value=ref_code or '')
-                    db.session.add(s)
-                db.session.commit()
-        except Exception as e:
-            logger.warning(f"Could not store ref_code: {e}")
+        # Inline keyboard with Mini App button
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton(
+            "🎮 ጨዋታ ጀምር / Play Now",
+            web_app=types.WebAppInfo(url=mini_app_url)
+        ))
 
         bot.send_message(
             chat_id,
             f"🎮 *እንኳን ወደ NOVA BINGO በደህና መጡ!*\n\n"
-            f"ሰላም {first_name}! 👋\n\n"
-            f"ለመመዝገብ ወይም ለመግባት ከታች ያለውን ቁልፍ ተጭነው ስልክ ቁጥርዎን ያጋሩ።\n\n"
-            f"👇 *Share My Contact* ቁልፍ ይጫኑ",
+            f"ሰላም *{first_name}*! 👋\n\n"
+            f"ከታች ያለውን ቁልፍ ተጭነው ወዲያው ጨዋታ ይጀምሩ። "
+            f"ምዝገባ አያስፈልግም — ቴሌግራም አካውንትዎ ይበቃል! 🚀",
             parse_mode='Markdown',
             reply_markup=markup
         )
+
+    # Also set bot menu button to open the Mini App
+    try:
+        web_url = _get_web_url()
+        bot.set_chat_menu_button(
+            menu_button=types.MenuButtonWebApp(
+                text="🎮 ጨዋታ",
+                web_app=types.WebAppInfo(url=web_url)
+            )
+        )
+        logger.info("Bot menu button set to Mini App.")
+    except Exception as e:
+        logger.warning(f"Could not set menu button: {e}")
 
     @bot.message_handler(content_types=['contact'])
     def handle_contact(message):
