@@ -1538,6 +1538,72 @@ async function loadProfileData() {
     } catch (e) { /* silent */ }
 }
 
+let _lbData = [];
+let _lbSortKey = 'prize';
+
+function lbSort(key) {
+    _lbSortKey = key;
+    document.querySelectorAll('.lb-tab').forEach(b => b.classList.remove('active'));
+    const tab = document.getElementById('lb-tab-' + key);
+    if (tab) tab.classList.add('active');
+    _lbRender();
+}
+
+function _lbRender() {
+    const listEl = document.getElementById('lb-list');
+    if (!listEl) return;
+    if (!_lbData.length) {
+        listEl.innerHTML = '<p class="lb-empty">🏆 ምንም አሸናፊ አልተመዘገበም።<br>No winners recorded yet.</p>';
+        return;
+    }
+    const sorted = [..._lbData].sort((a, b) => {
+        if (_lbSortKey === 'wins')    return b.wins - a.wins;
+        if (_lbSortKey === 'winrate') return b.win_rate - a.win_rate;
+        return b.total_prize - a.total_prize;
+    });
+
+    const medals    = ['🥇', '🥈', '🥉'];
+    const rankCls   = ['gold', 'silver', 'bronze'];
+    const avCls     = ['av-gold', 'av-silver', 'av-bronze'];
+    const rowCls    = ['rank-1', 'rank-2', 'rank-3'];
+
+    listEl.innerHTML = sorted.map((l, i) => {
+        const initial  = (l.username || '?')[0].toUpperCase();
+        const rankIcon = i < 3 ? medals[i] : `#${i + 1}`;
+        const rCls     = i < 3 ? rankCls[i] : 'other';
+        const aC       = i < 3 ? avCls[i] : '';
+        const rRowCls  = i < 3 ? rowCls[i] : '';
+
+        const wr = l.win_rate || 0;
+        const wrCls = wr >= 40 ? 'wr-high' : wr >= 20 ? 'wr-mid' : 'wr-low';
+
+        const highlightVal = _lbSortKey === 'wins'    ? `${l.wins} wins`
+                           : _lbSortKey === 'winrate' ? `${wr}% win rate`
+                           : `${l.total_prize.toFixed(2)} ETB`;
+        const highlightLbl = _lbSortKey === 'wins'    ? 'rounds won'
+                           : _lbSortKey === 'winrate' ? 'win rate'
+                           : 'ETB won';
+
+        return `
+        <div class="lb-row ${rRowCls}">
+            <div class="lb-rank ${rCls}">${rankIcon}</div>
+            <div class="lb-avatar ${aC}">${initial}</div>
+            <div class="lb-info">
+                <div class="lb-name">${l.username}</div>
+                <div class="lb-meta">
+                    <span class="lb-wins-badge">🏅 ${l.wins} win${l.wins !== 1 ? 's' : ''}</span>
+                    <span class="lb-rounds-badge">${l.rounds_played} played</span>
+                    <span class="lb-wr-badge ${wrCls}">📈 ${wr}%</span>
+                </div>
+            </div>
+            <div class="lb-right">
+                <div class="lb-prize-amount">${highlightVal}</div>
+                <div class="lb-prize-label">${highlightLbl}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
 async function loadLeaderboard() {
     const listEl = document.getElementById('lb-list');
     if (!listEl) return;
@@ -1545,31 +1611,8 @@ async function loadLeaderboard() {
     try {
         const res = await fetch('/api/leaderboard');
         if (!res.ok) throw new Error('Failed');
-        const leaders = await res.json();
-        if (!leaders.length) {
-            listEl.innerHTML = '<p class="lb-empty">🏆 ምንም አሸናፊ አልተመዘገበም።<br>No winners recorded yet.</p>';
-            return;
-        }
-        const medals = ['🥇', '🥈', '🥉'];
-        const rankClass = ['gold', 'silver', 'bronze'];
-        listEl.innerHTML = leaders.map((l, i) => {
-            const initial = (l.username || '?')[0].toUpperCase();
-            const rankIcon = i < 3 ? medals[i] : `#${i + 1}`;
-            const rClass = i < 3 ? rankClass[i] : 'other';
-            return `
-            <div class="lb-row">
-                <div class="lb-rank ${rClass}">${rankIcon}</div>
-                <div class="lb-avatar">${initial}</div>
-                <div class="lb-info">
-                    <div class="lb-name">${l.username}</div>
-                    <div class="lb-wins">${l.wins} win${l.wins !== 1 ? 's' : ''}</div>
-                </div>
-                <div class="lb-prize">
-                    <div class="lb-prize-amount">${l.total_prize.toFixed(2)}</div>
-                    <div class="lb-prize-label">ETB won</div>
-                </div>
-            </div>`;
-        }).join('');
+        _lbData = await res.json();
+        _lbRender();
     } catch (e) {
         listEl.innerHTML = '<p class="lb-empty">ስህተት ተፈጥሯል። እባክዎ ዳግም ሞክሩ።</p>';
     }

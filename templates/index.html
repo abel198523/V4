@@ -102,16 +102,60 @@
             gap: 10px;
         }
         .leaderboard-screen.active { display: flex; }
+        .lb-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .lb-header-left { flex: 1; }
         .lb-title {
             font-size: 1.1rem;
             font-weight: 900;
-            margin: 0 0 4px;
+            margin: 0 0 2px;
         }
         .lb-subtitle {
             color: #64748b;
-            font-size: 0.8rem;
-            margin: 0 0 14px;
+            font-size: 0.78rem;
+            margin: 0;
         }
+        .lb-refresh-btn {
+            background: rgba(59,130,246,0.12);
+            border: 1px solid rgba(59,130,246,0.25);
+            color: #3b82f6;
+            border-radius: 10px;
+            padding: 7px 14px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        /* Sort tabs */
+        .lb-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+        .lb-tab {
+            flex: 1;
+            padding: 7px 4px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: #161b22;
+            color: #64748b;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.18s;
+        }
+        .lb-tab.active {
+            background: rgba(59,130,246,0.18);
+            border-color: rgba(59,130,246,0.4);
+            color: #3b82f6;
+        }
+        /* Top-3 podium highlight */
         .lb-row {
             display: flex;
             align-items: center;
@@ -122,6 +166,9 @@
             padding: 12px 14px;
             transition: background 0.2s;
         }
+        .lb-row.rank-1 { border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.05); }
+        .lb-row.rank-2 { border-color: rgba(148,163,184,0.3); background: rgba(148,163,184,0.04); }
+        .lb-row.rank-3 { border-color: rgba(180,83,9,0.3);   background: rgba(180,83,9,0.04); }
         .lb-rank {
             font-size: 1.2rem;
             font-weight: 900;
@@ -132,7 +179,7 @@
         .lb-rank.gold   { color: #f59e0b; }
         .lb-rank.silver { color: #94a3b8; }
         .lb-rank.bronze { color: #b45309; }
-        .lb-rank.other  { color: #475569; }
+        .lb-rank.other  { color: #475569; font-size: 0.85rem; }
         .lb-avatar {
             width: 38px; height: 38px;
             border-radius: 50%;
@@ -140,25 +187,34 @@
             display: flex; align-items: center; justify-content: center;
             font-weight: 900; font-size: 1rem; flex-shrink: 0;
         }
+        .lb-avatar.av-gold   { background: linear-gradient(135deg,#f59e0b,#d97706); }
+        .lb-avatar.av-silver { background: linear-gradient(135deg,#94a3b8,#64748b); }
+        .lb-avatar.av-bronze { background: linear-gradient(135deg,#b45309,#92400e); }
         .lb-info { flex: 1; min-width: 0; }
         .lb-name { font-weight: 800; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .lb-wins { color: #64748b; font-size: 0.75rem; margin-top: 2px; }
-        .lb-prize { text-align: right; flex-shrink: 0; }
-        .lb-prize-amount { font-weight: 900; font-size: 1rem; color: #22c55e; }
-        .lb-prize-label { color: #64748b; font-size: 0.7rem; }
-        .lb-empty { text-align: center; color: #64748b; padding: 40px 0; font-size: 0.9rem; }
-        .lb-refresh-btn {
-            background: rgba(59,130,246,0.12);
-            border: 1px solid rgba(59,130,246,0.25);
-            color: #3b82f6;
-            border-radius: 10px;
-            padding: 7px 16px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            cursor: pointer;
-            align-self: flex-end;
-            margin-bottom: 2px;
+        .lb-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; flex-wrap: wrap; }
+        .lb-wins-badge {
+            font-size: 0.68rem; font-weight: 700;
+            background: rgba(59,130,246,0.15);
+            color: #60a5fa;
+            border-radius: 6px;
+            padding: 1px 6px;
         }
+        .lb-rounds-badge {
+            font-size: 0.68rem; color: #64748b;
+        }
+        .lb-wr-badge {
+            font-size: 0.68rem; font-weight: 700;
+            border-radius: 6px;
+            padding: 1px 6px;
+        }
+        .lb-wr-badge.wr-high  { background: rgba(34,197,94,0.15);  color: #4ade80; }
+        .lb-wr-badge.wr-mid   { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .lb-wr-badge.wr-low   { background: rgba(100,116,139,0.15);color: #94a3b8; }
+        .lb-right { text-align: right; flex-shrink: 0; }
+        .lb-prize-amount { font-weight: 900; font-size: 1rem; color: #22c55e; }
+        .lb-prize-label  { color: #64748b; font-size: 0.7rem; }
+        .lb-empty { text-align: center; color: #64748b; padding: 40px 0; font-size: 0.9rem; line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -782,9 +838,18 @@
 
         <!-- LEADERBOARD SCREEN -->
         <div id="leaderboard-screen" class="leaderboard-screen">
-            <h2 class="lb-title">🏆 የምርጥ አሸናፊዎች</h2>
-            <p class="lb-subtitle">Top Winners • ምርጥ 20 አሸናፊዎች</p>
-            <button class="lb-refresh-btn" onclick="loadLeaderboard()">↻ Refresh</button>
+            <div class="lb-header">
+                <div class="lb-header-left">
+                    <h2 class="lb-title">🏆 የምርጥ አሸናፊዎች</h2>
+                    <p class="lb-subtitle">Top Winners • ምርጥ 20 አሸናፊዎች</p>
+                </div>
+                <button class="lb-refresh-btn" onclick="loadLeaderboard()">↻ Refresh</button>
+            </div>
+            <div class="lb-tabs">
+                <button class="lb-tab active" id="lb-tab-prize"   onclick="lbSort('prize')">💰 By Prize</button>
+                <button class="lb-tab"        id="lb-tab-wins"    onclick="lbSort('wins')">🏅 By Wins</button>
+                <button class="lb-tab"        id="lb-tab-winrate" onclick="lbSort('winrate')">📈 Win Rate</button>
+            </div>
             <div id="lb-list"><p class="lb-empty">Loading...</p></div>
         </div>
 
