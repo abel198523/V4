@@ -1117,6 +1117,9 @@ def buy_card(room_id, card_number):
     else:
         current_user.bonus_balance = 0.0
         current_user.balance       = round(dep - (price - bonus), 2)
+    # Snapshot balance BEFORE streak reward is added
+    dep_new   = round(float(current_user.balance), 2)
+    bonus_new = round(float(current_user.bonus_balance), 2)
     _check_and_update_streak(current_user)
     db.session.add(Transaction(
         user_id=current_user.id,
@@ -1126,8 +1129,6 @@ def buy_card(room_id, card_number):
         card_number=card_number
     ))
     db.session.commit()
-    dep_new   = round(float(current_user.balance), 2)
-    bonus_new = round(float(current_user.bonus_balance), 2)
     return jsonify({"success": True, "new_balance": dep_new + bonus_new,
                     "deposit_balance": dep_new, "bonus_balance": bonus_new,
                     "streak": current_user.current_streak})
@@ -1512,6 +1513,9 @@ def buy_card_by_stake(stake, card_number):
     else:
         current_user.bonus_balance = 0.0
         current_user.balance       = round(dep - (price - bonus), 2)
+    # Snapshot balance BEFORE streak reward is added
+    dep_new   = round(float(current_user.balance), 2)
+    bonus_new = round(float(current_user.bonus_balance), 2)
     _check_and_update_streak(current_user)
     db.session.add(Transaction(
         user_id=current_user.id,
@@ -1521,8 +1525,6 @@ def buy_card_by_stake(stake, card_number):
         card_number=card_number
     ))
     db.session.commit()
-    dep_new   = round(float(current_user.balance), 2)
-    bonus_new = round(float(current_user.bonus_balance), 2)
     return jsonify({"success": True, "new_balance": dep_new + bonus_new,
                     "deposit_balance": dep_new, "bonus_balance": bonus_new,
                     "streak": current_user.current_streak})
