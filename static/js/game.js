@@ -1634,6 +1634,58 @@ async function loadProfileData() {
         }
     } catch (e) { /* silent */ }
 
+    // Load daily streak
+    try {
+        const sr = await fetch('/api/user/streak');
+        if (sr.ok) {
+            const sd = await sr.json();
+            const streak      = sd.streak || 0;
+            const playedToday = sd.played_today || false;
+            const rewards     = sd.rewards || [2,3,5,7,10,15,20];
+            const nextReward  = sd.next_reward || rewards[0];
+
+            const countEl  = document.getElementById('streak-count');
+            const nextEl   = document.getElementById('streak-next-reward');
+            const badgeEl  = document.getElementById('streak-played-badge');
+            const dotsEl   = document.getElementById('streak-dots');
+            const rewRow   = document.getElementById('streak-rewards-row');
+
+            if (countEl)  countEl.innerText  = streak;
+            if (nextEl)   nextEl.innerText   = playedToday ? rewards[Math.min(streak, rewards.length-1)] : nextReward;
+            if (badgeEl)  badgeEl.style.display = playedToday ? 'inline-block' : 'none';
+
+            if (dotsEl) {
+                const posInCycle = streak % 7;
+                dotsEl.innerHTML = rewards.map((_, i) => {
+                    const done = (streak >= 7) ? true : i < posInCycle;
+                    const isCurrent = i === (posInCycle === 0 && streak > 0 ? 6 : posInCycle - 1) && streak > 0;
+                    const color = done ? '#f59e0b' : '#1e2435';
+                    const border = isCurrent ? '2px solid #f59e0b' : (done ? 'none' : '1px solid #374151');
+                    const size = isCurrent ? '30px' : '26px';
+                    return `<div style="width:${size};height:${size};border-radius:50%;background:${color};border:${border};display:flex;align-items:center;justify-content:center;transition:all 0.3s;">
+                        ${done ? '<svg viewBox="0 0 24 24" width="12" height="12" fill="white"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                    </div>`;
+                }).join('');
+            }
+
+            if (rewRow) {
+                const dayLabels = ['1','2','3','4','5','6','7+'];
+                rewRow.innerHTML = rewards.map((r, i) => {
+                    const posInCycle = streak % 7;
+                    const isDone = streak > 0 && (streak >= 7 ? true : i < posInCycle);
+                    const isCurrent = i === posInCycle && !playedToday;
+                    const bg = isCurrent ? 'rgba(245,158,11,0.2)' : (isDone ? 'rgba(245,158,11,0.08)' : 'transparent');
+                    const col = isCurrent ? '#fbbf24' : (isDone ? '#f59e0b' : '#4b5563');
+                    const bdr = isCurrent ? '1px solid rgba(245,158,11,0.4)' : 'none';
+                    return `<div style="text-align:center;border-radius:8px;padding:5px 2px;background:${bg};border:${bdr};">
+                        <div style="font-size:0.55rem;color:#6b7280;font-weight:700;">D${dayLabels[i]}</div>
+                        <div style="font-size:0.72rem;font-weight:800;color:${col};margin-top:1px;">${r}</div>
+                    </div>`;
+                }).join('');
+            }
+        }
+    } catch(e) { /* silent */ }
+
     // Load referral stats
     try {
         const rr = await fetch('/api/user/referral');

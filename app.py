@@ -115,6 +115,19 @@ with app.app_context():
     except Exception:
         db.session.rollback()
 
+    # Migration: add streak columns if not present
+    try:
+        db.session.execute(db.text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS current_streak INTEGER NOT NULL DEFAULT 0"
+        ))
+        db.session.execute(db.text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_play_date DATE NULL"
+        ))
+        db.session.commit()
+        logger.info("Migration: streak columns added.")
+    except Exception:
+        db.session.rollback()
+
     # Generate referral codes for users who don't have one
     try:
         import secrets as _sec

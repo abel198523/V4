@@ -676,6 +676,54 @@ def _get_bonus_expiry_days():
         return 30
 
 
+_STREAK_REWARDS = [2, 3, 5, 7, 10, 15, 20]  # Day 1–7+
+
+
+def _get_streak_reward(streak_day):
+    idx = min(max(streak_day, 1), len(_STREAK_REWARDS)) - 1
+    return _STREAK_REWARDS[idx]
+
+
+def _check_and_update_streak(user):
+    """Update daily streak on card purchase. Credits bonus_balance and notifies via Telegram.
+    Returns (rewarded: bool, streak: int, reward_etb: float)."""
+    from datetime import datetime, timezone, timedelta
+    EAT = timezone(timedelta(hours=3))
+    today = datetime.now(EAT).date()
+
+    prev_streak = int(user.current_streak or 0)
+    last = user.last_play_date  # may be None or date
+
+    if last == today:
+        return False, prev_streak, 0
+
+    if last is None or (today - last).days > 1:
+        new_streak = 1
+    else:
+        new_streak = prev_streak + 1
+
+    user.current_streak = new_streak
+    user.last_play_date = today
+
+    reward = _get_streak_reward(new_streak)
+    expiry_days = _get_bonus_expiry_days()
+    new_exp = datetime.now(timezone.utc) + timedelta(days=expiry_days)
+    user.bonus_balance = round(float(user.bonus_balance or 0) + reward, 2)
+    if not user.bonus_expires_at or user.bonus_expires_at < new_exp:
+        user.bonus_expires_at = new_exp
+
+    milestones = {3, 7, 14, 21, 30}
+    extra = f"\n🏆 *{new_streak} ቀን milestone!* ትልቅ ስኬት! 🎉" if new_streak in milestones else ""
+    fire = "🔥" * min(new_streak, 5)
+    _notify_user_telegram(user,
+        f"{fire} *{new_streak} ቀን Streak!*\n\n"
+        f"ዛሬ ጨዋታ ስለተጫወቱ *{reward:.0f} ETB* ቦነስ ታክሏል! 🎁\n"
+        f"ነገ ቢጫወቱ: *{_get_streak_reward(new_streak + 1):.0f} ETB* ይጠብቆዎታል።"
+        f"{extra}"
+    )
+    return True, new_streak, reward
+
+
 def _maybe_expire_user_bonus(user):
     """Zero bonus_balance if it has expired. Returns True if it was expired."""
     from datetime import datetime, timezone
@@ -715,6 +763,23 @@ def user_referral():
         "pending_count":   pending_count,
         "bonus_per_ref":   bonus,
         "bonus_earned":    round(confirmed_count * bonus, 2),
+    })
+
+
+@app.route("/api/user/streak")
+@login_required
+def user_streak():
+    from datetime import datetime, timezone, timedelta
+    EAT = timezone(timedelta(hours=3))
+    today = datetime.now(EAT).date()
+    streak = int(current_user.current_streak or 0)
+    played_today = (current_user.last_play_date == today)
+    next_day = streak + 1 if played_today else streak + 1
+    return jsonify({
+        "streak":       streak,
+        "played_today": played_today,
+        "rewards":      _STREAK_REWARDS,
+        "next_reward":  _get_streak_reward(next_day),
     })
 
 
@@ -1084,6 +1149,7 @@ def buy_card(room_id, card_number):
     else:
         current_user.bonus_balance = 0.0
         current_user.balance       = round(dep - (price - bonus), 2)
+    _check_and_update_streak(current_user)
     db.session.add(Transaction(
         user_id=current_user.id,
         room_id=room.id,
@@ -1095,7 +1161,8 @@ def buy_card(room_id, card_number):
     dep_new   = round(float(current_user.balance), 2)
     bonus_new = round(float(current_user.bonus_balance), 2)
     return jsonify({"success": True, "new_balance": dep_new + bonus_new,
-                    "deposit_balance": dep_new, "bonus_balance": bonus_new})
+                    "deposit_balance": dep_new, "bonus_balance": bonus_new,
+                    "streak": current_user.current_streak})
 
 
 # ─── User Deposit / Withdraw Requests ────────────────────────────────────────
@@ -1417,6 +1484,7 @@ def buy_card_by_stake(stake, card_number):
     else:
         current_user.bonus_balance = 0.0
         current_user.balance       = round(dep - (price - bonus), 2)
+    _check_and_update_streak(current_user)
     db.session.add(Transaction(
         user_id=current_user.id,
         room_id=room.id,
@@ -1428,7 +1496,8 @@ def buy_card_by_stake(stake, card_number):
     dep_new   = round(float(current_user.balance), 2)
     bonus_new = round(float(current_user.bonus_balance), 2)
     return jsonify({"success": True, "new_balance": dep_new + bonus_new,
-                    "deposit_balance": dep_new, "bonus_balance": bonus_new})
+                    "deposit_balance": dep_new, "bonus_balance": bonus_new,
+                    "streak": current_user.current_streak})
 
 
 # ─── Admin Room Management ─────────────────────────────────────────────────────

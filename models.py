@@ -10,6 +10,8 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     bonus_balance = db.Column(db.Float, default=0.0, nullable=False, server_default='0')
     bonus_expires_at = db.Column(db.DateTime, nullable=True)
+    current_streak = db.Column(db.Integer, default=0, nullable=False, server_default='0')
+    last_play_date = db.Column(db.Date, nullable=True)
     referred_by = db.Column(db.String(16), nullable=True)
     referral_code = db.Column(db.String(16), unique=True, nullable=True)
     referral_bonus_paid = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
