@@ -619,13 +619,7 @@ socket.onmessage = (event) => {
         }
         updateRoomStats(data.stats, data.prizes);
     } else if (data.type === 'BALANCE_UPDATE') {
-        userBalance = data.balance;
-        const balanceEl = document.getElementById('sel-balance');
-        const walletBalanceEl = document.getElementById('wallet-balance-value');
-        const indexBalanceEl = document.getElementById('walletBalance');
-        if (balanceEl) balanceEl.innerText = userBalance.toFixed(2);
-        if (walletBalanceEl) walletBalanceEl.innerText = userBalance.toFixed(2);
-        if (indexBalanceEl) indexBalanceEl.innerText = userBalance.toFixed(2);
+        fetchAndSyncBalance();
     }
 };
 
@@ -1165,15 +1159,28 @@ if (confirmCard) {
                 // Update balance from server response
                 if (typeof data.new_balance === 'number') {
                     userBalance = data.new_balance;
-                    ['sel-balance','wallet-balance-value','withdraw-balance-value',
-                     'walletBalance','profile-balance'].forEach(id => {
+                    if (typeof data.deposit_balance === 'number') userDepositBalance = data.deposit_balance;
+                    if (typeof data.bonus_balance   === 'number') userBonusBalance   = data.bonus_balance;
+                    const dep   = userDepositBalance;
+                    const bonus = userBonusBalance;
+                    const total = userBalance;
+                    const rounded = Math.round(total);
+                    const balEls = {
+                        'sel-balance':          total.toFixed(2),
+                        'wallet-balance-value': total.toFixed(2),
+                        'walletBalance':        total.toFixed(2),
+                        'profile-balance':      total.toFixed(2),
+                        'sel-main-wallet':      rounded,
+                        'sel-play-wallet':      rounded,
+                        'wallet-deposit-value':   dep.toFixed(2),
+                        'wallet-bonus-value':     bonus.toFixed(2),
+                        'withdraw-balance-value': dep.toFixed(2),
+                        'withdraw-bonus-display': bonus.toFixed(2),
+                    };
+                    Object.entries(balEls).forEach(([id, val]) => {
                         const el = document.getElementById(id);
-                        if (el) el.innerText = userBalance.toFixed(2);
+                        if (el) el.innerText = val;
                     });
-                    const mw = document.getElementById('sel-main-wallet');
-                    const pw = document.getElementById('sel-play-wallet');
-                    if (mw) mw.innerText = Math.round(userBalance);
-                    if (pw) pw.innerText = Math.round(userBalance);
                 }
 
                 // Mark this card taken in the local grid
@@ -1383,7 +1390,9 @@ async function initApp() {
 }
 
 // Initialize immediately from server-rendered value (never stale)
-let userBalance = (typeof window.INITIAL_BALANCE === 'number') ? window.INITIAL_BALANCE : 0;
+let userBalance        = (typeof window.INITIAL_BALANCE === 'number') ? window.INITIAL_BALANCE : 0;
+let userDepositBalance = (typeof window.INITIAL_DEPOSIT_BALANCE === 'number') ? window.INITIAL_DEPOSIT_BALANCE : 0;
+let userBonusBalance   = (typeof window.INITIAL_BONUS_BALANCE === 'number') ? window.INITIAL_BONUS_BALANCE : 0;
 
 // Central balance sync — always fetches fresh value from DB
 async function fetchAndSyncBalance() {
@@ -1394,23 +1403,29 @@ async function fetchAndSyncBalance() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        if (typeof data.balance === 'number') {
-            userBalance = data.balance;
-            const rounded = Math.round(userBalance);
-            const els = {
-                'sel-balance':          userBalance.toFixed(2),
-                'wallet-balance-value': userBalance.toFixed(2),
-                'withdraw-balance-value': userBalance.toFixed(2),
-                'walletBalance':        userBalance.toFixed(2),
-                'profile-balance':      userBalance.toFixed(2),
-                'sel-main-wallet':      rounded,
-                'sel-play-wallet':      rounded,
-            };
-            Object.entries(els).forEach(([id, val]) => {
-                const el = document.getElementById(id);
-                if (el) el.innerText = val;
-            });
-        }
+        const dep   = typeof data.balance       === 'number' ? data.balance       : 0;
+        const bonus = typeof data.bonus_balance === 'number' ? data.bonus_balance : 0;
+        const total = typeof data.total_balance === 'number' ? data.total_balance : dep + bonus;
+        userDepositBalance = dep;
+        userBonusBalance   = bonus;
+        userBalance        = total;
+        const rounded = Math.round(total);
+        const els = {
+            'sel-balance':          total.toFixed(2),
+            'wallet-balance-value': total.toFixed(2),
+            'walletBalance':        total.toFixed(2),
+            'profile-balance':      total.toFixed(2),
+            'sel-main-wallet':      rounded,
+            'sel-play-wallet':      rounded,
+            'wallet-deposit-value':   dep.toFixed(2),
+            'wallet-bonus-value':     bonus.toFixed(2),
+            'withdraw-balance-value': dep.toFixed(2),
+            'withdraw-bonus-display': bonus.toFixed(2),
+        };
+        Object.entries(els).forEach(([id, val]) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+        });
     } catch (e) { /* silent */ }
 }
 

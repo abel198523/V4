@@ -568,17 +568,35 @@
         <!-- WALLET SCREEN -->
         <div id="wallet-screen" class="wallet-screen">
             <div style="padding:15px;overflow-y:auto;flex:1;">
+                <!-- Total playable balance -->
                 <div class="wallet-card">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div class="wallet-label">ጠቅላላ ባላንስ</div>
+                        <div class="wallet-label">ጠቅላላ ባላንስ (መጫወቻ)</div>
                         <button onclick="manualRefreshBalance()" class="refresh-btn-wallet" style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:1.2rem;opacity:0.8;">↻</button>
                     </div>
                     <div class="wallet-balance-row">
                         <span class="wallet-currency">ETB</span>
-                        <span class="wallet-balance" id="wallet-balance-value">{{ "%.2f"|format(current_user.balance) }}</span>
+                        <span class="wallet-balance" id="wallet-balance-value">{{ "%.2f"|format(current_user.balance + current_user.bonus_balance) }}</span>
                     </div>
                 </div>
-                <div class="wallet-actions">
+
+                <!-- Split: Deposit + Bonus -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+                    <!-- Deposit balance -->
+                    <div style="background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(16,185,129,0.08));border:1px solid rgba(34,197,94,0.3);border-radius:14px;padding:14px;">
+                        <div style="font-size:0.65rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">💵 ዲፖዚት ባላንስ</div>
+                        <div style="font-size:1.3rem;font-weight:900;color:#22c55e;"><span id="wallet-deposit-value">{{ "%.2f"|format(current_user.balance) }}</span></div>
+                        <div style="font-size:0.62rem;color:#4ade80;margin-top:3px;">✅ ማስወጣት ይቻላል</div>
+                    </div>
+                    <!-- Bonus balance -->
+                    <div style="background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(251,191,36,0.08));border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:14px;">
+                        <div style="font-size:0.65rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🎁 ቦነስ ባላንስ</div>
+                        <div style="font-size:1.3rem;font-weight:900;color:#f59e0b;"><span id="wallet-bonus-value">{{ "%.2f"|format(current_user.bonus_balance) }}</span></div>
+                        <div style="font-size:0.62rem;color:#fbbf24;margin-top:3px;">🎮 መጫወቻ ብቻ</div>
+                    </div>
+                </div>
+
+                <div class="wallet-actions" style="margin-top:12px;">
                     <button class="wallet-btn deposit" onclick="navTo('deposit')">+ ገቢ</button>
                     <button class="wallet-btn withdraw" onclick="navTo('withdraw')">- ወጪ</button>
                 </div>
@@ -661,9 +679,14 @@
             </div>
             <div style="padding:15px;overflow-y:auto;flex:1;">
                 <div class="deposit-section">
-                    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:12px;margin-bottom:15px;text-align:center;">
-                        <div style="font-size:0.75rem;color:#64748b;font-weight:700;">ያለዎት ባላንስ</div>
-                        <div style="font-size:1.5rem;font-weight:800;color:#22c55e;"><span id="withdraw-balance-value">{{ "%.2f"|format(current_user.balance) }}</span> ETB</div>
+                    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:14px;margin-bottom:15px;">
+                        <div style="text-align:center;">
+                            <div style="font-size:0.72rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px;">💵 ዲፖዚት ባላንስ (ሊወጣ ይችላል)</div>
+                            <div style="font-size:1.5rem;font-weight:800;color:#22c55e;"><span id="withdraw-balance-value">{{ "%.2f"|format(current_user.balance) }}</span> ETB</div>
+                        </div>
+                        <div style="margin-top:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:8px;text-align:center;">
+                            <div style="font-size:0.68rem;color:#92400e;font-weight:600;">🎁 ቦነስ ባላንስ — <span id="withdraw-bonus-display">{{ "%.2f"|format(current_user.bonus_balance) }}</span> ETB (ሊወጣ አይችልም)</div>
+                        </div>
                     </div>
                     <div class="input-group">
                         <label>መጠን (ETB, min 50)</label>
@@ -1220,7 +1243,9 @@
 
     <script>
         // Always expose fresh server-side balance as a global so game.js picks it up immediately
-        window.INITIAL_BALANCE = {{ current_user.balance }};
+        window.INITIAL_BALANCE = {{ current_user.balance + current_user.bonus_balance }};
+        window.INITIAL_DEPOSIT_BALANCE = {{ current_user.balance }};
+        window.INITIAL_BONUS_BALANCE = {{ current_user.bonus_balance }};
         window.CURRENT_USERNAME = "{{ current_user.username }}";
         window.CURRENT_USER_ID = {{ current_user.id }};
 

@@ -82,6 +82,7 @@ def game_page():
         "index.html",
         rooms=rooms,
         balance=current_user.balance,
+        bonus_balance=current_user.bonus_balance,
         bot_username=BOT_USERNAME,
         has_telegram=bool(current_user.telegram_chat_id),
         tg_link_status=tg_link_status,
@@ -258,8 +259,8 @@ def _apply_first_deposit_referral_bonus(user):
     bonus = _get_referral_bonus()
     if bonus <= 0:
         return
-    user.balance              = round(float(user.balance or 0) + bonus, 2)
-    referrer.balance          = round(float(referrer.balance or 0) + bonus, 2)
+    user.bonus_balance        = round(float(user.bonus_balance or 0) + bonus, 2)
+    referrer.bonus_balance    = round(float(referrer.bonus_balance or 0) + bonus, 2)
     user.referral_bonus_paid  = True
     db.session.flush()
     _notify_user_telegram(referrer,
@@ -378,7 +379,14 @@ def do_signup():
 @login_required
 def get_balance():
     db.session.refresh(current_user)
-    return jsonify({"balance": current_user.balance, "username": current_user.username})
+    dep   = round(float(current_user.balance or 0), 2)
+    bonus = round(float(current_user.bonus_balance or 0), 2)
+    return jsonify({
+        "balance":       dep,
+        "bonus_balance": bonus,
+        "total_balance": round(dep + bonus, 2),
+        "username":      current_user.username,
+    })
 
 
 @app.route("/api/room-status")
@@ -440,10 +448,11 @@ def admin_get_user(username):
     if not user:
         return jsonify({"error": "ተጠቃሚ አልተገኘም"}), 404
     return jsonify({
-        "id":       user.id,
-        "username": user.username,
-        "balance":  round(user.balance, 2),
-        "is_admin": user.is_admin,
+        "id":            user.id,
+        "username":      user.username,
+        "balance":       round(float(user.balance or 0), 2),
+        "bonus_balance": round(float(user.bonus_balance or 0), 2),
+        "is_admin":      user.is_admin,
     })
 
 
@@ -1005,12 +1014,19 @@ def logout():
 @login_required
 def buy_card(room_id, card_number):
     room = Room.query.get_or_404(room_id)
-    if current_user.balance < room.card_price:
+    price = room.card_price
+    dep   = float(current_user.balance or 0)
+    bonus = float(current_user.bonus_balance or 0)
+    if dep + bonus < price:
         return jsonify({"success": False, "message": "Insufficient balance"}), 400
     session = get_or_create_session(room_id)
     if Transaction.query.filter_by(room_id=room_id, session_id=session.id, card_number=card_number).first():
         return jsonify({"success": False, "message": "Card taken"}), 400
-    current_user.balance -= room.card_price
+    if bonus >= price:
+        current_user.bonus_balance = round(bonus - price, 2)
+    else:
+        current_user.bonus_balance = 0.0
+        current_user.balance       = round(dep - (price - bonus), 2)
     db.session.add(Transaction(
         user_id=current_user.id,
         room_id=room.id,
@@ -1019,7 +1035,10 @@ def buy_card(room_id, card_number):
         card_number=card_number
     ))
     db.session.commit()
-    return jsonify({"success": True, "new_balance": current_user.balance})
+    dep_new   = round(float(current_user.balance), 2)
+    bonus_new = round(float(current_user.bonus_balance), 2)
+    return jsonify({"success": True, "new_balance": dep_new + bonus_new,
+                    "deposit_balance": dep_new, "bonus_balance": bonus_new})
 
 
 # ─── User Deposit / Withdraw Requests ────────────────────────────────────────
@@ -1065,12 +1084,13 @@ def withdraw_request():
     if amount > w_max:
         return jsonify({"error": f"ከፍተኛ ማስወጣት {w_max:.0f} ETB ነው"}), 400
     db.session.refresh(current_user)
-    if current_user.balance < amount:
-        return jsonify({"error": f"ያሎት ባላንስ {current_user.balance:.2f} ETB ብቻ ነው"}), 400
+    dep = float(current_user.balance or 0)
+    if dep < amount:
+        return jsonify({"error": f"ዲፖዚት ባላንስዎ {dep:.2f} ETB ብቻ ነው። Bonus ባላንስ ሊወጣ አይችልም።"}), 400
     pending = WithdrawRequest.query.filter_by(user_id=current_user.id, status='pending').first()
     if pending:
         return jsonify({"error": f"ቀደም ያስቀመጡት {pending.amount:.0f} ETB ጥያቄ አሁንም pending ነው።"}), 400
-    current_user.balance = round(float(current_user.balance) - amount, 2)
+    current_user.balance = round(dep - amount, 2)
     req = WithdrawRequest(user_id=current_user.id, amount=amount, method=method, account_details=account)
     db.session.add(req)
     db.session.commit()
@@ -1318,10 +1338,13 @@ def buy_card_by_stake(stake, card_number):
     if not room:
         return jsonify({"success": False, "message": "Room not found"}), 404
     db.session.refresh(current_user)
-    if current_user.balance < room.card_price:
+    price = room.card_price
+    dep   = float(current_user.balance or 0)
+    bonus = float(current_user.bonus_balance or 0)
+    if dep + bonus < price:
         return jsonify({
             "success": False,
-            "message": f"ባላንስ አነስተኛ ነው። ያሎት: {current_user.balance:.2f} ETB"
+            "message": f"ባላንስ አነስተኛ ነው። ያሎት: {dep + bonus:.2f} ETB"
         }), 400
     game_session = get_or_create_session(room.id)
     if not game_session:
@@ -1330,7 +1353,12 @@ def buy_card_by_stake(stake, card_number):
         room_id=room.id, session_id=game_session.id, card_number=card_number
     ).first():
         return jsonify({"success": False, "message": "ይህ ካርድ ተወስዷል"}), 400
-    current_user.balance -= room.card_price
+    # Deduct bonus_balance first, then deposit balance
+    if bonus >= price:
+        current_user.bonus_balance = round(bonus - price, 2)
+    else:
+        current_user.bonus_balance = 0.0
+        current_user.balance       = round(dep - (price - bonus), 2)
     db.session.add(Transaction(
         user_id=current_user.id,
         room_id=room.id,
@@ -1339,7 +1367,10 @@ def buy_card_by_stake(stake, card_number):
         card_number=card_number
     ))
     db.session.commit()
-    return jsonify({"success": True, "new_balance": current_user.balance})
+    dep_new   = round(float(current_user.balance), 2)
+    bonus_new = round(float(current_user.bonus_balance), 2)
+    return jsonify({"success": True, "new_balance": dep_new + bonus_new,
+                    "deposit_balance": dep_new, "bonus_balance": bonus_new})
 
 
 # ─── Admin Room Management ─────────────────────────────────────────────────────

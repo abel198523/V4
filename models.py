@@ -8,6 +8,7 @@ class User(UserMixin, db.Model):
     telegram_chat_id = db.Column(db.String(64), unique=True, nullable=True)
     balance = db.Column(db.Float, default=0.0)
     is_admin = db.Column(db.Boolean, default=False)
+    bonus_balance = db.Column(db.Float, default=0.0, nullable=False, server_default='0')
     referred_by = db.Column(db.String(16), nullable=True)
     referral_code = db.Column(db.String(16), unique=True, nullable=True)
     referral_bonus_paid = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
