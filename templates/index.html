@@ -858,6 +858,36 @@
                         </div>
                     </div>
 
+                    <div style="background:#1e2435;border-radius:12px;padding:18px;margin-bottom:16px;">
+                        <label style="display:block;font-size:0.8rem;color:#9ca3af;margin-bottom:6px;font-weight:600;">
+                            💸 MINIMUM WITHDRAWAL (ETB)
+                        </label>
+                        <p style="font-size:0.75rem;color:#6b7280;margin-bottom:12px;">
+                            ተጠቃሚ ማስወጣት የሚችለው ዝቅተኛ መጠን። (ከ 1 ETB በላይ)
+                        </p>
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <input type="number" id="settings-withdraw-min" min="1" max="50000" step="1"
+                                class="form-input" style="width:120px;text-align:center;font-size:1.2rem;font-weight:700;"
+                                placeholder="50">
+                            <span style="color:#9ca3af;font-size:0.85rem;">ETB minimum</span>
+                        </div>
+                    </div>
+
+                    <div style="background:#1e2435;border-radius:12px;padding:18px;margin-bottom:16px;">
+                        <label style="display:block;font-size:0.8rem;color:#9ca3af;margin-bottom:6px;font-weight:600;">
+                            💸 MAXIMUM WITHDRAWAL (ETB)
+                        </label>
+                        <p style="font-size:0.75rem;color:#6b7280;margin-bottom:12px;">
+                            ተጠቃሚ ማስወጣት የሚችለው ከፍተኛ መጠን። (ከ minimum በላይ መሆን አለበት)
+                        </p>
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <input type="number" id="settings-withdraw-max" min="1" max="50000" step="1"
+                                class="form-input" style="width:120px;text-align:center;font-size:1.2rem;font-weight:700;"
+                                placeholder="10000">
+                            <span style="color:#9ca3af;font-size:0.85rem;">ETB maximum</span>
+                        </div>
+                    </div>
+
                     <div id="settings-status" style="margin-bottom:12px;font-size:0.85rem;color:#6b7280;min-height:20px;"></div>
 
                     <button id="settings-save-btn" class="auth-btn" style="margin-top:4px;">

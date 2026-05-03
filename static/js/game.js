@@ -1822,24 +1822,28 @@ async function loadAdminRevenue() {
 }
 
 async function loadAdminSettings() {
-    const statusEl  = document.getElementById('settings-status');
-    const minEl     = document.getElementById('settings-min-cards');
-    const countEl   = document.getElementById('settings-countdown');
-    const feeEl     = document.getElementById('settings-house-fee');
-    const refBonEl  = document.getElementById('settings-referral-bonus');
+    const statusEl   = document.getElementById('settings-status');
+    const minEl      = document.getElementById('settings-min-cards');
+    const countEl    = document.getElementById('settings-countdown');
+    const feeEl      = document.getElementById('settings-house-fee');
+    const refBonEl   = document.getElementById('settings-referral-bonus');
+    const wMinEl     = document.getElementById('settings-withdraw-min');
+    const wMaxEl     = document.getElementById('settings-withdraw-max');
 
     if (statusEl) { statusEl.innerText = 'Loading...'; statusEl.style.color = '#6b7280'; }
 
     try {
-        const res = await fetch('/api/admin/settings', { headers: _ah() });
+        const res  = await fetch('/api/admin/settings', { headers: _ah() });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (minEl)    minEl.value    = data.min_cards;
         if (countEl)  countEl.value  = data.launch_countdown;
         if (feeEl)    feeEl.value    = data.house_fee_pct;
         if (refBonEl) refBonEl.value = data.referral_bonus;
+        if (wMinEl)   wMinEl.value   = data.withdraw_min;
+        if (wMaxEl)   wMaxEl.value   = data.withdraw_max;
         if (statusEl) {
-            statusEl.innerText = `✅ Loaded — min cards: ${data.min_cards}, launch: ${data.launch_countdown}s, commission: ${data.house_fee_pct}%, referral bonus: ${data.referral_bonus} ETB`;
+            statusEl.innerText = `✅ Loaded — cards: ${data.min_cards}, launch: ${data.launch_countdown}s, fee: ${data.house_fee_pct}%, referral: ${data.referral_bonus} ETB, withdraw: ${data.withdraw_min}–${data.withdraw_max} ETB`;
             statusEl.style.color = '#22c55e';
         }
     } catch (e) {
@@ -1853,6 +1857,8 @@ async function loadAdminSettings() {
             const cntVal    = parseInt(countEl  ? countEl.value  : '10');
             const feeVal    = parseInt(feeEl    ? feeEl.value    : '10');
             const refBonVal = parseFloat(refBonEl ? refBonEl.value : '5');
+            const wMinVal   = parseFloat(wMinEl ? wMinEl.value : '50');
+            const wMaxVal   = parseFloat(wMaxEl ? wMaxEl.value : '10000');
 
             if (isNaN(minVal) || minVal < 1 || minVal > 50) {
                 if (statusEl) { statusEl.innerText = '⚠️ Min cards must be 1–50.'; statusEl.style.color = '#f59e0b'; }
@@ -1870,19 +1876,34 @@ async function loadAdminSettings() {
                 if (statusEl) { statusEl.innerText = '⚠️ Referral bonus must be 0–100 ETB.'; statusEl.style.color = '#f59e0b'; }
                 return;
             }
+            if (isNaN(wMinVal) || wMinVal < 1) {
+                if (statusEl) { statusEl.innerText = '⚠️ Minimum withdrawal must be at least 1 ETB.'; statusEl.style.color = '#f59e0b'; }
+                return;
+            }
+            if (isNaN(wMaxVal) || wMaxVal <= wMinVal) {
+                if (statusEl) { statusEl.innerText = '⚠️ Maximum withdrawal must be greater than minimum.'; statusEl.style.color = '#f59e0b'; }
+                return;
+            }
 
-            saveBtn.disabled = true;
+            saveBtn.disabled  = true;
             saveBtn.innerText = 'Saving...';
             try {
-                const res = await fetch('/api/admin/settings', {
+                const res  = await fetch('/api/admin/settings', {
                     method: 'POST',
                     headers: _ah(),
-                    body: JSON.stringify({ min_cards: minVal, launch_countdown: cntVal, house_fee_pct: feeVal, referral_bonus: refBonVal })
+                    body: JSON.stringify({
+                        min_cards:        minVal,
+                        launch_countdown: cntVal,
+                        house_fee_pct:    feeVal,
+                        referral_bonus:   refBonVal,
+                        withdraw_min:     wMinVal,
+                        withdraw_max:     wMaxVal,
+                    })
                 });
                 const data = await res.json();
                 if (data.success) {
                     if (statusEl) {
-                        statusEl.innerText = `✅ Saved! Min: ${data.min_cards} | Launch: ${data.launch_countdown}s | Commission: ${data.house_fee_pct}% | Referral: ${data.referral_bonus} ETB`;
+                        statusEl.innerText = `✅ Saved! Cards: ${data.min_cards} | Launch: ${data.launch_countdown}s | Fee: ${data.house_fee_pct}% | Referral: ${data.referral_bonus} ETB | Withdraw: ${data.withdraw_min}–${data.withdraw_max} ETB`;
                         statusEl.style.color = '#22c55e';
                     }
                 } else {
@@ -1891,7 +1912,7 @@ async function loadAdminSettings() {
             } catch (e) {
                 if (statusEl) { statusEl.innerText = '❌ Save failed.'; statusEl.style.color = '#ef4444'; }
             }
-            saveBtn.disabled = false;
+            saveBtn.disabled  = false;
             saveBtn.innerText = '💾 Save Settings';
         };
     }

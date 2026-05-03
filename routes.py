@@ -541,16 +541,34 @@ def user_referral():
     })
 
 
+def _get_withdraw_min():
+    s = Setting.query.get('withdraw_min')
+    try:
+        return float(s.value) if s else 50.0
+    except (ValueError, AttributeError):
+        return 50.0
+
+
+def _get_withdraw_max():
+    s = Setting.query.get('withdraw_max')
+    try:
+        return float(s.value) if s else 10000.0
+    except (ValueError, AttributeError):
+        return 10000.0
+
+
 @app.route("/api/admin/settings", methods=["GET"])
 def get_admin_settings():
     if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     from game_engine import get_min_cards, get_launch_countdown, get_house_fee
     return jsonify({
-        "min_cards":       get_min_cards(),
+        "min_cards":        get_min_cards(),
         "launch_countdown": get_launch_countdown(),
-        "house_fee_pct":   round(get_house_fee() * 100),
-        "referral_bonus":  _get_referral_bonus(),
+        "house_fee_pct":    round(get_house_fee() * 100),
+        "referral_bonus":   _get_referral_bonus(),
+        "withdraw_min":     _get_withdraw_min(),
+        "withdraw_max":     _get_withdraw_max(),
     })
 
 
@@ -594,17 +612,46 @@ def update_admin_settings():
         except (ValueError, TypeError):
             errors.append("referral_bonus must be a number")
 
+    # withdraw_min / withdraw_max: float ETB
+    for key, default_lo, default_hi in [('withdraw_min', 10, 50000), ('withdraw_max', 10, 50000)]:
+        val = data.get(key)
+        if val is not None:
+            try:
+                val_f = round(float(val), 2)
+                if val_f < 0:
+                    errors.append(f"{key} must be >= 0")
+                else:
+                    s = Setting.query.get(key)
+                    if s:
+                        s.value = str(val_f)
+                    else:
+                        db.session.add(Setting(key=key, value=str(val_f)))
+            except (ValueError, TypeError):
+                errors.append(f"{key} must be a number")
+
+    # cross-validate min < max
+    wmin = data.get('withdraw_min')
+    wmax = data.get('withdraw_max')
+    if wmin is not None and wmax is not None:
+        try:
+            if float(wmin) >= float(wmax):
+                errors.append("withdraw_min must be less than withdraw_max")
+        except (ValueError, TypeError):
+            pass
+
     if errors:
         return jsonify({"error": "; ".join(errors)}), 400
 
     db.session.commit()
     from game_engine import get_min_cards, get_launch_countdown, get_house_fee
     return jsonify({
-        "success":         True,
-        "min_cards":       get_min_cards(),
+        "success":          True,
+        "min_cards":        get_min_cards(),
         "launch_countdown": get_launch_countdown(),
-        "house_fee_pct":   round(get_house_fee() * 100),
-        "referral_bonus":  _get_referral_bonus(),
+        "house_fee_pct":    round(get_house_fee() * 100),
+        "referral_bonus":   _get_referral_bonus(),
+        "withdraw_min":     _get_withdraw_min(),
+        "withdraw_max":     _get_withdraw_max(),
     })
 
 
@@ -826,8 +873,12 @@ def withdraw_request():
         amount = float(amount)
     except (TypeError, ValueError):
         return jsonify({"error": "የተሳሳተ መጠን"}), 400
-    if amount < 50:
-        return jsonify({"error": "ዝቅተኛ ማስወጣት 50 ETB ነው"}), 400
+    w_min = _get_withdraw_min()
+    w_max = _get_withdraw_max()
+    if amount < w_min:
+        return jsonify({"error": f"ዝቅተኛ ማስወጣት {w_min:.0f} ETB ነው"}), 400
+    if amount > w_max:
+        return jsonify({"error": f"ከፍተኛ ማስወጣት {w_max:.0f} ETB ነው"}), 400
     db.session.refresh(current_user)
     if current_user.balance < amount:
         return jsonify({"error": f"ያሎት ባላንስ {current_user.balance:.2f} ETB ብቻ ነው"}), 400
