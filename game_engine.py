@@ -117,9 +117,16 @@ def _find_and_award_winner(stake, called_set):
                             session.winner_id = user.id
                         room.active_session_id = None
                         db.session.commit()
+                        cards_count = len(transactions)
                         logger.info(
                             f"Room {stake} ETB: WINNER={user.username} "
                             f"card=#{tx.card_number} prize={prize:.2f} ETB"
+                        )
+                        _notify_admins_game_result(
+                            stake=stake,
+                            cards=cards_count,
+                            winner=user.username,
+                            prize=round(prize, 2),
                         )
                         return (user.username, tx.card_number, round(prize, 2))
     except Exception as e:
@@ -131,17 +138,65 @@ def _complete_session_no_winner(stake):
     """Mark current session as completed (no winner) and clear active_session_id."""
     try:
         from app import app, db
-        from models import Room, GameSession
+        from models import Room, GameSession, Transaction
         with app.app_context():
             room = Room.query.filter_by(card_price=float(stake)).first()
             if room and room.active_session_id:
+                tx_count = Transaction.query.filter_by(session_id=room.active_session_id).count()
                 session = GameSession.query.get(room.active_session_id)
                 if session:
                     session.status = 'completed'
                 room.active_session_id = None
                 db.session.commit()
+                _notify_admins_game_result(
+                    stake=stake,
+                    cards=tx_count,
+                    winner=None,
+                    prize=0.0,
+                )
     except Exception as e:
         logger.error(f"_complete_session_no_winner error for room {stake}: {e}")
+
+
+def _notify_admins_game_result(stake, cards, winner, prize):
+    """Send a Telegram message to all admin users with telegram_chat_id."""
+    try:
+        from app import app
+        from models import User
+        from bot import bot
+        if not bot:
+            return
+        with app.app_context():
+            admins = User.query.filter_by(is_admin=True).all()
+            admin_chat_ids = [
+                a.telegram_chat_id for a in admins if a.telegram_chat_id
+            ]
+        if not admin_chat_ids:
+            return
+
+        if winner:
+            msg = (
+                f"🎉 *ዙር ተጠናቀቀ! / Round Complete!*\n\n"
+                f"🏆 አሸናፊ / Winner: *{winner}*\n"
+                f"💰 ሽልማት / Prize: *{prize:.2f} ETB*\n"
+                f"🃏 ካርዶች / Cards: *{cards}*\n"
+                f"🎮 Stake: *{stake} ETB*"
+            )
+        else:
+            msg = (
+                f"⚠️ *ዙር ተጠናቀቀ — አሸናፊ የለም*\n\n"
+                f"🃏 ካርዶች / Cards: *{cards}*\n"
+                f"🎮 Stake: *{stake} ETB*\n"
+                f"_(ሁሉም 75 ቦሎች ተጠርተዋል)_"
+            )
+
+        for chat_id in admin_chat_ids:
+            try:
+                bot.send_message(chat_id, msg, parse_mode='Markdown')
+            except Exception as e:
+                logger.warning(f"Telegram notify failed for chat_id {chat_id}: {e}")
+    except Exception as e:
+        logger.warning(f"_notify_admins_game_result error: {e}")
 
 
 def _room_loop(stake):
