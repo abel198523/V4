@@ -1608,11 +1608,13 @@ async function loadProfileData() {
         const rr = await fetch('/api/user/referral');
         if (!rr.ok) return;
         const rd = await rr.json();
-        const refCountEl  = document.getElementById('ref-count');
-        const refEarnedEl = document.getElementById('ref-earned');
-        const refLinkBox  = document.getElementById('ref-link-box');
-        if (refCountEl)  refCountEl.innerText  = rd.referred_count;
-        if (refEarnedEl) refEarnedEl.innerText = rd.bonus_earned.toFixed(2);
+        const refCountEl     = document.getElementById('ref-count');
+        const refConfirmedEl = document.getElementById('ref-confirmed');
+        const refEarnedEl    = document.getElementById('ref-earned');
+        const refLinkBox     = document.getElementById('ref-link-box');
+        if (refCountEl)     refCountEl.innerText     = rd.referred_count;
+        if (refConfirmedEl) refConfirmedEl.innerText = rd.confirmed_count;
+        if (refEarnedEl)    refEarnedEl.innerText    = rd.bonus_earned.toFixed(2);
         const link = window.location.origin + '/signup?ref=' + rd.referral_code;
         if (refLinkBox) {
             refLinkBox.innerText    = link;

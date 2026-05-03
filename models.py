@@ -10,6 +10,7 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     referred_by = db.Column(db.String(16), nullable=True)
     referral_code = db.Column(db.String(16), unique=True, nullable=True)
+    referral_bonus_paid = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
     password_hash = db.Column(db.String(256), nullable=True)
 
 class Room(db.Model):

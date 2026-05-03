@@ -237,18 +237,40 @@ def telegram_link():
 
 
 def _apply_referral_bonus(new_user, ref_code):
-    """Credit signup bonus to new user and referral bonus to referrer."""
+    """Record who referred this user at signup. Bonus is paid on first deposit."""
     if not ref_code:
         return
     referrer = User.query.filter_by(referral_code=ref_code).first()
     if not referrer or referrer.id == new_user.id:
         return
+    new_user.referred_by = ref_code
+
+
+def _apply_first_deposit_referral_bonus(user):
+    """Credit referral bonus to both user and referrer on user's first approved deposit."""
+    if not user or not user.referred_by:
+        return
+    if user.referral_bonus_paid:
+        return
+    referrer = User.query.filter_by(referral_code=user.referred_by).first()
+    if not referrer:
+        return
     bonus = _get_referral_bonus()
     if bonus <= 0:
         return
-    new_user.referred_by  = ref_code
-    new_user.balance       = round(float(new_user.balance or 0) + bonus, 2)
-    referrer.balance       = round(float(referrer.balance or 0) + bonus, 2)
+    user.balance              = round(float(user.balance or 0) + bonus, 2)
+    referrer.balance          = round(float(referrer.balance or 0) + bonus, 2)
+    user.referral_bonus_paid  = True
+    db.session.flush()
+    _notify_user_telegram(referrer,
+        f"🎁 *Referral Bonus ተሰጥቶዎታል!*\n\n"
+        f"ወዳጆዎ *{user.username}* ለመጀመሪያ ጊዜ ዲፖዚት አድርጓል!\n"
+        f"💰 Bonus: *{bonus:.2f} ETB* ወደ ባላንስዎ ታክሏል። 🎉"
+    )
+    _notify_user_telegram(user,
+        f"🎁 *Referral Bonus ተሰጥቶዎታል!*\n\n"
+        f"ለመጀመሪያ ዲፖዚት ምስጋና! *{bonus:.2f} ETB* ተጨምሯል። 🎉"
+    )
 
 
 @app.route("/signup", methods=["GET", "POST"])
@@ -635,13 +657,17 @@ def user_referral():
                 current_user.referral_code = code
                 db.session.commit()
                 break
-    referred_users = User.query.filter_by(referred_by=current_user.referral_code).all()
-    bonus = _get_referral_bonus()
+    referred_users  = User.query.filter_by(referred_by=current_user.referral_code).all()
+    confirmed_count = sum(1 for u in referred_users if u.referral_bonus_paid)
+    pending_count   = len(referred_users) - confirmed_count
+    bonus           = _get_referral_bonus()
     return jsonify({
-        "referral_code":  current_user.referral_code,
-        "referred_count": len(referred_users),
-        "bonus_per_ref":  bonus,
-        "bonus_earned":   round(len(referred_users) * bonus, 2),
+        "referral_code":   current_user.referral_code,
+        "referred_count":  len(referred_users),
+        "confirmed_count": confirmed_count,
+        "pending_count":   pending_count,
+        "bonus_per_ref":   bonus,
+        "bonus_earned":    round(confirmed_count * bonus, 2),
     })
 
 
@@ -1105,6 +1131,7 @@ def admin_approve_deposit():
     user = User.query.get(req.user_id)
     if user:
         user.balance = round(float(user.balance or 0) + req.amount, 2)
+        _apply_first_deposit_referral_bonus(user)
     db.session.commit()
     _notify_user_telegram(user,
         f"✅ *ዲፖዚት ጸደቀ / Deposit Approved*\n\n"
