@@ -108,6 +108,30 @@
             </div>
             {% endif %}
 
+            {% if bot_username %}
+            <div class="mb-3">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
+                    <span style="font-size:0.72rem;color:#64748b;font-weight:600;white-space:nowrap;">ONE-CLICK SIGNUP</span>
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
+                </div>
+                <div style="display:flex;justify-content:center;">
+                    <script async src="https://telegram.org/js/telegram-widget.js?22"
+                        data-telegram-login="{{ bot_username }}"
+                        data-size="large"
+                        data-radius="12"
+                        data-auth-url="{{ url_for('telegram_auth', _external=True, ref=ref_code or '') }}"
+                        data-request-access="write">
+                    </script>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:14px;margin-bottom:14px;">
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
+                    <span style="font-size:0.72rem;color:#64748b;font-weight:600;white-space:nowrap;">OR CREATE WITH PASSWORD</span>
+                    <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
+                </div>
+            </div>
+            {% endif %}
+
             <form method="POST" action="{{ url_for('signup') }}{% if ref_code %}?ref={{ ref_code }}{% endif %}">
                 <input type="hidden" name="ref" value="{{ ref_code or '' }}">
                 <div class="mb-3">

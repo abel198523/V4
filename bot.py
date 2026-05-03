@@ -5,11 +5,16 @@ from flask import request, jsonify
 from telebot import types
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+BOT_USERNAME = None
 
 bot = None
 
 if BOT_TOKEN:
     bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
+    try:
+        BOT_USERNAME = bot.get_me().username
+    except Exception:
+        BOT_USERNAME = None
 
     @bot.message_handler(commands=['start'])
     def send_welcome(message):
