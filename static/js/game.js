@@ -137,25 +137,36 @@ async function _syncTimers() {
             }
 
             // ── Screen transitions ────────────────────────────────────────
-            // launching → playing
-            if (prev.status !== 'playing' && info.status === 'playing') {
-                _gameStarted[stake] = true;
-                if (currentRoom == stake) _showGameStartCountdown(startGame);
+            const _rs   = getRoomState(stake);
+            const _onSel = () => {
+                const s = document.getElementById('selection-screen');
+                return !!(s && s.classList.contains('active'));
+            };
+
+            // ① playing → waiting/launching: game ended → return to selection screen
+            if (prev.status === 'playing' && info.status !== 'playing' && currentRoom == stake) {
+                _gameStarted[stake] = false;
+                handleGameOverReturn(stake);
             }
 
-            // Safety net: already playing but stuck on selection screen
-            if (info.status === 'playing' && currentRoom == stake && !_gameStarted[stake]) {
-                const sel = document.getElementById('selection-screen');
-                if (sel && sel.classList.contains('active')) {
-                    _gameStarted[stake] = true;
+            // ② non-playing → playing: game just started
+            //    Only navigate if user has purchased a card AND is on the selection screen.
+            //    This prevents false-triggering when user joins a room that is already playing
+            //    (mid-game join) without having bought a card.
+            if (prev.status !== 'playing' && info.status === 'playing' && currentRoom == stake) {
+                _gameStarted[stake] = true;   // acknowledge the transition regardless
+                if (_rs.purchasedCard && _onSel() && !_gameStartCDActive) {
                     _showGameStartCountdown(startGame);
                 }
             }
 
-            // playing → waiting/launching → return to selection
-            if (prev.status === 'playing' && info.status !== 'playing') {
-                _gameStarted[stake] = false;
-                if (currentRoom == stake) handleGameOverReturn(stake);
+            // ③ Safety net: game is playing, user has a card, but still on selection screen.
+            //    Catches: card bought while game was already playing, or rapid status flip
+            //    that ② missed because _gameStarted was already true from a previous cycle.
+            if (info.status === 'playing' && currentRoom == stake &&
+                _rs.purchasedCard && _onSel() && !_gameStartCDActive) {
+                _gameStarted[stake] = true;   // prevent re-entry from other checks
+                _showGameStartCountdown(startGame);
             }
 
             // ── Live game screen stats ────────────────────────────────────
