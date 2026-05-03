@@ -707,6 +707,7 @@ def user_referral():
         "pending_count":   pending_count,
         "bonus_per_ref":   bonus,
         "bonus_earned":    round(confirmed_count * bonus, 2),
+        "bot_username":    BOT_USERNAME or "",
     })
 
 

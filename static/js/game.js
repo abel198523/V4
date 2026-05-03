@@ -1703,7 +1703,10 @@ async function loadProfileData() {
         if (refCountEl)     refCountEl.innerText     = rd.referred_count;
         if (refConfirmedEl) refConfirmedEl.innerText = rd.confirmed_count;
         if (refEarnedEl)    refEarnedEl.innerText    = rd.bonus_earned.toFixed(2);
-        const link = window.location.origin + '/signup?ref=' + rd.referral_code;
+        const botUsername = rd.bot_username || '';
+        const link = botUsername
+            ? `https://t.me/${botUsername}?start=${rd.referral_code}`
+            : window.location.origin + '/signup?ref=' + rd.referral_code;
         if (refLinkBox) {
             refLinkBox.innerText    = link;
             refLinkBox.dataset.link = link;
