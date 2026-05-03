@@ -401,41 +401,8 @@ function calcNearBingo(cardData, calledBalls) {
     return min;
 }
 
-async function fetchRoomHistory() {
-    const list = document.getElementById('rh-list');
-    if (!list) return;
-    try {
-        const res = await fetch('/api/room-history', { headers: _ah() });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!Array.isArray(data) || data.length === 0) {
-            list.innerHTML = '<div class="rh-empty">ገና ዙር አልተጫወተም</div>';
-            return;
-        }
-        list.innerHTML = data.map((r, i) => {
-            const noWinner = r.winner === '—';
-            const winnerHtml = noWinner
-                ? `<span class="rh-no-winner">አሸናፊ የለም</span>`
-                : `<span class="rh-winner">${r.winner}</span>`;
-            const prizeHtml = r.prize > 0
-                ? `<span class="rh-prize">${r.prize} ETB</span>`
-                : `<span class="rh-prize" style="color:#4b5563;">— ETB</span>`;
-            return `<div class="rh-row">
-                <span class="rh-rank">#${i + 1}</span>
-                ${winnerHtml}
-                <span class="rh-cards">${r.cards} ካርድ</span>
-                ${prizeHtml}
-                <span class="rh-time">${r.created_at}</span>
-            </div>`;
-        }).join('');
-    } catch (e) {
-        // silently fail — non-critical
-    }
-}
-
 function handleGameOverReturn(stake) {
     stopGameStatePoll();
-    fetchRoomHistory();
     // Clear game board state for this room
     const state = getRoomState(stake);
     state.myGameCard = null;
@@ -1297,7 +1264,6 @@ window.joinStake = (amount) => {
     if (selectionScreen) selectionScreen.classList.add('active');
     const mainContent = document.getElementById('main-content');
     if (mainContent) mainContent.style.display = 'block';
-    fetchRoomHistory();
 };
 
 async function initApp() {
