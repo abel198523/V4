@@ -958,7 +958,7 @@ function updateGameUI(history) {
     }
     const lastBall = history[history.length - 1];
     const letter = getBallLetter(lastBall);
-    activeBall.innerHTML = `<span>${letter}${lastBall}</span>`;
+    activeBall.innerHTML = `<span style="background:${colors[letter]};color:white;">${letter}${lastBall}</span>`;
     
     // Sync top bar stats on every UI update if global data exists
     if (currentRoom) {
@@ -1514,7 +1514,7 @@ async function pollGameState(stake) {
                 const letter = getBallLetter(latest);
                 const ab = document.getElementById('active-ball');
                 if (ab) {
-                    ab.innerHTML = `<span style="color:${colors[letter]}">${letter}${latest}</span>`;
+                    ab.innerHTML = `<span style="background:${colors[letter]};color:white;">${letter}${latest}</span>`;
                     ab.classList.add('ball-flash');
                     setTimeout(() => ab.classList.remove('ball-flash'), 600);
                 }
