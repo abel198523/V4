@@ -831,11 +831,14 @@ def withdraw_request():
     db.session.refresh(current_user)
     if current_user.balance < amount:
         return jsonify({"error": f"ያሎት ባላንስ {current_user.balance:.2f} ETB ብቻ ነው"}), 400
-    current_user.balance -= amount
+    pending = WithdrawRequest.query.filter_by(user_id=current_user.id, status='pending').first()
+    if pending:
+        return jsonify({"error": f"ቀደም ያስቀመጡት {pending.amount:.0f} ETB ጥያቄ አሁንም pending ነው።"}), 400
+    current_user.balance = round(float(current_user.balance) - amount, 2)
     req = WithdrawRequest(user_id=current_user.id, amount=amount, method=method, account_details=account)
     db.session.add(req)
     db.session.commit()
-    return jsonify({"message": f"የ{amount:.0f} ETB ጥያቄ ተልኳል። አድሚን ያረጋግጣል።"})
+    return jsonify({"success": True, "message": f"የ{amount:.0f} ETB ጥያቄ ተልኳል። አድሚን ያረጋግጣል።"})
 
 
 @app.route("/api/user/balance-history")
@@ -885,15 +888,21 @@ def admin_approve_deposit():
     if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     data = request.get_json() or {}
-    req = DepositRequest.query.get(data.get("depositId"))
+    req  = DepositRequest.query.get(data.get("depositId"))
     if not req or req.status != 'pending':
         return jsonify({"error": "ጥያቄ አልተገኘም ወይም ቀድሞ ታይቷል"}), 404
     req.status = 'approved'
     user = User.query.get(req.user_id)
     if user:
-        user.balance += req.amount
+        user.balance = round(float(user.balance or 0) + req.amount, 2)
     db.session.commit()
-    return jsonify({"message": f"{req.amount:.0f} ETB ለ {user.username} ታክሏል"})
+    _notify_user_telegram(user,
+        f"✅ *ዲፖዚት ጸደቀ / Deposit Approved*\n\n"
+        f"💵 መጠን: *{req.amount:.2f} ETB*\n"
+        f"📲 ዘዴ: {req.method}\n\n"
+        f"ባላንስዎ ታክሏል። መጫወት ይጀምሩ! 🎮"
+    )
+    return jsonify({"message": f"✅ {req.amount:.0f} ETB approved for {user.username if user else '?'}"})
 
 
 @app.route("/api/admin/reject-deposit", methods=["POST"])
@@ -901,12 +910,18 @@ def admin_reject_deposit():
     if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     data = request.get_json() or {}
-    req = DepositRequest.query.get(data.get("depositId"))
+    req  = DepositRequest.query.get(data.get("depositId"))
     if not req or req.status != 'pending':
         return jsonify({"error": "ጥያቄ አልተገኘም"}), 404
     req.status = 'rejected'
+    user = User.query.get(req.user_id)
     db.session.commit()
-    return jsonify({"message": "ጥያቄ ተቀብሏል (rejected)"})
+    _notify_user_telegram(user,
+        f"❌ *ዲፖዚት ተቀባይነት አላገኘም / Deposit Rejected*\n\n"
+        f"💵 መጠን: *{req.amount:.2f} ETB*\n"
+        f"ዝርዝሩን ያረጋግጡ ወይም አድሚን ያግኙ።"
+    )
+    return jsonify({"message": f"❌ Deposit rejected for {user.username if user else '?'}"})
 
 
 @app.route("/api/admin/withdrawals")
@@ -926,6 +941,32 @@ def admin_withdrawals():
     } for r in reqs])
 
 
+def _notify_user_telegram(user, message):
+    """Send a Telegram message to a single user if they have a chat_id and bot is available."""
+    try:
+        if not bot or not user or not user.telegram_chat_id:
+            return
+        bot.send_message(user.telegram_chat_id, message, parse_mode='Markdown')
+    except Exception as e:
+        import logging
+        logging.warning(f"Telegram notify user failed for {getattr(user,'username','?')}: {e}")
+
+
+@app.route("/api/user/my-withdrawals")
+@login_required
+def user_my_withdrawals():
+    wds = WithdrawRequest.query.filter_by(user_id=current_user.id)\
+              .order_by(WithdrawRequest.created_at.desc()).limit(15).all()
+    return jsonify([{
+        "id":             w.id,
+        "amount":         w.amount,
+        "method":         w.method,
+        "account_details": w.account_details,
+        "status":         w.status,
+        "created_at":     w.created_at.strftime("%Y-%m-%d %H:%M") if w.created_at else "—",
+    } for w in wds])
+
+
 @app.route("/api/admin/handle-withdraw", methods=["POST"])
 def admin_handle_withdraw():
     if not _admin_ok():
@@ -935,17 +976,29 @@ def admin_handle_withdraw():
     action = data.get("action", "")
     if not req or req.status != 'pending':
         return jsonify({"error": "ጥያቄ አልተገኘም"}), 404
+    user = User.query.get(req.user_id)
     if action == "approve":
         req.status = 'approved'
         db.session.commit()
-        return jsonify({"message": f"{req.amount:.0f} ETB ተልኳል — approved"})
+        _notify_user_telegram(user,
+            f"✅ *ጥያቄ ጸደቀ / Withdrawal Approved*\n\n"
+            f"💸 መጠን: *{req.amount:.2f} ETB*\n"
+            f"📲 ዘዴ: {req.method}\n"
+            f"🔢 Account: `{req.account_details}`\n\n"
+            f"ክፍያዎ ተልኳል። ያረጋግጡ!"
+        )
+        return jsonify({"message": f"✅ {req.amount:.0f} ETB approved — {user.username if user else '?'}"})
     elif action == "reject":
         req.status = 'rejected'
-        user = User.query.get(req.user_id)
         if user:
-            user.balance += req.amount
+            user.balance = round(float(user.balance or 0) + req.amount, 2)
         db.session.commit()
-        return jsonify({"message": "ጥያቄ ተቀብሏል — ባላንስ ተመልሷል"})
+        _notify_user_telegram(user,
+            f"❌ *ጥያቄ ተቀባይነት አላገኘም / Withdrawal Rejected*\n\n"
+            f"💸 መጠን: *{req.amount:.2f} ETB*\n"
+            f"ባላንስዎ ተመልሷል። ለዝርዝር አድሚን ያግኙ።"
+        )
+        return jsonify({"message": f"❌ Rejected — {req.amount:.0f} ETB refunded to {user.username if user else '?'}"})
     return jsonify({"error": "action required (approve/reject)"}), 400
 
 

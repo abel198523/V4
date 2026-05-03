@@ -610,54 +610,6 @@ socket.onmessage = (event) => {
         };
     }
 
-    const submitWithdrawElement = document.getElementById('submit-withdraw');
-    if (submitWithdrawElement) {
-        submitWithdrawElement.onclick = async () => {
-            const amount = document.getElementById('withdraw-amount').value;
-            const method = document.getElementById('withdraw-method').value;
-            const account = document.getElementById('withdraw-account').value;
-            const statusEl = document.getElementById('withdraw-status');
-            const token = localStorage.getItem('bingo_token');
-
-            if (!amount || !method || !account) {
-                if (statusEl) {
-                    statusEl.innerText = "እባክዎ ሁሉንም መረጃዎች በትክክል ይሙሉ";
-                    statusEl.style.color = "#ef4444";
-                }
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/withdraw-request', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ amount, method, account })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    if (statusEl) {
-                        statusEl.innerText = data.message;
-                        statusEl.style.color = "#22c55e";
-                    }
-                    document.getElementById('withdraw-amount').value = '';
-                    document.getElementById('withdraw-account').value = '';
-                } else {
-                    if (statusEl) {
-                        statusEl.innerText = data.error || "ስህተት አጋጥሟል";
-                        statusEl.style.color = "#ef4444";
-                    }
-                }
-            } catch (err) {
-                if (statusEl) {
-                    statusEl.innerText = "ከሰርቨር ጋር መገናኘት አልተቻለም";
-                    statusEl.style.color = "#ef4444";
-                }
-            }
-        };
-    }
 
     const bingoBtn = document.getElementById('bingo-btn');
     if (bingoBtn) {
@@ -1508,6 +1460,7 @@ function navTo(screenId) {
     if (screenId === 'profile') loadProfileData();
     if (screenId === 'wallet') loadBalanceHistory();
     if (screenId === 'leaderboard') loadLeaderboard();
+    if (screenId === 'withdraw') loadWithdrawHistory();
 
     const sideMenu = document.getElementById('side-menu');
     const overlay = document.getElementById('menu-overlay');
@@ -1719,32 +1672,76 @@ window.promptAdminPassword = promptAdminPassword;
 const submitWithdraw = document.getElementById('submit-withdraw');
 if (submitWithdraw) {
     submitWithdraw.onclick = async () => {
-        const amount = parseFloat(document.getElementById('withdraw-amount').value);
-        const method = document.getElementById('withdraw-method').value;
-        const account = document.getElementById('withdraw-account').value;
+        const amount   = parseFloat(document.getElementById('withdraw-amount').value);
+        const method   = document.getElementById('withdraw-method').value;
+        const account  = document.getElementById('withdraw-account').value.trim();
         const statusEl = document.getElementById('withdraw-status');
-        const token = localStorage.getItem('bingo_token');
 
-        if (isNaN(amount) || amount < 50) return alert("Minimum withdrawal is 50 ETB");
-        if (!account) return alert("Please enter account details");
+        if (isNaN(amount) || amount < 50) {
+            if (statusEl) { statusEl.innerText = '⚠️ ዝቅተኛ ማስወጣት 50 ETB ነው'; statusEl.style.color = '#f59e0b'; }
+            return;
+        }
+        if (!account) {
+            if (statusEl) { statusEl.innerText = '⚠️ Account number / phone ያስገቡ'; statusEl.style.color = '#f59e0b'; }
+            return;
+        }
 
+        submitWithdraw.disabled  = true;
+        submitWithdraw.innerText = 'Sending...';
         try {
-            const res = await fetch('/api/withdraw-request', {
+            const res  = await fetch('/api/withdraw-request', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ amount, method, account })
             });
             const data = await res.json();
-            statusEl.innerText = data.message || data.error;
-            if (res.ok) {
-                userBalance -= amount;
-                updateUserData({ balance: userBalance });
+            if (statusEl) {
+                statusEl.innerText    = data.message || data.error;
+                statusEl.style.color  = res.ok ? '#22c55e' : '#ef4444';
             }
-        } catch (e) { console.error(e); }
+            if (res.ok && data.success) {
+                userBalance = Math.max(0, userBalance - amount);
+                updateUserData({ balance: userBalance });
+                document.getElementById('withdraw-amount').value  = '';
+                document.getElementById('withdraw-account').value = '';
+                loadWithdrawHistory();
+            }
+        } catch (e) {
+            if (statusEl) { statusEl.innerText = '❌ Network error'; statusEl.style.color = '#ef4444'; }
+        }
+        submitWithdraw.disabled  = false;
+        submitWithdraw.innerText = 'ጠይቅ / Request';
     };
+}
+
+async function loadWithdrawHistory() {
+    const el = document.getElementById('withdraw-history-list');
+    if (!el) return;
+    try {
+        const res  = await fetch('/api/user/my-withdrawals');
+        if (!res.ok) return;
+        const list = await res.json();
+        if (!list.length) {
+            el.innerHTML = '<p style="text-align:center;color:#475569;font-size:0.8rem;padding:12px 0;">No withdrawal requests yet.</p>';
+            return;
+        }
+        const badge = s => {
+            const cfg = { pending: ['#f59e0b','rgba(245,158,11,0.15)','⏳'], approved: ['#22c55e','rgba(34,197,94,0.15)','✅'], rejected: ['#ef4444','rgba(239,68,68,0.15)','❌'] };
+            const [c, bg, icon] = cfg[s] || ['#94a3b8','rgba(148,163,184,0.15)','•'];
+            return `<span style="font-size:0.68rem;font-weight:700;color:${c};background:${bg};border-radius:6px;padding:2px 7px;">${icon} ${s.toUpperCase()}</span>`;
+        };
+        el.innerHTML = list.map(w => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#161b22;border-radius:10px;margin-bottom:6px;border:1px solid rgba(255,255,255,0.06);">
+            <div>
+                <div style="font-size:0.8rem;font-weight:700;color:#e2e8f0;">${w.method.toUpperCase()} · <span style="font-family:monospace;color:#94a3b8;">${w.account_details}</span></div>
+                <div style="font-size:0.68rem;color:#64748b;margin-top:2px;">${w.created_at}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:0.95rem;font-weight:900;color:#ef4444;">-${parseFloat(w.amount).toFixed(2)} ETB</div>
+                <div style="margin-top:3px;">${badge(w.status)}</div>
+            </div>
+        </div>`).join('');
+    } catch (e) { /* silent */ }
 }
 
 // Admin UI Switcher
@@ -1992,86 +1989,144 @@ async function loadAdminHistory() {
     }
 }
 
+function _reqCard({ topLeft, topRight, rows, id, approveCall, rejectCall, accentColor }) {
+    const rowsHtml = rows.map(([label, val, color]) =>
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <span style="font-size:0.72rem;color:#64748b;font-weight:600;">${label}</span>
+            <span style="font-size:0.78rem;font-weight:700;color:${color || '#e2e8f0'};">${val}</span>
+        </div>`
+    ).join('');
+    return `
+    <div style="background:#161b22;border:1px solid ${accentColor || 'rgba(255,255,255,0.08)'};border-radius:14px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div>
+                <div style="font-weight:800;font-size:0.9rem;">${topLeft}</div>
+                <div style="font-size:0.72rem;color:#64748b;margin-top:2px;">${topRight}</div>
+            </div>
+            <div style="font-size:1.3rem;font-weight:900;color:${accentColor || '#e2e8f0'};">${rows[0]?.[1] || ''} ETB</div>
+        </div>
+        <div style="margin-bottom:12px;">${rowsHtml.split('</div>').slice(1).join('</div>')}</div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+            <button onclick="${approveCall}" style="flex:1;padding:9px;border-radius:10px;border:none;background:rgba(34,197,94,0.18);color:#4ade80;font-weight:800;font-size:0.82rem;cursor:pointer;">✅ Approve</button>
+            <button onclick="${rejectCall}"  style="flex:1;padding:9px;border-radius:10px;border:none;background:rgba(239,68,68,0.18);color:#f87171;font-weight:800;font-size:0.82rem;cursor:pointer;">❌ Reject</button>
+        </div>
+    </div>`;
+}
+
 async function fetchAdminDeposits() {
     const listEl = document.getElementById('admin-deposits-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<p class="empty-msg">Loading...</p>';
     try {
-        const res = await fetch('/api/admin/deposits', { headers: _ah() });
+        const res      = await fetch('/api/admin/deposits', { headers: _ah() });
         const deposits = await res.json();
-        if (deposits.length === 0) {
-            listEl.innerHTML = '<p class="empty-msg">No pending deposit requests.</p>';
+        if (!deposits.length) {
+            listEl.innerHTML = '<p class="empty-msg">✅ No pending deposit requests.</p>';
             return;
         }
         listEl.innerHTML = deposits.map(d => `
-            <div class="deposit-card">
-                <p><strong>${d.name} (${d.phone_number})</strong></p>
-                <p>Amount: ${d.amount} ETB | Method: ${d.method}</p>
-                <p>Code: <small>${d.transaction_code}</small></p>
-                <div class="btn-group">
-                    <button onclick="handleDeposit('${d.id}', 'approve')" class="balance-btn add">Approve</button>
-                    <button onclick="handleDeposit('${d.id}', 'reject')" class="balance-btn sub">Reject</button>
+        <div style="background:#161b22;border:1px solid rgba(34,197,94,0.2);border-radius:14px;padding:14px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                <div>
+                    <div style="font-weight:800;font-size:0.92rem;">👤 ${d.name}</div>
+                    <div style="font-size:0.72rem;color:#64748b;margin-top:2px;">${d.phone_number} · ${d.created_at ? new Date(d.created_at).toLocaleString() : ''}</div>
+                </div>
+                <div style="font-size:1.4rem;font-weight:900;color:#22c55e;">${parseFloat(d.amount).toFixed(0)} ETB</div>
+            </div>
+            <div style="display:grid;gap:4px;margin-bottom:12px;">
+                <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <span style="font-size:0.72rem;color:#64748b;font-weight:600;">Method</span>
+                    <span style="font-size:0.78rem;font-weight:700;color:#3b82f6;">${d.method.toUpperCase()}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:5px 0;">
+                    <span style="font-size:0.72rem;color:#64748b;font-weight:600;">Transaction Code</span>
+                    <span style="font-size:0.78rem;font-weight:700;color:#f59e0b;font-family:monospace;">${d.transaction_code}</span>
                 </div>
             </div>
-        `).join('');
-    } catch (e) { console.error(e); }
+            <div style="display:flex;gap:8px;">
+                <button onclick="handleDeposit('${d.id}','approve')" style="flex:1;padding:9px;border-radius:10px;border:none;background:rgba(34,197,94,0.18);color:#4ade80;font-weight:800;font-size:0.82rem;cursor:pointer;">✅ Approve</button>
+                <button onclick="handleDeposit('${d.id}','reject')"  style="flex:1;padding:9px;border-radius:10px;border:none;background:rgba(239,68,68,0.18);color:#f87171;font-weight:800;font-size:0.82rem;cursor:pointer;">❌ Reject</button>
+            </div>
+        </div>`).join('');
+    } catch (e) { listEl.innerHTML = '<p class="empty-msg">Error loading deposits.</p>'; }
 }
 
 async function fetchAdminWithdrawals() {
     const listEl = document.getElementById('admin-withdrawals-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<p class="empty-msg">Loading...</p>';
     try {
-        const res = await fetch('/api/admin/withdrawals', { headers: _ah() });
+        const res         = await fetch('/api/admin/withdrawals', { headers: _ah() });
         const withdrawals = await res.json();
-        if (withdrawals.length === 0) {
-            listEl.innerHTML = '<p class="empty-msg">No pending withdrawal requests.</p>';
+        if (!withdrawals.length) {
+            listEl.innerHTML = '<p class="empty-msg">✅ No pending withdrawal requests.</p>';
             return;
         }
         listEl.innerHTML = withdrawals.map(w => `
-            <div class="deposit-card">
-                <p><strong>${w.name} (${w.phone_number})</strong></p>
-                <p>Amount: ${w.amount} ETB | Method: ${w.method}</p>
-                <p>Account: ${w.account_details}</p>
-                <div class="btn-group">
-                    <button onclick="handleWithdraw('${w.id}', 'approve')" class="balance-btn add">Approve</button>
-                    <button onclick="handleWithdraw('${w.id}', 'reject')" class="balance-btn sub">Reject</button>
+        <div style="background:#161b22;border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:14px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                <div>
+                    <div style="font-weight:800;font-size:0.92rem;">👤 ${w.name}</div>
+                    <div style="font-size:0.72rem;color:#64748b;margin-top:2px;">${w.phone_number} · ${w.created_at ? new Date(w.created_at).toLocaleString() : ''}</div>
+                </div>
+                <div style="font-size:1.4rem;font-weight:900;color:#ef4444;">${parseFloat(w.amount).toFixed(0)} ETB</div>
+            </div>
+            <div style="display:grid;gap:4px;margin-bottom:12px;">
+                <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <span style="font-size:0.72rem;color:#64748b;font-weight:600;">Method</span>
+                    <span style="font-size:0.78rem;font-weight:700;color:#3b82f6;">${w.method.toUpperCase()}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:5px 0;">
+                    <span style="font-size:0.72rem;color:#64748b;font-weight:600;">Send To (Account)</span>
+                    <span style="font-size:0.78rem;font-weight:700;color:#f59e0b;font-family:monospace;">${w.account_details}</span>
                 </div>
             </div>
-        `).join('');
-    } catch (e) { console.error(e); }
+            <div style="display:flex;gap:8px;">
+                <button onclick="handleWithdraw('${w.id}','approve')" style="flex:1;padding:9px;border-radius:10px;border:none;background:rgba(34,197,94,0.18);color:#4ade80;font-weight:800;font-size:0.82rem;cursor:pointer;">✅ Approve & Pay</button>
+                <button onclick="handleWithdraw('${w.id}','reject')"  style="flex:1;padding:9px;border-radius:10px;border:none;background:rgba(239,68,68,0.18);color:#f87171;font-weight:800;font-size:0.82rem;cursor:pointer;">❌ Reject</button>
+            </div>
+        </div>`).join('');
+    } catch (e) { listEl.innerHTML = '<p class="empty-msg">Error loading withdrawals.</p>'; }
 }
 
 window.handleDeposit = async (id, action) => {
-    const token = localStorage.getItem('bingo_token');
+    const label    = action === 'approve' ? 'Approve' : 'Reject';
+    if (!confirm(`${label} this deposit request?`)) return;
     const endpoint = action === 'approve' ? '/api/admin/approve-deposit' : '/api/admin/reject-deposit';
     try {
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify({ depositId: id })
-        });
+        const res  = await fetch(endpoint, { method: 'POST', headers: _ah(), body: JSON.stringify({ depositId: id }) });
         const data = await res.json();
-        alert(data.message || data.error);
+        _showToast(data.message || data.error, res.ok ? 'success' : 'error');
         fetchAdminDeposits();
     } catch (e) { console.error(e); }
 };
 
 window.handleWithdraw = async (id, action) => {
-    const token = localStorage.getItem('bingo_token');
+    const label = action === 'approve' ? 'Approve & Pay' : 'Reject';
+    if (!confirm(`${label} this withdrawal request?`)) return;
     try {
-        const res = await fetch('/api/admin/handle-withdraw', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify({ withdrawId: id, action })
-        });
+        const res  = await fetch('/api/admin/handle-withdraw', { method: 'POST', headers: _ah(), body: JSON.stringify({ withdrawId: id, action }) });
         const data = await res.json();
-        alert(data.message || data.error);
+        _showToast(data.message || data.error, res.ok ? 'success' : 'error');
         fetchAdminWithdrawals();
     } catch (e) { console.error(e); }
 };
+
+function _showToast(msg, type) {
+    let toast = document.getElementById('_admin_toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = '_admin_toast';
+        toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:12px;font-weight:700;font-size:0.85rem;z-index:9999;transition:opacity 0.3s;max-width:90vw;text-align:center;';
+        document.body.appendChild(toast);
+    }
+    toast.innerText  = msg;
+    toast.style.background = type === 'success' ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)';
+    toast.style.color      = 'white';
+    toast.style.opacity    = '1';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
 
 // User Search & Balance Update
 const adminSearchBtn = document.getElementById('admin-search-btn');
