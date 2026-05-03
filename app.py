@@ -128,6 +128,35 @@ with app.app_context():
     except Exception:
         db.session.rollback()
 
+    # Migration: add phone_number column if not present
+    try:
+        db.session.execute(db.text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(32) NULL"
+        ))
+        db.session.commit()
+        logger.info("Migration: phone_number column added.")
+    except Exception:
+        db.session.rollback()
+
+    # Migration: create login_tokens table if not present
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS login_tokens (
+                id SERIAL PRIMARY KEY,
+                token VARCHAR(64) UNIQUE NOT NULL,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                created_at TIMESTAMP DEFAULT NOW(),
+                used BOOLEAN NOT NULL DEFAULT false
+            )
+        """))
+        db.session.execute(db.text(
+            "CREATE INDEX IF NOT EXISTS ix_login_tokens_token ON login_tokens(token)"
+        ))
+        db.session.commit()
+        logger.info("Migration: login_tokens table ready.")
+    except Exception:
+        db.session.rollback()
+
     # Generate referral codes for users who don't have one
     try:
         import secrets as _sec

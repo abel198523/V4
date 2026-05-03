@@ -6,6 +6,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     telegram_chat_id = db.Column(db.String(64), unique=True, nullable=True)
+    phone_number = db.Column(db.String(32), nullable=True)
     balance = db.Column(db.Float, default=0.0)
     is_admin = db.Column(db.Boolean, default=False)
     bonus_balance = db.Column(db.Float, default=0.0, nullable=False, server_default='0')
@@ -17,6 +18,14 @@ class User(UserMixin, db.Model):
     referral_bonus_paid = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
     password_hash = db.Column(db.String(256), nullable=True)
 
+class LoginToken(db.Model):
+    __tablename__ = 'login_tokens'
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    used = db.Column(db.Boolean, default=False, nullable=False)
+
 class Room(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), unique=True, nullable=False)
@@ -27,7 +36,7 @@ class GameSession(db.Model):
     __tablename__ = 'game_sessions'
     id = db.Column(db.Integer, primary_key=True)
     room_id = db.Column(db.Integer, db.ForeignKey('room.id'), nullable=False)
-    status = db.Column(db.String(20), default='active') # active, completed
+    status = db.Column(db.String(20), default='active')
     winner_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     

@@ -10,14 +10,42 @@
         <h1 class="display-4 fw-bold mb-2 tracking-tight text-white">NOVA BINGO</h1>
         <p class="lead text-muted mb-5 px-3">Premium Gaming. Instant Rewards.</p>
     </div>
-    
+
     <div class="d-grid gap-3 w-100 px-4" style="max-width: 360px;">
-        <a href="https://t.me/hhkhdfyc_bot" target="_blank" class="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center">
-            <i class="bi bi-telegram fs-4 me-2"></i> Join Telegram First
+        {% if bot_username %}
+        <a href="https://t.me/{{ bot_username }}" target="_blank"
+           class="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center gap-2">
+            <i class="bi bi-telegram fs-4"></i>
+            ቦቱ ላይ ተመዝገብ / Login
         </a>
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('login') }}" class="btn btn-outline-light flex-grow-1">Login</a>
-            <a href="{{ url_for('signup') }}" class="btn btn-outline-success flex-grow-1">Sign Up</a>
+        {% else %}
+        <a href="https://t.me/" target="_blank"
+           class="btn btn-primary btn-lg shadow-lg d-flex align-items-center justify-content-center gap-2">
+            <i class="bi bi-telegram fs-4"></i>
+            ቦቱ ላይ ተመዝገብ / Login
+        </a>
+        {% endif %}
+
+        <div class="mt-2" style="color:#64748b;font-size:0.82rem;line-height:1.6;">
+            <i class="bi bi-info-circle me-1"></i>
+            ቦቱ ላይ /start ጫኑ → ቁጥርዎን ያጋሩ → ወደ ጨዋታ ይገቡ
+        </div>
+    </div>
+
+    <div class="mt-5 px-4" style="max-width:340px;">
+        <div class="d-flex flex-column gap-2" style="background:#1a1f29;border-radius:16px;padding:18px;border:1px solid rgba(255,255,255,0.06);">
+            <div class="d-flex align-items-center gap-3">
+                <span style="font-size:1.4rem;">1️⃣</span>
+                <span style="font-size:0.88rem;color:#cbd5e1;">ቦቱን ክፈቱ → <strong style="color:#38bdf8;">/start</strong> ይጫኑ</span>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span style="font-size:1.4rem;">2️⃣</span>
+                <span style="font-size:0.88rem;color:#cbd5e1;"><strong>Share My Contact</strong> ቁልፍ ይጫኑ</span>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span style="font-size:1.4rem;">3️⃣</span>
+                <span style="font-size:0.88rem;color:#cbd5e1;">ቦቱ ሊንክ ይልካልዎ → ጨዋታ ይጀምሩ 🎮</span>
+            </div>
         </div>
     </div>
 </div>

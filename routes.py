@@ -141,100 +141,32 @@ def login():
     return render_template("login.html", bot_username=BOT_USERNAME)
 
 
-@app.route("/auth/telegram")
-def telegram_auth():
-    import hashlib, hmac, time, secrets as sec_mod
-    data = request.args.to_dict()
-    received_hash = data.pop('hash', '')
-    ref_code = data.pop('ref', '').strip()
-
-    if not BOT_TOKEN or not received_hash:
-        return redirect(url_for('login'))
-
-    data_check_string = '\n'.join(sorted(f"{k}={v}" for k, v in data.items()))
-    secret_key = hashlib.sha256(BOT_TOKEN.encode()).digest()
-    computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-
-    if not hmac.compare_digest(computed_hash, received_hash):
-        return render_template("login.html", bot_username=BOT_USERNAME,
-                               tg_error="Telegram authentication failed. Please try again.")
-
-    if abs(time.time() - int(data.get('auth_date', 0))) > 86400:
-        return render_template("login.html", bot_username=BOT_USERNAME,
-                               tg_error="Auth token expired. Please try again.")
-
-    tg_id       = str(data.get('id', ''))
-    tg_username = data.get('username', '')
-    tg_first    = data.get('first_name', '')
-    tg_last     = data.get('last_name', '')
-
-    user = User.query.filter_by(telegram_chat_id=tg_id).first()
-
-    if not user:
-        base_un = tg_username or f"tg{tg_id[-6:]}"
-        username = base_un
-        counter  = 1
-        while User.query.filter_by(username=username).first():
-            username = f"{base_un}{counter}"
-            counter += 1
-
-        code = None
-        for _ in range(20):
-            c = sec_mod.token_urlsafe(6)
-            if not User.query.filter_by(referral_code=c).first():
-                code = c
-                break
-
-        user = User(
-            username=username,
-            telegram_chat_id=tg_id,
-            password_hash=None,
-            referral_code=code,
-        )
-        db.session.add(user)
-        db.session.flush()
-        _apply_referral_bonus(user, ref_code)
+@app.route("/tg-login/<token>")
+def tg_login(token):
+    """One-time auto-login link sent by the Telegram bot."""
+    from models import LoginToken
+    import datetime
+    lt = LoginToken.query.filter_by(token=token, used=False).first()
+    if not lt:
+        return render_template("tg_login_invalid.html", bot_username=BOT_USERNAME), 400
+    age = datetime.datetime.utcnow() - lt.created_at.replace(tzinfo=None)
+    if age.total_seconds() > 600:
+        lt.used = True
         db.session.commit()
-    else:
-        if not user.telegram_chat_id:
-            user.telegram_chat_id = tg_id
-            db.session.commit()
-
+        return render_template("tg_login_invalid.html", bot_username=BOT_USERNAME), 400
+    lt.used = True
+    db.session.commit()
+    user = User.query.get(lt.user_id)
+    if not user:
+        return render_template("tg_login_invalid.html", bot_username=BOT_USERNAME), 400
     login_user(user, remember=True)
     return redirect(url_for('game_page'))
 
 
-@app.route("/auth/telegram/link")
-@login_required
-def telegram_link():
-    """Link a Telegram account to an already-logged-in user."""
-    import hashlib, hmac, time
-    data = request.args.to_dict()
-    received_hash = data.pop('hash', '')
-
-    if not BOT_TOKEN or not received_hash:
-        return redirect(url_for('game_page'))
-
-    data_check_string = '\n'.join(sorted(f"{k}={v}" for k, v in data.items()))
-    secret_key = hashlib.sha256(BOT_TOKEN.encode()).digest()
-    computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-
-    if not hmac.compare_digest(computed_hash, received_hash):
-        return redirect(url_for('game_page') + '?tg_link=fail')
-
-    if abs(time.time() - int(data.get('auth_date', 0))) > 86400:
-        return redirect(url_for('game_page') + '?tg_link=expired')
-
-    tg_id = str(data.get('id', ''))
-
-    # Make sure no other account owns this tg_id
-    existing = User.query.filter_by(telegram_chat_id=tg_id).first()
-    if existing and existing.id != current_user.id:
-        return redirect(url_for('game_page') + '?tg_link=taken')
-
-    current_user.telegram_chat_id = tg_id
-    db.session.commit()
-    return redirect(url_for('game_page') + '?tg_link=ok')
+@app.route("/auth/telegram")
+def telegram_auth():
+    """Legacy Telegram widget auth — redirect to bot instructions."""
+    return redirect(url_for('login'))
 
 
 def _apply_referral_bonus(new_user, ref_code):

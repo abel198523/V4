@@ -1,13 +1,93 @@
 import os
+import secrets
+import logging
 import telebot
-from flask import request, jsonify
-
 from telebot import types
+
+logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 BOT_USERNAME = None
 
 bot = None
+
+def _get_web_url():
+    replit_domain = os.environ.get('REPLIT_DEV_DOMAIN') or (
+        os.environ.get('REPLIT_DOMAINS', '').split(',')[0]
+        if os.environ.get('REPLIT_DOMAINS') else None
+    )
+    render_url = os.environ.get('RENDER_EXTERNAL_URL')
+    if render_url:
+        return render_url
+    elif replit_domain:
+        return f"https://{replit_domain}"
+    return os.environ.get('APP_URL', 'http://localhost:5000')
+
+
+def _create_login_token(user_id):
+    """Create a one-time login token for auto-login deep link."""
+    from app import app, db
+    from models import LoginToken
+    with app.app_context():
+        token = secrets.token_urlsafe(32)
+        lt = LoginToken(token=token, user_id=user_id)
+        db.session.add(lt)
+        db.session.commit()
+        return token
+
+
+def _get_or_create_user(tg_id, first_name, last_name, username, phone_number=None, ref_code=None):
+    """Get existing user or create new one from Telegram data."""
+    from app import app, db
+    from models import User
+    import secrets as sec_mod
+
+    with app.app_context():
+        user = User.query.filter_by(telegram_chat_id=str(tg_id)).first()
+        if user:
+            # Update phone if newly provided
+            if phone_number and not user.phone_number:
+                user.phone_number = phone_number
+                db.session.commit()
+            return user
+
+        # Build a unique username
+        base_un = username or first_name or f"user{str(tg_id)[-6:]}"
+        base_un = base_un.replace(' ', '_').lower()
+        uname = base_un
+        counter = 1
+        while User.query.filter_by(username=uname).first():
+            uname = f"{base_un}{counter}"
+            counter += 1
+
+        # Generate referral code
+        code = None
+        for _ in range(20):
+            c = sec_mod.token_urlsafe(6)
+            if not User.query.filter_by(referral_code=c).first():
+                code = c
+                break
+
+        full_name = f"{first_name or ''} {last_name or ''}".strip()
+        new_user = User(
+            username=uname,
+            telegram_chat_id=str(tg_id),
+            phone_number=phone_number,
+            password_hash=None,
+            referral_code=code,
+        )
+        db.session.add(new_user)
+        db.session.flush()
+
+        # Apply referral bonus if ref_code provided
+        if ref_code:
+            referrer = User.query.filter_by(referral_code=ref_code.strip()).first()
+            if referrer and referrer.id != new_user.id:
+                new_user.referred_by = ref_code.strip()
+
+        db.session.commit()
+        return new_user
+
 
 if BOT_TOKEN:
     bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
@@ -18,49 +98,158 @@ if BOT_TOKEN:
 
     @bot.message_handler(commands=['start'])
     def send_welcome(message):
-        import random
-        from routes import save_otp
-        otp = str(random.randint(100000, 999999))
-        save_otp(str(message.chat.id), otp)
+        ref_code = ''
+        parts = message.text.split()
+        if len(parts) > 1:
+            ref_code = parts[1]
 
-        welcome_text = (
-            "🎮 እንኳን ወደ ROYAL BINGO በደህና መጡ!\n\n"
-            f"የእርስዎ መለያ ማረጋገጫ ኮድ፡ `{otp}`\n"
-            f"Your verification code is: `{otp}`\n\n"
-            "ይህንን ቁጥር በመያዝ ወደ ዌብሳይቱ ተመልሰው ምዝገባዎን ያጠናቅቁ።\n\n"
-            "👇 Chat ID ለማግኘት ከታች ያለውን በተን ይጫኑ።"
+        chat_id = message.chat.id
+        first_name = message.from_user.first_name or ''
+
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        btn = types.KeyboardButton(
+            "📱 ቁጥሬን አጋራ / Share My Contact",
+            request_contact=True
         )
+        markup.add(btn)
 
-        render_url = os.environ.get('RENDER_EXTERNAL_URL')
-        replit_domain = os.environ.get('REPLIT_DEV_DOMAIN') or (
-            os.environ.get('REPLIT_DOMAINS', '').split(',')[0]
-            if os.environ.get('REPLIT_DOMAINS') else None
-        )
-        if render_url:
-            web_url = render_url
-        elif replit_domain:
-            web_url = f"https://{replit_domain}"
-        else:
-            web_url = os.environ.get('APP_URL', 'http://localhost:5000')
+        # Store ref_code temporarily in a simple in-memory dict via a Setting
+        # We tag it to the chat_id so we can retrieve it when contact arrives
+        try:
+            from app import app, db
+            from models import Setting
+            with app.app_context():
+                key = f"ref_{chat_id}"
+                s = Setting.query.get(key)
+                if s:
+                    s.value = ref_code or ''
+                else:
+                    s = Setting(key=key, value=ref_code or '')
+                    db.session.add(s)
+                db.session.commit()
+        except Exception as e:
+            logger.warning(f"Could not store ref_code: {e}")
 
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        btn_website = types.InlineKeyboardButton("🌐 ወደ ዌብሳይቱ ይሂዱ / Go to Website", url=web_url)
-        btn_get_id = types.InlineKeyboardButton("🪪 Get My ID / መለያ ቁጥሬን አሳይ", callback_data="get_id")
-        markup.add(btn_website, btn_get_id)
-
-        bot.reply_to(message, welcome_text, reply_markup=markup, parse_mode='Markdown')
-
-    @bot.callback_query_handler(func=lambda call: call.data == "get_id")
-    def callback_get_id(call):
-        chat_id = call.message.chat.id
-        bot.answer_callback_query(call.id)
         bot.send_message(
             chat_id,
-            f"🪪 *የእርስዎ Chat ID:*\n`{chat_id}`\n\n"
-            f"Your Chat ID is: `{chat_id}`\n\n"
-            "ይህንን ቁጥር ኮፒ አድርገው በምዝገባ ቅጹ ላይ ያስገቡ።",
-            parse_mode='Markdown'
+            f"🎮 *እንኳን ወደ NOVA BINGO በደህና መጡ!*\n\n"
+            f"ሰላም {first_name}! 👋\n\n"
+            f"ለመመዝገብ ወይም ለመግባት ከታች ያለውን ቁልፍ ተጭነው ስልክ ቁጥርዎን ያጋሩ።\n\n"
+            f"👇 *Share My Contact* ቁልፍ ይጫኑ",
+            parse_mode='Markdown',
+            reply_markup=markup
         )
+
+    @bot.message_handler(content_types=['contact'])
+    def handle_contact(message):
+        contact = message.contact
+        chat_id = message.chat.id
+
+        # Only allow sharing own contact
+        if contact.user_id != message.from_user.id:
+            bot.send_message(chat_id, "⚠️ እባክዎ የራስዎን ቁጥር ያጋሩ።")
+            return
+
+        phone_number = contact.phone_number
+        first_name = contact.first_name or message.from_user.first_name or ''
+        last_name = contact.last_name or message.from_user.last_name or ''
+        tg_username = message.from_user.username or ''
+
+        # Retrieve stored ref_code
+        ref_code = ''
+        try:
+            from app import app, db
+            from models import Setting
+            with app.app_context():
+                key = f"ref_{chat_id}"
+                s = Setting.query.get(key)
+                if s:
+                    ref_code = s.value or ''
+                    db.session.delete(s)
+                    db.session.commit()
+        except Exception:
+            pass
+
+        # Get or create user
+        try:
+            user = _get_or_create_user(
+                tg_id=chat_id,
+                first_name=first_name,
+                last_name=last_name,
+                username=tg_username,
+                phone_number=phone_number,
+                ref_code=ref_code,
+            )
+        except Exception as e:
+            logger.error(f"User creation failed: {e}")
+            bot.send_message(chat_id, "❌ ምዝገባ አልተሳካም። እንደገና ይሞክሩ /start")
+            return
+
+        # Create one-time login token
+        try:
+            token = _create_login_token(user.id)
+        except Exception as e:
+            logger.error(f"Token creation failed: {e}")
+            bot.send_message(chat_id, "❌ መግቢያ ሊንክ ሊፈጠር አልቻለም። እንደገና ይሞክሩ /start")
+            return
+
+        web_url = _get_web_url()
+        login_url = f"{web_url}/tg-login/{token}"
+
+        # Remove keyboard and send deep link
+        remove_markup = types.ReplyKeyboardRemove()
+        bot.send_message(
+            chat_id,
+            f"✅ *ምዝገባ ተሳካ!*\n\n"
+            f"ሰላም *{first_name}*! አካውንትዎ ተፈጥሯል። 🎉\n\n"
+            f"👇 ከታች ያለውን ቁልፍ ተጭነው ወደ ጨዋታ ይግቡ፦",
+            parse_mode='Markdown',
+            reply_markup=remove_markup
+        )
+
+        markup2 = types.InlineKeyboardMarkup()
+        markup2.add(types.InlineKeyboardButton(
+            "🎮 ወደ ጨዋታ ግባ / Enter Game",
+            url=login_url
+        ))
+        bot.send_message(
+            chat_id,
+            "🔗 ይህ ሊንክ አንድ ጊዜ ብቻ ይሰራል። ሌላ ጊዜ /start ይጫኑ።",
+            reply_markup=markup2
+        )
+
+    @bot.message_handler(commands=['login'])
+    def send_login_link(message):
+        """Returning users can get a new login link with /login"""
+        chat_id = message.chat.id
+        try:
+            from app import app, db
+            from models import User
+            with app.app_context():
+                user = User.query.filter_by(telegram_chat_id=str(chat_id)).first()
+                if not user:
+                    bot.send_message(
+                        chat_id,
+                        "⚠️ አካውንት አልተገኘም። /start ይጫኑ ለመመዝገብ።"
+                    )
+                    return
+                token = _create_login_token(user.id)
+                web_url = _get_web_url()
+                login_url = f"{web_url}/tg-login/{token}"
+                markup = types.InlineKeyboardMarkup()
+                markup.add(types.InlineKeyboardButton(
+                    "🎮 ወደ ጨዋታ ግባ / Enter Game",
+                    url=login_url
+                ))
+                bot.send_message(
+                    chat_id,
+                    f"🔗 *የመግቢያ ሊንክ*\n\nአንድ ጊዜ ብቻ ይሰራል። ሌላ ጊዜ /login ይጫኑ።",
+                    parse_mode='Markdown',
+                    reply_markup=markup
+                )
+        except Exception as e:
+            logger.error(f"/login error: {e}")
+            bot.send_message(chat_id, "❌ ሊንክ ሊፈጠር አልቻለም። እንደገና ይሞክሩ።")
 
     @bot.message_handler(commands=['id'])
     def send_id(message):
