@@ -608,11 +608,11 @@ def _get_bonus_expiry_days():
         return 30
 
 
-_STREAK_REWARDS = [2, 3, 5, 7, 10, 15, 20]  # Day 1–7+
+_STREAK_REWARDS = [2, 2, 2, 2, 2, 2, 10]  # Day 1–6: 2 ETB, Day 7: 10 ETB (cycles)
 
 
 def _get_streak_reward(streak_day):
-    idx = min(max(streak_day, 1), len(_STREAK_REWARDS)) - 1
+    idx = (max(streak_day, 1) - 1) % 7
     return _STREAK_REWARDS[idx]
 
 

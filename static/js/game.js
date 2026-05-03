@@ -1646,7 +1646,7 @@ async function loadProfileData() {
             const sd = await sr.json();
             const streak      = sd.streak || 0;
             const playedToday = sd.played_today || false;
-            const rewards     = sd.rewards || [2,3,5,7,10,15,20];
+            const rewards     = sd.rewards || [2,2,2,2,2,2,10];
             const nextReward  = sd.next_reward || rewards[0];
 
             const countEl  = document.getElementById('streak-count');
