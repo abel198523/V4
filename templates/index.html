@@ -1171,6 +1171,29 @@
                         </div>
                     </div>
 
+                    <!-- Streak Notification Messages -->
+                    <div style="background:#1e2435;border-radius:12px;padding:18px;margin-bottom:16px;border:1px solid rgba(245,158,11,0.2);">
+                        <label style="display:block;font-size:0.8rem;color:#f59e0b;margin-bottom:6px;font-weight:700;">
+                            🔥 STREAK NOTIFICATION MESSAGES
+                        </label>
+                        <p style="font-size:0.75rem;color:#6b7280;margin-bottom:14px;line-height:1.6;">
+                            ተጠቃሚ streak ሲያገኝ ወዲያው ወደ Telegram የሚሄደው message template ነው።<br>
+                            Placeholders:
+                            <code style="background:rgba(245,158,11,0.12);padding:1px 5px;border-radius:4px;color:#fbbf24;">{username}</code>
+                            <code style="background:rgba(245,158,11,0.12);padding:1px 5px;border-radius:4px;color:#fbbf24;">{streak}</code>
+                            <code style="background:rgba(245,158,11,0.12);padding:1px 5px;border-radius:4px;color:#fbbf24;">{reward}</code>
+                            <code style="background:rgba(245,158,11,0.12);padding:1px 5px;border-radius:4px;color:#fbbf24;">{next_reward}</code>
+                        </p>
+                        <label style="font-size:0.68rem;color:#64748b;font-weight:700;display:block;margin-bottom:4px;">ዕለታዊ STREAK MESSAGE</label>
+                        <textarea id="settings-streak-auto-msg" class="form-input" rows="3"
+                            style="margin-bottom:12px;font-size:0.8rem;"
+                            placeholder="ባዶ ቢሆን default ይጠቀማሉ:&#10;🔥 {streak} ቀን Streak! — {reward} ETB ቦነስ ታክሏል! ነገ {next_reward} ETB ይጠብቆዎታል።"></textarea>
+                        <label style="font-size:0.68rem;color:#64748b;font-weight:700;display:block;margin-bottom:4px;">MILESTONE MESSAGE (ቀን 3, 7, 14, 21, 30 ሲደርሱ ይጨምራሉ)</label>
+                        <textarea id="settings-streak-milestone-msg" class="form-input" rows="2"
+                            style="font-size:0.8rem;"
+                            placeholder="ባዶ ቢሆን default: 🏆 {streak} ቀን milestone! ትልቅ ስኬት! 🎉"></textarea>
+                    </div>
+
                     <!-- Payment Methods -->
                     <h3 style="font-size:0.9rem;font-weight:700;margin:20px 0 12px;color:#3b82f6;">💳 Payment Methods</h3>
                     <p style="font-size:0.75rem;color:#6b7280;margin-bottom:14px;line-height:1.5;">

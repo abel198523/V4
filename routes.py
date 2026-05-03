@@ -713,14 +713,26 @@ def _check_and_update_streak(user):
         user.bonus_expires_at = new_exp
 
     milestones = {3, 7, 14, 21, 30}
-    extra = f"\n🏆 *{new_streak} ቀን milestone!* ትልቅ ስኬት! 🎉" if new_streak in milestones else ""
+    is_milestone = new_streak in milestones
+
+    def _render(tmpl, default):
+        t = tmpl.strip() if tmpl and tmpl.strip() else default
+        return (t.replace("{username}", user.username or "ጨዋታ")
+                 .replace("{streak}", str(new_streak))
+                 .replace("{reward}", str(int(reward)))
+                 .replace("{next_reward}", str(_get_streak_reward(new_streak + 1))))
+
     fire = "🔥" * min(new_streak, 5)
-    _notify_user_telegram(user,
+    default_auto = (
         f"{fire} *{new_streak} ቀን Streak!*\n\n"
         f"ዛሬ ጨዋታ ስለተጫወቱ *{reward:.0f} ETB* ቦነስ ታክሏል! 🎁\n"
         f"ነገ ቢጫወቱ: *{_get_streak_reward(new_streak + 1):.0f} ETB* ይጠብቆዎታል።"
-        f"{extra}"
     )
+    msg = _render(_get_streak_auto_msg(), default_auto)
+    if is_milestone:
+        default_ms = f"🏆 *{new_streak} ቀን milestone!* ትልቅ ስኬት! 🎉"
+        msg += "\n" + _render(_get_streak_milestone_msg(), default_ms)
+    _notify_user_telegram(user, msg)
     return True, new_streak, reward
 
 
@@ -832,20 +844,32 @@ def get_payment_methods():
     return jsonify([m for m in cfg if m["enabled"]])
 
 
+def _get_streak_auto_msg():
+    s = Setting.query.get('streak_auto_msg')
+    return s.value if s else ""
+
+
+def _get_streak_milestone_msg():
+    s = Setting.query.get('streak_milestone_msg')
+    return s.value if s else ""
+
+
 @app.route("/api/admin/settings", methods=["GET"])
 def get_admin_settings():
     if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     from game_engine import get_min_cards, get_launch_countdown, get_house_fee
     return jsonify({
-        "min_cards":          get_min_cards(),
-        "launch_countdown":   get_launch_countdown(),
-        "house_fee_pct":      round(get_house_fee() * 100),
-        "referral_bonus":     _get_referral_bonus(),
-        "bonus_expiry_days":  _get_bonus_expiry_days(),
-        "withdraw_min":       _get_withdraw_min(),
-        "withdraw_max":       _get_withdraw_max(),
-        "payment_methods":    _get_payment_methods_config(),
+        "min_cards":            get_min_cards(),
+        "launch_countdown":     get_launch_countdown(),
+        "house_fee_pct":        round(get_house_fee() * 100),
+        "referral_bonus":       _get_referral_bonus(),
+        "bonus_expiry_days":    _get_bonus_expiry_days(),
+        "withdraw_min":         _get_withdraw_min(),
+        "withdraw_max":         _get_withdraw_max(),
+        "payment_methods":      _get_payment_methods_config(),
+        "streak_auto_msg":      _get_streak_auto_msg(),
+        "streak_milestone_msg": _get_streak_milestone_msg(),
     })
 
 
@@ -921,6 +945,17 @@ def update_admin_settings():
                         db.session.add(Setting(key=key, value=str(val_f)))
             except (ValueError, TypeError):
                 errors.append(f"{key} must be a number")
+
+    # streak_auto_msg / streak_milestone_msg: free-text strings
+    for msg_key in ('streak_auto_msg', 'streak_milestone_msg'):
+        msg_val = data.get(msg_key)
+        if msg_val is not None:
+            val_str = str(msg_val).strip()
+            s = Setting.query.get(msg_key)
+            if s:
+                s.value = val_str
+            else:
+                db.session.add(Setting(key=msg_key, value=val_str))
 
     # cross-validate min < max
     wmin = data.get('withdraw_min')

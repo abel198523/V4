@@ -2250,6 +2250,8 @@ async function loadAdminSettings() {
     const bonExpEl     = document.getElementById('settings-bonus-expiry-days');
     const wMinEl       = document.getElementById('settings-withdraw-min');
     const wMaxEl       = document.getElementById('settings-withdraw-max');
+    const strAutoEl    = document.getElementById('settings-streak-auto-msg');
+    const strMsEl      = document.getElementById('settings-streak-milestone-msg');
 
     if (statusEl) { statusEl.innerText = 'Loading...'; statusEl.style.color = '#6b7280'; }
 
@@ -2257,13 +2259,15 @@ async function loadAdminSettings() {
         const res  = await fetch('/api/admin/settings', { headers: _ah() });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        if (minEl)    minEl.value    = data.min_cards;
-        if (countEl)  countEl.value  = data.launch_countdown;
-        if (feeEl)    feeEl.value    = data.house_fee_pct;
-        if (refBonEl) refBonEl.value = data.referral_bonus;
-        if (bonExpEl) bonExpEl.value = data.bonus_expiry_days ?? 30;
-        if (wMinEl)   wMinEl.value   = data.withdraw_min;
-        if (wMaxEl)   wMaxEl.value   = data.withdraw_max;
+        if (minEl)     minEl.value     = data.min_cards;
+        if (countEl)   countEl.value   = data.launch_countdown;
+        if (feeEl)     feeEl.value     = data.house_fee_pct;
+        if (refBonEl)  refBonEl.value  = data.referral_bonus;
+        if (bonExpEl)  bonExpEl.value  = data.bonus_expiry_days ?? 30;
+        if (wMinEl)    wMinEl.value    = data.withdraw_min;
+        if (wMaxEl)    wMaxEl.value    = data.withdraw_max;
+        if (strAutoEl) strAutoEl.value = data.streak_auto_msg      || '';
+        if (strMsEl)   strMsEl.value   = data.streak_milestone_msg || '';
 
         // Render payment method cards
         const pmListEl = document.getElementById('admin-payment-methods-list');
@@ -2354,14 +2358,16 @@ async function loadAdminSettings() {
                     method: 'POST',
                     headers: _ah(),
                     body: JSON.stringify({
-                        min_cards:          minVal,
-                        launch_countdown:   cntVal,
-                        house_fee_pct:      feeVal,
-                        referral_bonus:     refBonVal,
-                        bonus_expiry_days:  bonExpVal,
-                        withdraw_min:       wMinVal,
-                        withdraw_max:       wMaxVal,
-                        payment_methods:    pmPayload,
+                        min_cards:            minVal,
+                        launch_countdown:     cntVal,
+                        house_fee_pct:        feeVal,
+                        referral_bonus:       refBonVal,
+                        bonus_expiry_days:    bonExpVal,
+                        withdraw_min:         wMinVal,
+                        withdraw_max:         wMaxVal,
+                        payment_methods:      pmPayload,
+                        streak_auto_msg:      strAutoEl ? strAutoEl.value.trim() : '',
+                        streak_milestone_msg: strMsEl   ? strMsEl.value.trim()   : '',
                     })
                 });
                 const data = await res.json();
