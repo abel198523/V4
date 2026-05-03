@@ -543,25 +543,53 @@
                 <h2 style="font-size:1rem;font-weight:800;margin:0;">ገቢ / Deposit</h2>
             </div>
             <div style="padding:15px;overflow-y:auto;flex:1;">
+
+                <!-- Payment info banner — shown dynamically -->
+                <div id="deposit-pay-info" style="display:none;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(16,185,129,0.06));border:1px solid rgba(34,197,94,0.3);border-radius:14px;padding:16px;margin-bottom:16px;">
+                    <div style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">📲 ገንዘቡን ወደዚህ ይላኩ / Send Payment To</div>
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                        <div id="deposit-method-icon" style="width:42px;height:42px;border-radius:12px;background:rgba(34,197,94,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;">💚</div>
+                        <div>
+                            <div id="deposit-pay-label" style="font-weight:800;font-size:0.95rem;color:#e2e8f0;">TeleBirr</div>
+                            <div id="deposit-pay-name"  style="font-size:0.78rem;color:#94a3b8;margin-top:1px;">Account Name</div>
+                        </div>
+                    </div>
+                    <div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:0.68rem;color:#64748b;font-weight:600;margin-bottom:2px;">ACCOUNT / PHONE</div>
+                            <div id="deposit-pay-account" style="font-size:1.15rem;font-weight:900;color:#22c55e;letter-spacing:1px;font-family:monospace;">—</div>
+                        </div>
+                        <button onclick="copyDepositAccount()" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80;border-radius:8px;padding:6px 14px;font-size:0.75rem;font-weight:700;cursor:pointer;">Copy</button>
+                    </div>
+                    <div style="font-size:0.72rem;color:#64748b;margin-top:10px;line-height:1.5;">
+                        ✅ ክፍያ ከፈጸሙ በኋላ Transaction Code ን ከዚህ ያስገቡ። አድሚን ካረጋገጠ ባላንስዎ ይጨምራል።
+                    </div>
+                </div>
+
+                <!-- No method configured warning -->
+                <div id="deposit-no-method" style="display:none;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:14px;margin-bottom:16px;text-align:center;">
+                    <div style="font-size:1.2rem;margin-bottom:6px;">⚠️</div>
+                    <div style="font-size:0.82rem;font-weight:700;color:#f59e0b;">ይህ ዘዴ አሁን አይገኝም</div>
+                    <div style="font-size:0.72rem;color:#92400e;margin-top:4px;">ሌላ ዘዴ ይምረጡ ወይም አድሚን ያግኙ።</div>
+                </div>
+
                 <div class="deposit-section">
+                    <div class="input-group">
+                        <label>ዘዴ / Method</label>
+                        <select id="deposit-method" class="form-input" onchange="onDepositMethodChange()">
+                            <option value="">— ዘዴ ይምረጡ —</option>
+                        </select>
+                    </div>
                     <div class="input-group">
                         <label>መጠን (ETB)</label>
                         <input type="number" id="deposit-amount" class="form-input" placeholder="100" min="1">
                     </div>
                     <div class="input-group">
-                        <label>ዘዴ / Method</label>
-                        <select id="deposit-method" class="form-input">
-                            <option value="telebirr">TeleBirr</option>
-                            <option value="cbe">CBE</option>
-                            <option value="awash">Awash Bank</option>
-                        </select>
+                        <label>Transaction Code / Reference</label>
+                        <input type="text" id="deposit-code" class="form-input" placeholder="ክፍያ ከፍለው ያገኙትን code ያስገቡ">
                     </div>
-                    <div class="input-group">
-                        <label>Transaction Code</label>
-                        <input type="text" id="deposit-code" class="form-input" placeholder="Transaction reference code">
-                    </div>
-                    <button id="submit-deposit" class="auth-btn" style="background:#22c55e;">ጠይቅ / Request</button>
-                    <div id="deposit-status" style="margin-top:12px;text-align:center;font-weight:600;min-height:20px;"></div>
+                    <button id="submit-deposit" class="auth-btn" style="background:linear-gradient(135deg,#16a34a,#15803d);">✅ ጠይቅ / Submit Request</button>
+                    <div id="deposit-status" style="margin-top:12px;text-align:center;font-weight:600;font-size:0.85rem;min-height:20px;"></div>
                 </div>
             </div>
         </div>
@@ -887,6 +915,14 @@
                             <span style="color:#9ca3af;font-size:0.85rem;">ETB maximum</span>
                         </div>
                     </div>
+
+                    <!-- Payment Methods -->
+                    <h3 style="font-size:0.9rem;font-weight:700;margin:20px 0 12px;color:#3b82f6;">💳 Payment Methods</h3>
+                    <p style="font-size:0.75rem;color:#6b7280;margin-bottom:14px;line-height:1.5;">
+                        ለ deposit ስንት account ይቀበሉ ይቀምጡ። ዘዴ ሲነቃ ለ user ይታያል — account number ባዶ ከሆነ ዘዴው ለ user አይታይም።
+                    </p>
+
+                    <div id="admin-payment-methods-list" style="display:grid;gap:10px;margin-bottom:16px;"></div>
 
                     <div id="settings-status" style="margin-bottom:12px;font-size:0.85rem;color:#6b7280;min-height:20px;"></div>
 

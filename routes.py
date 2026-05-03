@@ -557,6 +557,39 @@ def _get_withdraw_max():
         return 10000.0
 
 
+_PAYMENT_METHODS = [
+    {"key": "telebirr", "label": "TeleBirr"},
+    {"key": "cbe",      "label": "CBE (Commercial Bank of Ethiopia)"},
+    {"key": "awash",    "label": "Awash Bank"},
+]
+
+
+def _get_payment_methods_config():
+    """Return list of payment method configs (all methods, enabled or not)."""
+    methods = []
+    for m in _PAYMENT_METHODS:
+        k = m["key"]
+        enabled_s  = Setting.query.get(f"pay_{k}_enabled")
+        account_s  = Setting.query.get(f"pay_{k}_account")
+        name_s     = Setting.query.get(f"pay_{k}_name")
+        methods.append({
+            "key":     k,
+            "label":   m["label"],
+            "enabled": (enabled_s.value == "1") if enabled_s else True,
+            "account": account_s.value if account_s else "",
+            "name":    name_s.value if name_s else "",
+        })
+    return methods
+
+
+@app.route("/api/payment-methods")
+@login_required
+def get_payment_methods():
+    """Public (logged-in) endpoint: returns enabled payment methods with account info."""
+    cfg = _get_payment_methods_config()
+    return jsonify([m for m in cfg if m["enabled"]])
+
+
 @app.route("/api/admin/settings", methods=["GET"])
 def get_admin_settings():
     if not _admin_ok():
@@ -569,6 +602,7 @@ def get_admin_settings():
         "referral_bonus":   _get_referral_bonus(),
         "withdraw_min":     _get_withdraw_min(),
         "withdraw_max":     _get_withdraw_max(),
+        "payment_methods":  _get_payment_methods_config(),
     })
 
 
@@ -642,6 +676,26 @@ def update_admin_settings():
     if errors:
         return jsonify({"error": "; ".join(errors)}), 400
 
+    # payment methods: list [{key, account, name, enabled}, ...]
+    pm_list = data.get('payment_methods')
+    if isinstance(pm_list, list):
+        allowed_keys = {m["key"] for m in _PAYMENT_METHODS}
+        for pm in pm_list:
+            k = pm.get("key", "")
+            if k not in allowed_keys:
+                continue
+            account = str(pm.get("account", "")).strip()
+            name    = str(pm.get("name", "")).strip()
+            enabled = "1" if pm.get("enabled") else "0"
+            for sub_key, val in [(f"pay_{k}_account", account),
+                                 (f"pay_{k}_name",    name),
+                                 (f"pay_{k}_enabled", enabled)]:
+                s = Setting.query.get(sub_key)
+                if s:
+                    s.value = val
+                else:
+                    db.session.add(Setting(key=sub_key, value=val))
+
     db.session.commit()
     from game_engine import get_min_cards, get_launch_countdown, get_house_fee
     return jsonify({
@@ -652,6 +706,7 @@ def update_admin_settings():
         "referral_bonus":   _get_referral_bonus(),
         "withdraw_min":     _get_withdraw_min(),
         "withdraw_max":     _get_withdraw_max(),
+        "payment_methods":  _get_payment_methods_config(),
     })
 
 

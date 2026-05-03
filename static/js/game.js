@@ -565,48 +565,45 @@ socket.onmessage = (event) => {
     const submitDeposit = document.getElementById('submit-deposit');
     if (submitDeposit) {
         submitDeposit.onclick = async () => {
-            const amount = document.getElementById('deposit-amount').value;
-            const method = document.getElementById('deposit-method').value;
-            const code = document.getElementById('deposit-code').value;
+            const amount   = document.getElementById('deposit-amount').value;
+            const method   = document.getElementById('deposit-method').value;
+            const code     = document.getElementById('deposit-code').value.trim();
             const statusEl = document.getElementById('deposit-status');
-            const token = localStorage.getItem('bingo_token');
 
-            if (!amount || !method || !code) {
-                if (statusEl) {
-                    statusEl.innerText = "እባክዎ ሁሉንም መረጃዎች በትክክል ይሙሉ";
-                    statusEl.style.color = "#ef4444";
-                }
+            if (!method) {
+                if (statusEl) { statusEl.innerText = "⚠️ ዘዴ ይምረጡ"; statusEl.style.color = "#f59e0b"; }
+                return;
+            }
+            if (!amount || parseFloat(amount) < 1) {
+                if (statusEl) { statusEl.innerText = "⚠️ መጠን ያስገቡ (ቢያንስ 1 ETB)"; statusEl.style.color = "#f59e0b"; }
+                return;
+            }
+            if (!code) {
+                if (statusEl) { statusEl.innerText = "⚠️ Transaction code ያስገቡ"; statusEl.style.color = "#f59e0b"; }
                 return;
             }
 
+            submitDeposit.disabled  = true;
+            submitDeposit.innerText = 'Sending...';
             try {
                 const response = await fetch('/api/deposit-request', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ amount, method, code })
                 });
                 const data = await response.json();
                 if (response.ok) {
-                    if (statusEl) {
-                        statusEl.innerText = data.message;
-                        statusEl.style.color = "#22c55e";
-                    }
-                    document.getElementById('deposit-code').value = '';
+                    if (statusEl) { statusEl.innerText = data.message; statusEl.style.color = "#22c55e"; }
+                    document.getElementById('deposit-code').value   = '';
+                    document.getElementById('deposit-amount').value = '';
                 } else {
-                    if (statusEl) {
-                        statusEl.innerText = data.error || "ስህተት አጋጥሟል";
-                        statusEl.style.color = "#ef4444";
-                    }
+                    if (statusEl) { statusEl.innerText = data.error || "ስህተት አጋጥሟል"; statusEl.style.color = "#ef4444"; }
                 }
             } catch (err) {
-                if (statusEl) {
-                    statusEl.innerText = "ከሰርቨር ጋር መገናኘት አልተቻለም";
-                    statusEl.style.color = "#ef4444";
-                }
+                if (statusEl) { statusEl.innerText = "❌ Network error"; statusEl.style.color = "#ef4444"; }
             }
+            submitDeposit.disabled  = false;
+            submitDeposit.innerText = '✅ ጠይቅ / Submit Request';
         };
     }
 
@@ -1461,6 +1458,7 @@ function navTo(screenId) {
     if (screenId === 'wallet') loadBalanceHistory();
     if (screenId === 'leaderboard') loadLeaderboard();
     if (screenId === 'withdraw') loadWithdrawHistory();
+    if (screenId === 'deposit') loadDepositMethods();
 
     const sideMenu = document.getElementById('side-menu');
     const overlay = document.getElementById('menu-overlay');
@@ -1714,6 +1712,69 @@ if (submitWithdraw) {
     };
 }
 
+let _depositMethodsCache = [];
+
+async function loadDepositMethods() {
+    try {
+        const res  = await fetch('/api/payment-methods');
+        if (!res.ok) return;
+        const methods = await res.json();
+        _depositMethodsCache = methods;
+
+        const sel = document.getElementById('deposit-method');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">— ዘዴ ይምረጡ —</option>';
+        methods.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value       = m.key;
+            opt.textContent = m.label;
+            sel.appendChild(opt);
+        });
+        // Hide info banner until a method is chosen
+        const infoEl    = document.getElementById('deposit-pay-info');
+        const noMethEl  = document.getElementById('deposit-no-method');
+        if (infoEl)   infoEl.style.display   = 'none';
+        if (noMethEl) noMethEl.style.display  = 'none';
+    } catch (e) { /* silent */ }
+}
+
+const _methodIcons = { telebirr: '📱', cbe: '🏦', awash: '🏦' };
+
+window.onDepositMethodChange = function () {
+    const key     = document.getElementById('deposit-method')?.value;
+    const infoEl  = document.getElementById('deposit-pay-info');
+    const noMeth  = document.getElementById('deposit-no-method');
+    if (!key) {
+        if (infoEl)  infoEl.style.display  = 'none';
+        if (noMeth)  noMeth.style.display   = 'none';
+        return;
+    }
+    const m = _depositMethodsCache.find(x => x.key === key);
+    if (!m || !m.account) {
+        if (infoEl)  infoEl.style.display  = 'none';
+        if (noMeth)  noMeth.style.display   = 'block';
+        return;
+    }
+    if (noMeth)  noMeth.style.display   = 'none';
+    if (infoEl)  infoEl.style.display   = 'block';
+    const icon = document.getElementById('deposit-method-icon');
+    const lbl  = document.getElementById('deposit-pay-label');
+    const name = document.getElementById('deposit-pay-name');
+    const acct = document.getElementById('deposit-pay-account');
+    if (icon) icon.innerText = _methodIcons[key] || '💳';
+    if (lbl)  lbl.innerText  = m.label;
+    if (name) name.innerText = m.name || '—';
+    if (acct) acct.innerText = m.account;
+};
+
+window.copyDepositAccount = function () {
+    const acct = document.getElementById('deposit-pay-account')?.innerText;
+    if (!acct || acct === '—') return;
+    navigator.clipboard.writeText(acct).then(() => {
+        _showToast('✅ Account number copied!', 'success');
+    }).catch(() => { /* fallback */ });
+};
+
 async function loadWithdrawHistory() {
     const el = document.getElementById('withdraw-history-list');
     if (!el) return;
@@ -1842,6 +1903,36 @@ async function loadAdminSettings() {
         if (refBonEl) refBonEl.value = data.referral_bonus;
         if (wMinEl)   wMinEl.value   = data.withdraw_min;
         if (wMaxEl)   wMaxEl.value   = data.withdraw_max;
+
+        // Render payment method cards
+        const pmListEl = document.getElementById('admin-payment-methods-list');
+        if (pmListEl && Array.isArray(data.payment_methods)) {
+            pmListEl.innerHTML = data.payment_methods.map(m => `
+            <div style="background:#1e2435;border-radius:12px;padding:16px;border:1px solid rgba(59,130,246,0.15);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <span style="font-weight:800;font-size:0.88rem;">${m.label}</span>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="pm-${m.key}-enabled" ${m.enabled ? 'checked' : ''}
+                            style="width:16px;height:16px;accent-color:#3b82f6;">
+                        <span style="font-size:0.75rem;color:#94a3b8;font-weight:600;">Active</span>
+                    </label>
+                </div>
+                <div style="display:grid;gap:8px;">
+                    <div>
+                        <label style="font-size:0.68rem;color:#64748b;font-weight:700;display:block;margin-bottom:4px;">ACCOUNT NUMBER / PHONE</label>
+                        <input type="text" id="pm-${m.key}-account" value="${m.account || ''}"
+                            class="form-input" placeholder="e.g. 0912345678 or account number"
+                            style="font-family:monospace;font-size:0.9rem;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.68rem;color:#64748b;font-weight:700;display:block;margin-bottom:4px;">ACCOUNT HOLDER NAME</label>
+                        <input type="text" id="pm-${m.key}-name" value="${m.name || ''}"
+                            class="form-input" placeholder="e.g. Nova Bingo Ltd">
+                    </div>
+                </div>
+            </div>`).join('');
+        }
+
         if (statusEl) {
             statusEl.innerText = `✅ Loaded — cards: ${data.min_cards}, launch: ${data.launch_countdown}s, fee: ${data.house_fee_pct}%, referral: ${data.referral_bonus} ETB, withdraw: ${data.withdraw_min}–${data.withdraw_max} ETB`;
             statusEl.style.color = '#22c55e';
@@ -1888,6 +1979,15 @@ async function loadAdminSettings() {
             saveBtn.disabled  = true;
             saveBtn.innerText = 'Saving...';
             try {
+                // Collect payment methods from rendered inputs
+                const pmKeys    = ['telebirr', 'cbe', 'awash'];
+                const pmPayload = pmKeys.map(k => ({
+                    key:     k,
+                    account: document.getElementById(`pm-${k}-account`)?.value.trim() || '',
+                    name:    document.getElementById(`pm-${k}-name`)?.value.trim()    || '',
+                    enabled: document.getElementById(`pm-${k}-enabled`)?.checked      ?? true,
+                }));
+
                 const res  = await fetch('/api/admin/settings', {
                     method: 'POST',
                     headers: _ah(),
@@ -1898,12 +1998,16 @@ async function loadAdminSettings() {
                         referral_bonus:   refBonVal,
                         withdraw_min:     wMinVal,
                         withdraw_max:     wMaxVal,
+                        payment_methods:  pmPayload,
                     })
                 });
                 const data = await res.json();
                 if (data.success) {
+                    // Refresh deposit methods cache
+                    loadDepositMethods();
+                    const pmSaved = (data.payment_methods || []).filter(m => m.enabled && m.account).map(m => m.label).join(', ') || 'none active';
                     if (statusEl) {
-                        statusEl.innerText = `✅ Saved! Cards: ${data.min_cards} | Launch: ${data.launch_countdown}s | Fee: ${data.house_fee_pct}% | Referral: ${data.referral_bonus} ETB | Withdraw: ${data.withdraw_min}–${data.withdraw_max} ETB`;
+                        statusEl.innerText = `✅ Saved! Cards: ${data.min_cards} | Launch: ${data.launch_countdown}s | Fee: ${data.house_fee_pct}% | Referral: ${data.referral_bonus} ETB | Withdraw: ${data.withdraw_min}–${data.withdraw_max} ETB | Pay: ${pmSaved}`;
                         statusEl.style.color = '#22c55e';
                     }
                 } else {
