@@ -132,30 +132,57 @@ def login():
     return render_template("login.html")
 
 
+def _apply_referral_bonus(new_user, ref_code):
+    """Credit signup bonus to new user and referral bonus to referrer."""
+    if not ref_code:
+        return
+    referrer = User.query.filter_by(referral_code=ref_code).first()
+    if not referrer or referrer.id == new_user.id:
+        return
+    bonus = _get_referral_bonus()
+    if bonus <= 0:
+        return
+    new_user.referred_by  = ref_code
+    new_user.balance       = round(float(new_user.balance or 0) + bonus, 2)
+    referrer.balance       = round(float(referrer.balance or 0) + bonus, 2)
+
+
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
+    ref_code = request.args.get('ref', '').strip()
     if request.method == "POST":
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        error = None
+        username  = request.form.get('username', '').strip()
+        password  = request.form.get('password', '')
+        form_ref  = request.form.get('ref', '').strip() or ref_code
+        error     = None
         error_type = None
 
         if not username or not password:
-            error = "Username and password are required."
+            error      = "Username and password are required."
             error_type = "validation"
         elif len(password) < 6:
-            error = "Password must be at least 6 characters."
+            error      = "Password must be at least 6 characters."
             error_type = "validation"
         elif User.query.filter_by(username=username).first():
-            error = "This username is already registered."
+            error      = "This username is already registered."
             error_type = "taken"
         else:
             try:
+                import secrets
+                code = None
+                for _ in range(20):
+                    c = secrets.token_urlsafe(6)
+                    if not User.query.filter_by(referral_code=c).first():
+                        code = c
+                        break
                 user = User(
                     username=username,
-                    password_hash=generate_password_hash(password)
+                    password_hash=generate_password_hash(password),
+                    referral_code=code,
                 )
                 db.session.add(user)
+                db.session.flush()
+                _apply_referral_bonus(user, form_ref)
                 db.session.commit()
                 login_user(user, remember=True)
                 return redirect(url_for('game_page'))
@@ -166,9 +193,10 @@ def signup():
                 logging.error(f"Signup error for '{username}': {e}\n{tb}")
                 return render_template("error.html", error=e, traceback=tb, code=500), 500
 
-        return render_template("signup.html", error=error, error_type=error_type, username=username)
+        return render_template("signup.html", error=error, error_type=error_type,
+                               username=username, ref_code=form_ref)
 
-    return render_template("signup.html")
+    return render_template("signup.html", ref_code=ref_code)
 
 
 @app.route("/api/signup-request", methods=["POST"])
@@ -185,27 +213,39 @@ def verify_otp():
 
 @app.route("/api/signup", methods=["POST"])
 def do_signup():
-    data = request.json
-    username = data.get('username', '').strip()
-    password = data.get('password', '')
+    import secrets
+    data      = request.json or {}
+    username  = data.get('username', '').strip()
+    password  = data.get('password', '')
+    ref_code  = data.get('ref', '').strip()
 
     if not username or not password:
         return jsonify({"success": False, "message": "Username and password are required"}), 400
-
     if len(password) < 6:
         return jsonify({"success": False, "message": "Password must be at least 6 characters"}), 400
-
     if User.query.filter_by(username=username).first():
         return jsonify({"success": False, "message": "Username already taken"}), 400
 
+    code = None
+    for _ in range(20):
+        c = secrets.token_urlsafe(6)
+        if not User.query.filter_by(referral_code=c).first():
+            code = c
+            break
+
     user = User(
         username=username,
-        password_hash=generate_password_hash(password)
+        password_hash=generate_password_hash(password),
+        referral_code=code,
     )
     db.session.add(user)
+    db.session.flush()
+    _apply_referral_bonus(user, ref_code)
     db.session.commit()
     login_user(user, remember=True)
-    return jsonify({"success": True})
+
+    bonus = _get_referral_bonus() if ref_code else 0
+    return jsonify({"success": True, "referral_bonus": bonus if ref_code and user.referred_by else 0})
 
 
 @app.route("/api/user/balance")
@@ -470,15 +510,47 @@ def admin_revenue():
     })
 
 
+def _get_referral_bonus():
+    from models import Setting
+    s = Setting.query.get('referral_bonus')
+    try:
+        return round(float(s.value), 2) if s else 5.0
+    except Exception:
+        return 5.0
+
+
+@app.route("/api/user/referral")
+@login_required
+def user_referral():
+    import secrets
+    # Ensure user has a referral code
+    if not current_user.referral_code:
+        for _ in range(20):
+            code = secrets.token_urlsafe(6)
+            if not User.query.filter_by(referral_code=code).first():
+                current_user.referral_code = code
+                db.session.commit()
+                break
+    referred_users = User.query.filter_by(referred_by=current_user.referral_code).all()
+    bonus = _get_referral_bonus()
+    return jsonify({
+        "referral_code":  current_user.referral_code,
+        "referred_count": len(referred_users),
+        "bonus_per_ref":  bonus,
+        "bonus_earned":   round(len(referred_users) * bonus, 2),
+    })
+
+
 @app.route("/api/admin/settings", methods=["GET"])
 def get_admin_settings():
     if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     from game_engine import get_min_cards, get_launch_countdown, get_house_fee
     return jsonify({
-        "min_cards": get_min_cards(),
+        "min_cards":       get_min_cards(),
         "launch_countdown": get_launch_countdown(),
-        "house_fee_pct": round(get_house_fee() * 100),
+        "house_fee_pct":   round(get_house_fee() * 100),
+        "referral_bonus":  _get_referral_bonus(),
     })
 
 
@@ -506,16 +578,33 @@ def update_admin_settings():
     _save('launch_countdown', data.get('launch_countdown'), 5, 120)
     _save('house_fee_pct',    data.get('house_fee_pct'),    0,  50)
 
+    # referral_bonus: float, 0–100 ETB
+    rb = data.get('referral_bonus')
+    if rb is not None:
+        try:
+            rb_f = round(float(rb), 2)
+            if rb_f < 0 or rb_f > 100:
+                errors.append("referral_bonus must be 0–100 ETB")
+            else:
+                s = Setting.query.get('referral_bonus')
+                if s:
+                    s.value = str(rb_f)
+                else:
+                    db.session.add(Setting(key='referral_bonus', value=str(rb_f)))
+        except (ValueError, TypeError):
+            errors.append("referral_bonus must be a number")
+
     if errors:
         return jsonify({"error": "; ".join(errors)}), 400
 
     db.session.commit()
     from game_engine import get_min_cards, get_launch_countdown, get_house_fee
     return jsonify({
-        "success": True,
-        "min_cards": get_min_cards(),
+        "success":         True,
+        "min_cards":       get_min_cards(),
         "launch_countdown": get_launch_countdown(),
-        "house_fee_pct": round(get_house_fee() * 100),
+        "house_fee_pct":   round(get_house_fee() * 100),
+        "referral_bonus":  _get_referral_bonus(),
     })
 
 

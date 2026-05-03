@@ -98,7 +98,18 @@
             </div>
             {% endif %}
 
-            <form method="POST" action="{{ url_for('signup') }}">
+            {% if ref_code %}
+            <div class="mb-3 p-3" style="background:#0d2218;border:1px solid #22c55e;border-radius:12px;display:flex;align-items:center;gap:10px;">
+                <span style="font-size:1.3rem;">🎁</span>
+                <div>
+                    <div style="color:#4ade80;font-weight:700;font-size:0.9rem;">You were invited!</div>
+                    <div style="color:#86efac;font-size:0.78rem;margin-top:2px;">Sign up now and both you and your friend each get a bonus on your balance.</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('signup') }}{% if ref_code %}?ref={{ ref_code }}{% endif %}">
+                <input type="hidden" name="ref" value="{{ ref_code or '' }}">
                 <div class="mb-3">
                     <label class="label">Username</label>
                     <input type="text" name="username" class="form-input"
@@ -111,7 +122,7 @@
                     <input type="password" name="password" class="form-input"
                            placeholder="At least 6 characters" required>
                 </div>
-                <button type="submit" class="btn-signup">Create Account</button>
+                <button type="submit" class="btn-signup">{% if ref_code %}🎁 Create Account & Claim Bonus{% else %}Create Account{% endif %}</button>
             </form>
 
             <div class="text-center mt-4">

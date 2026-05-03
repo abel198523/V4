@@ -8,7 +8,8 @@ class User(UserMixin, db.Model):
     telegram_chat_id = db.Column(db.String(64), unique=True, nullable=True)
     balance = db.Column(db.Float, default=0.0)
     is_admin = db.Column(db.Boolean, default=False)
-    referred_by = db.Column(db.String(255), nullable=True)
+    referred_by = db.Column(db.String(16), nullable=True)
+    referral_code = db.Column(db.String(16), unique=True, nullable=True)
     password_hash = db.Column(db.String(256), nullable=True)
 
 class Room(db.Model):

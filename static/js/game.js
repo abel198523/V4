@@ -1536,6 +1536,38 @@ async function loadProfileData() {
             netEl.style.color = net >= 0 ? '#22c55e' : '#ef4444';
         }
     } catch (e) { /* silent */ }
+
+    // Load referral stats
+    try {
+        const rr = await fetch('/api/user/referral');
+        if (!rr.ok) return;
+        const rd = await rr.json();
+        const refCountEl  = document.getElementById('ref-count');
+        const refEarnedEl = document.getElementById('ref-earned');
+        const refLinkBox  = document.getElementById('ref-link-box');
+        if (refCountEl)  refCountEl.innerText  = rd.referred_count;
+        if (refEarnedEl) refEarnedEl.innerText = rd.bonus_earned.toFixed(2);
+        const link = window.location.origin + '/signup?ref=' + rd.referral_code;
+        if (refLinkBox) {
+            refLinkBox.innerText    = link;
+            refLinkBox.dataset.link = link;
+        }
+    } catch (e) { /* silent */ }
+}
+
+function copyReferralLink() {
+    const box = document.getElementById('ref-link-box');
+    const statusEl = document.getElementById('ref-copy-status');
+    const link = (box && box.dataset.link) ? box.dataset.link : (box ? box.innerText : '');
+    if (!link || link === 'Loading...') return;
+    navigator.clipboard.writeText(link).then(() => {
+        if (statusEl) { statusEl.innerText = '✅ Link copied!'; }
+        const btn = document.getElementById('ref-copy-btn');
+        if (btn) { btn.innerText = 'Copied!'; setTimeout(() => { btn.innerText = 'Copy'; }, 2000); }
+        if (statusEl) setTimeout(() => { statusEl.innerText = ''; }, 2500);
+    }).catch(() => {
+        if (statusEl) { statusEl.innerText = '⚠️ Could not copy — please copy manually.'; }
+    });
 }
 
 let _lbData = [];
@@ -1797,6 +1829,7 @@ async function loadAdminSettings() {
     const minEl     = document.getElementById('settings-min-cards');
     const countEl   = document.getElementById('settings-countdown');
     const feeEl     = document.getElementById('settings-house-fee');
+    const refBonEl  = document.getElementById('settings-referral-bonus');
 
     if (statusEl) { statusEl.innerText = 'Loading...'; statusEl.style.color = '#6b7280'; }
 
@@ -1804,11 +1837,12 @@ async function loadAdminSettings() {
         const res = await fetch('/api/admin/settings', { headers: _ah() });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        if (minEl)   minEl.value   = data.min_cards;
-        if (countEl) countEl.value = data.launch_countdown;
-        if (feeEl)   feeEl.value   = data.house_fee_pct;
+        if (minEl)    minEl.value    = data.min_cards;
+        if (countEl)  countEl.value  = data.launch_countdown;
+        if (feeEl)    feeEl.value    = data.house_fee_pct;
+        if (refBonEl) refBonEl.value = data.referral_bonus;
         if (statusEl) {
-            statusEl.innerText = `✅ Loaded — min cards: ${data.min_cards}, launch warning: ${data.launch_countdown}s, commission: ${data.house_fee_pct}%`;
+            statusEl.innerText = `✅ Loaded — min cards: ${data.min_cards}, launch: ${data.launch_countdown}s, commission: ${data.house_fee_pct}%, referral bonus: ${data.referral_bonus} ETB`;
             statusEl.style.color = '#22c55e';
         }
     } catch (e) {
@@ -1818,9 +1852,10 @@ async function loadAdminSettings() {
     const saveBtn = document.getElementById('settings-save-btn');
     if (saveBtn) {
         saveBtn.onclick = async () => {
-            const minVal = parseInt(minEl   ? minEl.value   : '5');
-            const cntVal = parseInt(countEl ? countEl.value : '10');
-            const feeVal = parseInt(feeEl   ? feeEl.value   : '10');
+            const minVal    = parseInt(minEl    ? minEl.value    : '5');
+            const cntVal    = parseInt(countEl  ? countEl.value  : '10');
+            const feeVal    = parseInt(feeEl    ? feeEl.value    : '10');
+            const refBonVal = parseFloat(refBonEl ? refBonEl.value : '5');
 
             if (isNaN(minVal) || minVal < 1 || minVal > 50) {
                 if (statusEl) { statusEl.innerText = '⚠️ Min cards must be 1–50.'; statusEl.style.color = '#f59e0b'; }
@@ -1834,6 +1869,10 @@ async function loadAdminSettings() {
                 if (statusEl) { statusEl.innerText = '⚠️ Commission must be 0–50%.'; statusEl.style.color = '#f59e0b'; }
                 return;
             }
+            if (isNaN(refBonVal) || refBonVal < 0 || refBonVal > 100) {
+                if (statusEl) { statusEl.innerText = '⚠️ Referral bonus must be 0–100 ETB.'; statusEl.style.color = '#f59e0b'; }
+                return;
+            }
 
             saveBtn.disabled = true;
             saveBtn.innerText = 'Saving...';
@@ -1841,12 +1880,12 @@ async function loadAdminSettings() {
                 const res = await fetch('/api/admin/settings', {
                     method: 'POST',
                     headers: _ah(),
-                    body: JSON.stringify({ min_cards: minVal, launch_countdown: cntVal, house_fee_pct: feeVal })
+                    body: JSON.stringify({ min_cards: minVal, launch_countdown: cntVal, house_fee_pct: feeVal, referral_bonus: refBonVal })
                 });
                 const data = await res.json();
                 if (data.success) {
                     if (statusEl) {
-                        statusEl.innerText = `✅ Saved! Min cards: ${data.min_cards} | Launch warning: ${data.launch_countdown}s | Commission: ${data.house_fee_pct}%. Takes effect next round.`;
+                        statusEl.innerText = `✅ Saved! Min: ${data.min_cards} | Launch: ${data.launch_countdown}s | Commission: ${data.house_fee_pct}% | Referral: ${data.referral_bonus} ETB`;
                         statusEl.style.color = '#22c55e';
                     }
                 } else {

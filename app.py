@@ -74,7 +74,34 @@ with app.app_context():
         logger.info("Migration: telegram_chat_id set to nullable.")
     except Exception:
         db.session.rollback()
-        # Column is already nullable or table doesn't exist yet — safe to ignore
+
+    # Migration: add referral_code column if not present
+    try:
+        db.session.execute(db.text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(16) UNIQUE"
+        ))
+        db.session.commit()
+        logger.info("Migration: referral_code column added.")
+    except Exception:
+        db.session.rollback()
+
+    # Generate referral codes for users who don't have one
+    try:
+        import secrets as _sec
+        from models import User as _User
+        missing = _User.query.filter(_User.referral_code.is_(None)).all()
+        for u in missing:
+            for _ in range(20):
+                code = _sec.token_urlsafe(6)
+                if not _User.query.filter_by(referral_code=code).first():
+                    u.referral_code = code
+                    break
+        if missing:
+            db.session.commit()
+            logger.info(f"Generated referral codes for {len(missing)} existing users.")
+    except Exception as e:
+        db.session.rollback()
+        logger.warning(f"Referral code generation failed: {e}")
 
 # Start independent per-room countdown timers
 from game_engine import start_all_room_timers
