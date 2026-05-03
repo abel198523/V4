@@ -123,6 +123,7 @@ if BOT_TOKEN:
         web_url = _get_web_url()
         bot.set_chat_menu_button(
             menu_button=types.MenuButtonWebApp(
+                type="web_app",
                 text="🎮 ጨዋታ",
                 web_app=types.WebAppInfo(url=web_url)
             )
