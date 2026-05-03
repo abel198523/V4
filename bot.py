@@ -176,29 +176,15 @@ if BOT_TOKEN:
             bot.send_message(chat_id, "❌ ምዝገባ አልተሳካም። እንደገና ይሞክሩ /start")
             return
 
-        web_url = _get_web_url()
-        login_url = f"{web_url}/tg-login/{token}"
-
-        # Remove keyboard and send deep link
+        # Remove keyboard and notify user
         remove_markup = types.ReplyKeyboardRemove()
         bot.send_message(
             chat_id,
             f"✅ *ምዝገባ ተሳካ!*\n\n"
             f"ሰላም *{first_name}*! አካውንትዎ ተፈጥሯል። 🎉\n\n"
-            f"👇 ከታች ያለውን ቁልፍ ተጭነው ወደ ጨዋታ ይግቡ፦",
+            f"▶️ አሁን በቴሌግራም ታች ያለውን *Open* ቁልፍ ተጭነው ጨዋታ ይጀምሩ።",
             parse_mode='Markdown',
             reply_markup=remove_markup
-        )
-
-        markup2 = types.InlineKeyboardMarkup()
-        markup2.add(types.InlineKeyboardButton(
-            "🎮 ወደ ጨዋታ ግባ / Enter Game",
-            url=login_url
-        ))
-        bot.send_message(
-            chat_id,
-            "🔗 ይህ ሊንክ አንድ ጊዜ ብቻ ይሰራል። ሌላ ጊዜ /start ይጫኑ።",
-            reply_markup=markup2
         )
 
     @bot.message_handler(commands=['login'])
@@ -222,18 +208,10 @@ if BOT_TOKEN:
                 db.session.add(lt)
                 db.session.commit()
 
-            web_url = _get_web_url()
-            login_url = f"{web_url}/tg-login/{token_str}"
-            markup = types.InlineKeyboardMarkup()
-            markup.add(types.InlineKeyboardButton(
-                "🎮 ወደ ጨዋታ ግባ / Enter Game",
-                url=login_url
-            ))
             bot.send_message(
                 chat_id,
-                f"🔗 *የመግቢያ ሊንክ*\n\nአንድ ጊዜ ብቻ ይሰራል። ሌላ ጊዜ /login ይጫኑ።",
-                parse_mode='Markdown',
-                reply_markup=markup
+                "▶️ በቴሌግራም ታች ያለውን *Open* ቁልፍ ተጭነው ጨዋታ ይጀምሩ።",
+                parse_mode='Markdown'
             )
         except Exception as e:
             logger.error(f"/login error: {e}")
