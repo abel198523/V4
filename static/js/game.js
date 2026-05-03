@@ -168,8 +168,57 @@ async function _syncTimers() {
 
             _prevRoomStatus[stakeStr] = { status: info.status };
         }
+
+        // ── In-game broadcast alert (first stake key carries global alert) ─
+        const firstInfo = Object.values(data)[0];
+        if (firstInfo) _handleBroadcastAlert(firstInfo.broadcast_alert || null);
+
     } catch (e) { console.error('[Status] _syncTimers error:', e); }
 }
+
+let _lastAlertMsg = '';
+let _alertDismissTimer = null;
+
+function _handleBroadcastAlert(alert) {
+    const overlay = document.getElementById('ingame-alert-overlay');
+    if (!overlay) return;
+    if (!alert || !alert.message) return;
+    if (alert.message === _lastAlertMsg) return;   // already shown this one
+    _lastAlertMsg = alert.message;
+
+    // Populate content
+    const iconEl = document.getElementById('ingame-alert-icon');
+    const textEl = document.getElementById('ingame-alert-text');
+    const barEl  = document.getElementById('ingame-alert-bar');
+    if (iconEl) iconEl.innerText = alert.icon || '📢';
+    if (textEl) textEl.innerText = alert.message;
+
+    // Show overlay
+    overlay.style.display = 'flex';
+
+    // Animate countdown bar
+    const ttl = (alert.ttl || 30) * 1000;
+    if (barEl) {
+        barEl.style.transition = 'none';
+        barEl.style.width      = '100%';
+        requestAnimationFrame(() => {
+            barEl.style.transition = `width ${ttl}ms linear`;
+            barEl.style.width      = '0%';
+        });
+    }
+
+    // Auto-dismiss
+    clearTimeout(_alertDismissTimer);
+    _alertDismissTimer = setTimeout(() => {
+        overlay.style.display = 'none';
+    }, ttl + 200);
+}
+
+window.dismissIngameAlert = function () {
+    const overlay = document.getElementById('ingame-alert-overlay');
+    if (overlay) overlay.style.display = 'none';
+    clearTimeout(_alertDismissTimer);
+};
 
 // ── Card Fill Panel renderer ──────────────────────────────────────────────────
 function _updateCardFillPanel(info) {
@@ -2379,21 +2428,62 @@ if (sendDailyReportBtn) {
 const sendBroadcastBtn = document.getElementById('send-broadcast');
 if (sendBroadcastBtn) {
     sendBroadcastBtn.onclick = async () => {
-        const message = document.getElementById('broadcast-message').value;
-        if (!message) return alert("መልዕክት ያስገቡ");
-        const token = localStorage.getItem('bingo_token');
+        const message   = document.getElementById('broadcast-message')?.value?.trim();
+        const statusEl  = document.getElementById('broadcast-status');
+        if (!message) {
+            if (statusEl) { statusEl.innerText = '⚠️ መልዕክት ያስገቡ'; statusEl.style.color = '#f59e0b'; }
+            return;
+        }
+        sendBroadcastBtn.disabled  = true;
+        sendBroadcastBtn.innerText = 'Sending...';
         try {
-            const res = await fetch('/api/admin/broadcast', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify({ message })
+            const res  = await fetch('/api/admin/broadcast', { method: 'POST', headers: _ah(), body: JSON.stringify({ message }) });
+            const data = await res.json();
+            if (statusEl) {
+                statusEl.innerText   = data.message || data.error;
+                statusEl.style.color = res.ok ? '#22c55e' : '#ef4444';
+            }
+        } catch (e) {
+            if (statusEl) { statusEl.innerText = '❌ Network error'; statusEl.style.color = '#ef4444'; }
+        }
+        sendBroadcastBtn.disabled  = false;
+        sendBroadcastBtn.innerText = '📢 Send Telegram Broadcast';
+    };
+}
+
+const sendAlertBtn = document.getElementById('send-alert-btn');
+if (sendAlertBtn) {
+    sendAlertBtn.onclick = async () => {
+        const message   = document.getElementById('alert-message')?.value?.trim();
+        const icon      = document.getElementById('alert-icon')?.value  || '📢';
+        const duration  = parseInt(document.getElementById('alert-duration')?.value || '30');
+        const statusEl  = document.getElementById('alert-status');
+        if (!message) {
+            if (statusEl) { statusEl.innerText = '⚠️ Alert message ያስገቡ'; statusEl.style.color = '#f59e0b'; }
+            return;
+        }
+        sendAlertBtn.disabled  = true;
+        sendAlertBtn.innerText = 'Sending...';
+        try {
+            const res  = await fetch('/api/admin/in-game-alert', {
+                method: 'POST', headers: _ah(),
+                body: JSON.stringify({ message, icon, duration })
             });
             const data = await res.json();
-            alert(data.message || data.error);
-        } catch (e) { console.error(e); }
+            if (statusEl) {
+                statusEl.innerText   = data.message || data.error;
+                statusEl.style.color = res.ok ? '#22c55e' : '#ef4444';
+            }
+            if (res.ok) {
+                document.getElementById('alert-message').value = '';
+                // Preview the alert for the admin too
+                _handleBroadcastAlert({ message, icon, ttl: duration });
+            }
+        } catch (e) {
+            if (statusEl) { statusEl.innerText = '❌ Network error'; statusEl.style.color = '#ef4444'; }
+        }
+        sendAlertBtn.disabled  = false;
+        sendAlertBtn.innerText = '🔔 Send In-Game Alert';
     };
 }
 

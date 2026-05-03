@@ -32,6 +32,34 @@ room_states = {
 
 _timer_threads = {}
 
+# ─── In-game broadcast alert ─────────────────────────────────────────────────
+_broadcast_alert = {
+    'message':    '',
+    'icon':       '📢',
+    'expires_at': 0.0,   # unix timestamp; 0 = no active alert
+}
+
+
+def set_broadcast_alert(message: str, icon: str = '📢', duration_sec: int = 30):
+    """Set a global in-game alert visible to all polling clients."""
+    with _lock:
+        _broadcast_alert['message']    = message
+        _broadcast_alert['icon']       = icon or '📢'
+        _broadcast_alert['expires_at'] = time.time() + duration_sec
+
+
+def get_broadcast_alert():
+    """Return active alert dict, or None if expired / not set."""
+    with _lock:
+        if _broadcast_alert['message'] and time.time() < _broadcast_alert['expires_at']:
+            return {
+                'message':    _broadcast_alert['message'],
+                'icon':       _broadcast_alert['icon'],
+                'expires_at': _broadcast_alert['expires_at'],
+                'ttl':        max(0, int(_broadcast_alert['expires_at'] - time.time())),
+            }
+    return None
+
 
 def get_min_cards():
     try:
@@ -444,6 +472,7 @@ def get_all_room_status():
     with _lock:
         states_snapshot = {stake: dict(room_states[stake]) for stake in STAKES}
 
+    alert = get_broadcast_alert()
     result = {}
     for stake in STAKES:
         s = states_snapshot[stake]
@@ -458,6 +487,7 @@ def get_all_room_status():
             'prize_pool': prize_pool,
             'house_fee_pct': round(get_house_fee() * 100),
             'launch_countdown': get_launch_countdown(),
+            'broadcast_alert': alert,
         }
     return result
 

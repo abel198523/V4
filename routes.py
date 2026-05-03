@@ -1157,7 +1157,24 @@ def admin_broadcast():
                 sent += 1
             except Exception:
                 pass
-    return jsonify({"message": f"መልዕክት ለ {sent} ተጠቃሚዎች ተልኳል"})
+    return jsonify({"success": True, "message": f"📢 Telegram broadcast sent to {sent} user{'' if sent==1 else 's'}"})
+
+
+@app.route("/api/admin/in-game-alert", methods=["POST"])
+def admin_in_game_alert():
+    """Push a timed in-game notification to all polling players."""
+    if not _admin_ok():
+        return jsonify({"error": "Unauthorized"}), 403
+    data     = request.get_json() or {}
+    message  = data.get("message", "").strip()
+    icon     = data.get("icon", "📢").strip() or "📢"
+    duration = int(data.get("duration", 30))
+    if not message:
+        return jsonify({"error": "መልዕክት ያስገቡ"}), 400
+    duration = max(5, min(duration, 120))
+    from game_engine import set_broadcast_alert
+    set_broadcast_alert(message, icon, duration)
+    return jsonify({"success": True, "message": f"✅ In-game alert sent — visible for {duration}s"})
 
 
 # ─── Card Purchase (by stake) ─────────────────────────────────────────────────
