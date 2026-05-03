@@ -24,69 +24,60 @@ def _get_web_url():
     return os.environ.get('APP_URL', 'http://localhost:5000')
 
 
-def _create_login_token(user_id):
-    """Create a one-time login token for auto-login deep link."""
+def _get_or_create_user_and_token(tg_id, first_name, last_name, username, phone_number=None, ref_code=None):
+    """Get/create user and return (user_id, login_token) — all in one app context."""
     from app import app, db
-    from models import LoginToken
-    with app.app_context():
-        token = secrets.token_urlsafe(32)
-        lt = LoginToken(token=token, user_id=user_id)
-        db.session.add(lt)
-        db.session.commit()
-        return token
-
-
-def _get_or_create_user(tg_id, first_name, last_name, username, phone_number=None, ref_code=None):
-    """Get existing user or create new one from Telegram data."""
-    from app import app, db
-    from models import User
+    from models import User, LoginToken
     import secrets as sec_mod
 
     with app.app_context():
         user = User.query.filter_by(telegram_chat_id=str(tg_id)).first()
         if user:
-            # Update phone if newly provided
             if phone_number and not user.phone_number:
                 user.phone_number = phone_number
                 db.session.commit()
-            return user
+        else:
+            # Build a unique username
+            base_un = username or first_name or f"user{str(tg_id)[-6:]}"
+            base_un = base_un.replace(' ', '_').lower()
+            uname = base_un
+            counter = 1
+            while User.query.filter_by(username=uname).first():
+                uname = f"{base_un}{counter}"
+                counter += 1
 
-        # Build a unique username
-        base_un = username or first_name or f"user{str(tg_id)[-6:]}"
-        base_un = base_un.replace(' ', '_').lower()
-        uname = base_un
-        counter = 1
-        while User.query.filter_by(username=uname).first():
-            uname = f"{base_un}{counter}"
-            counter += 1
+            # Generate referral code
+            code = None
+            for _ in range(20):
+                c = sec_mod.token_urlsafe(6)
+                if not User.query.filter_by(referral_code=c).first():
+                    code = c
+                    break
 
-        # Generate referral code
-        code = None
-        for _ in range(20):
-            c = sec_mod.token_urlsafe(6)
-            if not User.query.filter_by(referral_code=c).first():
-                code = c
-                break
+            user = User(
+                username=uname,
+                telegram_chat_id=str(tg_id),
+                phone_number=phone_number,
+                password_hash=None,
+                referral_code=code,
+            )
+            db.session.add(user)
+            db.session.flush()
 
-        full_name = f"{first_name or ''} {last_name or ''}".strip()
-        new_user = User(
-            username=uname,
-            telegram_chat_id=str(tg_id),
-            phone_number=phone_number,
-            password_hash=None,
-            referral_code=code,
-        )
-        db.session.add(new_user)
-        db.session.flush()
+            if ref_code:
+                referrer = User.query.filter_by(referral_code=ref_code.strip()).first()
+                if referrer and referrer.id != user.id:
+                    user.referred_by = ref_code.strip()
 
-        # Apply referral bonus if ref_code provided
-        if ref_code:
-            referrer = User.query.filter_by(referral_code=ref_code.strip()).first()
-            if referrer and referrer.id != new_user.id:
-                new_user.referred_by = ref_code.strip()
+            db.session.commit()
 
+        # Create one-time login token in the same context
+        token_str = sec_mod.token_urlsafe(32)
+        lt = LoginToken(token=token_str, user_id=user.id)
+        db.session.add(lt)
         db.session.commit()
-        return new_user
+
+        return user.id, token_str
 
 
 if BOT_TOKEN:
@@ -170,9 +161,9 @@ if BOT_TOKEN:
         except Exception:
             pass
 
-        # Get or create user
+        # Get or create user AND create login token — all in one db context
         try:
-            user = _get_or_create_user(
+            user_id, token = _get_or_create_user_and_token(
                 tg_id=chat_id,
                 first_name=first_name,
                 last_name=last_name,
@@ -181,16 +172,8 @@ if BOT_TOKEN:
                 ref_code=ref_code,
             )
         except Exception as e:
-            logger.error(f"User creation failed: {e}")
+            logger.error(f"User/token creation failed: {e}")
             bot.send_message(chat_id, "❌ ምዝገባ አልተሳካም። እንደገና ይሞክሩ /start")
-            return
-
-        # Create one-time login token
-        try:
-            token = _create_login_token(user.id)
-        except Exception as e:
-            logger.error(f"Token creation failed: {e}")
-            bot.send_message(chat_id, "❌ መግቢያ ሊንክ ሊፈጠር አልቻለም። እንደገና ይሞክሩ /start")
             return
 
         web_url = _get_web_url()
@@ -224,7 +207,8 @@ if BOT_TOKEN:
         chat_id = message.chat.id
         try:
             from app import app, db
-            from models import User
+            from models import User, LoginToken
+            import secrets as sec_mod
             with app.app_context():
                 user = User.query.filter_by(telegram_chat_id=str(chat_id)).first()
                 if not user:
@@ -233,20 +217,24 @@ if BOT_TOKEN:
                         "⚠️ አካውንት አልተገኘም። /start ይጫኑ ለመመዝገብ።"
                     )
                     return
-                token = _create_login_token(user.id)
-                web_url = _get_web_url()
-                login_url = f"{web_url}/tg-login/{token}"
-                markup = types.InlineKeyboardMarkup()
-                markup.add(types.InlineKeyboardButton(
-                    "🎮 ወደ ጨዋታ ግባ / Enter Game",
-                    url=login_url
-                ))
-                bot.send_message(
-                    chat_id,
-                    f"🔗 *የመግቢያ ሊንክ*\n\nአንድ ጊዜ ብቻ ይሰራል። ሌላ ጊዜ /login ይጫኑ።",
-                    parse_mode='Markdown',
-                    reply_markup=markup
-                )
+                token_str = sec_mod.token_urlsafe(32)
+                lt = LoginToken(token=token_str, user_id=user.id)
+                db.session.add(lt)
+                db.session.commit()
+
+            web_url = _get_web_url()
+            login_url = f"{web_url}/tg-login/{token_str}"
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton(
+                "🎮 ወደ ጨዋታ ግባ / Enter Game",
+                url=login_url
+            ))
+            bot.send_message(
+                chat_id,
+                f"🔗 *የመግቢያ ሊንክ*\n\nአንድ ጊዜ ብቻ ይሰራል። ሌላ ጊዜ /login ይጫኑ።",
+                parse_mode='Markdown',
+                reply_markup=markup
+            )
         except Exception as e:
             logger.error(f"/login error: {e}")
             bot.send_message(chat_id, "❌ ሊንክ ሊፈጠር አልቻለም። እንደገና ይሞክሩ።")
