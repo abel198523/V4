@@ -2088,6 +2088,32 @@ if (promoteUserBtn) {
     };
 }
 
+const sendDailyReportBtn = document.getElementById('send-daily-report-btn');
+if (sendDailyReportBtn) {
+    sendDailyReportBtn.onclick = async () => {
+        const statusEl = document.getElementById('daily-report-status');
+        sendDailyReportBtn.disabled = true;
+        sendDailyReportBtn.innerText = 'Sending...';
+        if (statusEl) { statusEl.innerText = ''; statusEl.style.color = '#6b7280'; }
+        try {
+            const res = await fetch('/api/admin/send-daily-report', {
+                method: 'POST',
+                headers: _ah()
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (statusEl) { statusEl.innerText = '✅ ' + data.message; statusEl.style.color = '#22c55e'; }
+            } else {
+                if (statusEl) { statusEl.innerText = '❌ ' + (data.error || 'Failed'); statusEl.style.color = '#ef4444'; }
+            }
+        } catch (e) {
+            if (statusEl) { statusEl.innerText = '❌ Network error'; statusEl.style.color = '#ef4444'; }
+        }
+        sendDailyReportBtn.disabled = false;
+        sendDailyReportBtn.innerText = '📤 Send Report Now';
+    };
+}
+
 const sendBroadcastBtn = document.getElementById('send-broadcast');
 if (sendBroadcastBtn) {
     sendBroadcastBtn.onclick = async () => {

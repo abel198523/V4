@@ -678,11 +678,29 @@
                     <div id="admin-withdrawals-list"><p class="empty-msg">Loading...</p></div>
                 </div>
                 <div id="admin-broadcast-tab" class="admin-tab-content">
+
+                    <!-- Daily Revenue Report -->
+                    <div style="background:#1e2435;border-radius:12px;padding:16px;margin-bottom:18px;border:1px solid rgba(245,158,11,0.2);">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                            <span style="font-size:1.1rem;">📊</span>
+                            <span style="font-weight:700;font-size:0.9rem;color:#f59e0b;">Daily Revenue Report</span>
+                        </div>
+                        <p style="font-size:0.75rem;color:#6b7280;margin-bottom:12px;line-height:1.5;">
+                            ዛሬው ዕለት ዙሮች፣ ካርዶች፣ ገቢ፣ ክፍያ፣ ትርፍ summary ን ለሁሉ admin Telegram ይላካል።<br>
+                            Automatically sent each day at 09:00 AM (EAT). Use button to send now.
+                        </p>
+                        <button id="send-daily-report-btn" class="auth-btn" style="background:linear-gradient(135deg,#d97706,#b45309);margin-bottom:0;">
+                            📤 Send Report Now
+                        </button>
+                        <div id="daily-report-status" style="margin-top:10px;font-size:0.8rem;color:#6b7280;min-height:18px;"></div>
+                    </div>
+
+                    <!-- Broadcast Message -->
                     <div class="input-group">
-                        <label>Broadcast Message (Telegram)</label>
+                        <label>Broadcast Message (Telegram — All Users)</label>
                         <textarea id="broadcast-message" class="form-input" rows="4" placeholder="Enter message..."></textarea>
                     </div>
-                    <button id="send-broadcast" class="auth-btn">Send Broadcast</button>
+                    <button id="send-broadcast" class="auth-btn">📢 Send Broadcast</button>
                 </div>
 
                 <div id="admin-settings-tab" class="admin-tab-content">

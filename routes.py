@@ -840,6 +840,17 @@ def admin_promote_user():
     return jsonify({"message": f"{user.username} አድሚን ሆኗል"})
 
 
+@app.route("/api/admin/send-daily-report", methods=["POST"])
+def admin_send_daily_report():
+    if not _admin_ok():
+        return jsonify({"error": "Unauthorized"}), 403
+    from game_engine import _send_daily_revenue_report
+    import threading
+    t = threading.Thread(target=lambda: _send_daily_revenue_report(manual=True), daemon=True)
+    t.start()
+    return jsonify({"success": True, "message": "📊 Daily report is being sent to admins via Telegram."})
+
+
 @app.route("/api/admin/broadcast", methods=["POST"])
 def admin_broadcast():
     if not _admin_ok():
