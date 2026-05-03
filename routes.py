@@ -408,18 +408,21 @@ def do_signup():
 @app.route("/api/user/balance")
 @login_required
 def get_balance():
-    db.session.refresh(current_user)
-    _maybe_expire_user_bonus(current_user)
-    db.session.commit()
-    dep   = round(float(current_user.balance or 0), 2)
-    bonus = round(float(current_user.bonus_balance or 0), 2)
-    exp   = current_user.bonus_expires_at.isoformat() if current_user.bonus_expires_at else None
+    # Reload only the balance columns — avoids a full ORM refresh round-trip
+    user = User.query.with_entities(
+        User.balance, User.bonus_balance, User.bonus_expires_at, User.username
+    ).filter_by(id=current_user.id).first()
+    if not user:
+        return jsonify({"error": "user not found"}), 404
+    dep   = round(float(user.balance or 0), 2)
+    bonus = round(float(user.bonus_balance or 0), 2)
+    exp   = user.bonus_expires_at.isoformat() if user.bonus_expires_at else None
     return jsonify({
         "balance":          dep,
         "bonus_balance":    bonus,
         "total_balance":    round(dep + bonus, 2),
         "bonus_expires_at": exp,
-        "username":         current_user.username,
+        "username":         user.username,
     })
 
 
@@ -1623,6 +1626,9 @@ def buy_card_by_stake(stake, card_number):
         card_number=card_number
     ))
     db.session.commit()
+    # Invalidate the in-memory card-count cache so next poll sees fresh count
+    from game_engine import _invalidate_card_count
+    _invalidate_card_count(stake)
     return jsonify({"success": True, "new_balance": dep_new + bonus_new,
                     "deposit_balance": dep_new, "bonus_balance": bonus_new,
                     "streak": current_user.current_streak})

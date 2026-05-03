@@ -2,6 +2,7 @@ import os
 import logging
 
 from flask import Flask
+from flask_compress import Compress
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -19,6 +20,15 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.environ.get("SESSION_SECRET")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+# Gzip compress JSON/HTML responses — reduces payload size by ~70%
+app.config['COMPRESS_MIMETYPES'] = [
+    'text/html', 'text/css', 'application/json',
+    'application/javascript', 'text/javascript',
+]
+app.config['COMPRESS_LEVEL'] = 6
+app.config['COMPRESS_MIN_SIZE'] = 500
+Compress(app)
+
 # Fix DATABASE_URL: postgres:// -> postgresql://
 database_url = os.environ.get("DATABASE_URL")
 if not database_url:
@@ -30,9 +40,12 @@ else:
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 
-# Engine options: SSL for Render, standard pool settings everywhere
+# Engine options: connection pool + SSL for Render
 engine_options = {
-    "pool_recycle": 300,
+    "pool_size":     10,
+    "max_overflow":  20,
+    "pool_timeout":  10,
+    "pool_recycle":  300,
     "pool_pre_ping": True,
 }
 if os.environ.get("RENDER"):

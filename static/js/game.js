@@ -64,7 +64,7 @@ let _lastLaunchTick = -1; // last launch_timer value we played a tick for
 function startTimerSystem() {
     if (_timerPollId) clearInterval(_timerPollId);
     _syncTimers();
-    _timerPollId = setInterval(_syncTimers, 1000);
+    _timerPollId = setInterval(_syncTimers, 2000);
 }
 
 function stopTimerSystem() {
@@ -1300,7 +1300,7 @@ async function initApp() {
 
     // Fetch fresh balance from DB immediately on load, then every 15 seconds
     fetchAndSyncBalance();
-    setInterval(fetchAndSyncBalance, 15000);
+    setInterval(fetchAndSyncBalance, 20000);
 
     const token = localStorage.getItem('bingo_token');
     if (token) {
@@ -1446,7 +1446,7 @@ function startGameStatePoll(stake) {
     stopGameStatePoll();
     _lastBallCount = 0;
     _winnerShown = false;
-    _gameStatePollInterval = setInterval(() => pollGameState(stake), 1000);
+    _gameStatePollInterval = setInterval(() => pollGameState(stake), 1500);
 }
 
 function stopGameStatePoll() {

@@ -14,6 +14,45 @@ LAUNCH_COUNTDOWN = 10  # seconds of warning before game starts after threshold m
 
 _lock = threading.Lock()
 
+# ── In-memory TTL cache for DB settings ──────────────────────────────────────
+_settings_cache: dict = {}
+_SETTINGS_TTL = 30  # seconds — re-read from DB at most once per 30s
+
+def _cached_setting(key: str, default, cast=int):
+    """Return a DB setting value, re-fetching at most every _SETTINGS_TTL seconds."""
+    now = time.time()
+    entry = _settings_cache.get(key)
+    if entry and now - entry['ts'] < _SETTINGS_TTL:
+        return entry['val']
+    try:
+        from app import app
+        from models import Setting
+        with app.app_context():
+            s = Setting.query.get(key)
+            val = cast(s.value) if s else default
+    except Exception:
+        val = default
+    _settings_cache[key] = {'val': val, 'ts': now}
+    return val
+
+# ── In-memory TTL cache for room card counts ──────────────────────────────────
+_card_count_cache: dict = {}   # stake -> {'count': int, 'ts': float}
+_CARD_COUNT_TTL = 1.5          # seconds
+
+def _cached_card_count(stake):
+    """Return session card count, cached for _CARD_COUNT_TTL seconds."""
+    now = time.time()
+    entry = _card_count_cache.get(stake)
+    if entry and now - entry['ts'] < _CARD_COUNT_TTL:
+        return entry['count']
+    count = _count_session_players(stake)
+    _card_count_cache[stake] = {'count': count, 'ts': now}
+    return count
+
+def _invalidate_card_count(stake):
+    """Call after a card is purchased to force next poll to re-fetch."""
+    _card_count_cache.pop(stake, None)
+
 # status values:
 #   'waiting'   – not enough cards yet, showing fill progress
 #   'launching' – threshold met, 10-s countdown running
@@ -63,36 +102,14 @@ def get_broadcast_alert():
 
 
 def get_min_cards():
-    try:
-        from app import app
-        from models import Setting
-        with app.app_context():
-            s = Setting.query.get('min_cards')
-            return int(s.value) if s else MIN_CARDS
-    except Exception:
-        return MIN_CARDS
-
+    return _cached_setting('min_cards', MIN_CARDS, cast=int)
 
 def get_launch_countdown():
-    try:
-        from app import app
-        from models import Setting
-        with app.app_context():
-            s = Setting.query.get('launch_countdown')
-            return int(s.value) if s else LAUNCH_COUNTDOWN
-    except Exception:
-        return LAUNCH_COUNTDOWN
-
+    return _cached_setting('launch_countdown', LAUNCH_COUNTDOWN, cast=int)
 
 def get_house_fee():
-    try:
-        from app import app
-        from models import Setting
-        with app.app_context():
-            s = Setting.query.get('house_fee_pct')
-            return round(int(s.value) / 100.0, 4) if s else HOUSE_FEE
-    except Exception:
-        return HOUSE_FEE
+    raw = _cached_setting('house_fee_pct', int(HOUSE_FEE * 100), cast=int)
+    return round(raw / 100.0, 4)
 
 
 def _count_session_players(stake):
@@ -290,11 +307,11 @@ def _room_loop(stake):
             with _lock:
                 if stake in _stopped_stakes:
                     return
-            player_count = _count_session_players(stake)
+            player_count = _cached_card_count(stake)
             min_cards = get_min_cards()
             if player_count >= min_cards:
                 break
-            time.sleep(1)
+            time.sleep(2)  # poll every 2s instead of 1s to reduce DB load
 
         # ── LAUNCHING PHASE: countdown before game starts ─────────────────
         countdown = get_launch_countdown()
@@ -306,7 +323,7 @@ def _room_loop(stake):
                 room_states[stake]['launch_timer'] = t
 
             # If cards drop below threshold during countdown, abort and wait again
-            current = _count_session_players(stake)
+            current = _cached_card_count(stake)
             current_min = get_min_cards()
             if current < current_min:
                 logger.info(
@@ -602,21 +619,26 @@ def get_all_room_status():
         states_snapshot = {stake: dict(room_states[stake]) for stake in STAKES}
 
     alert = get_broadcast_alert()
+    # Read shared settings once — they are cached, so this is cheap
+    min_c = get_min_cards()
+    fee = get_house_fee()
+    countdown = get_launch_countdown()
+    fee_pct = round(fee * 100)
+
     result = {}
     for stake in STAKES:
         s = states_snapshot[stake]
-        count = _count_session_players(stake)
-        min_c = get_min_cards()
-        prize_pool = round(count * stake * (1 - get_house_fee()), 2)
+        count = _cached_card_count(stake)
+        prize_pool = round(count * stake * (1 - fee), 2)
         result[str(stake)] = {
-            'status': s['status'],
-            'launch_timer': s['launch_timer'],
-            'cards_count': count,
-            'min_cards': min_c,
-            'prize_pool': prize_pool,
-            'house_fee_pct': round(get_house_fee() * 100),
-            'launch_countdown': get_launch_countdown(),
-            'broadcast_alert': alert,
+            'status':           s['status'],
+            'launch_timer':     s['launch_timer'],
+            'cards_count':      count,
+            'min_cards':        min_c,
+            'prize_pool':       prize_pool,
+            'house_fee_pct':    fee_pct,
+            'launch_countdown': countdown,
+            'broadcast_alert':  alert,
         }
     return result
 
