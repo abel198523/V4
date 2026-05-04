@@ -1772,13 +1772,13 @@ header {
 
 /* Game Screen Styles (Mockup based) */
 #game-screen {
-    background-color: #0c111d;
-    padding: 10px;
+    background-color: #0c0c1e;
+    padding: 0;
     height: 100vh;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    overflow: hidden; /* Prevent body scroll */
+    overflow: hidden;
 }
 
 .game-header-stats {
@@ -2823,6 +2823,7 @@ body.game-mode .bottom-nav { display: none !important; }
     gap: 3px;
     overflow: hidden;
     flex-shrink: 0;
+    min-height: 0;
 }
 
 /* BINGO column headers */
@@ -2852,19 +2853,25 @@ body.game-mode .bottom-nav { display: none !important; }
 /* Master grid overrides for the new game screen */
 .gs-master-grid {
     flex: 1;
-    overflow-y: auto;
-    scrollbar-width: none;
+    min-height: 0;
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    grid-template-rows: repeat(15, 1fr) !important;
     gap: 2px !important;
+    overflow: hidden;
 }
-.gs-master-grid::-webkit-scrollbar { display: none; }
 #game-screen .master-cell {
     background: #1a1635;
     border: 1px solid rgba(255,255,255,0.07);
     color: #9090b8;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
-    border-radius: 4px;
-    aspect-ratio: 1;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    min-width: 0;
 }
 #game-screen .master-cell.called {
     background: #22c55e;
