@@ -65,6 +65,7 @@ let _prevRoomStatus = {}; // stakeStr -> { status }
 let _gameStarted = {};    // stake -> bool, prevent duplicate startGame calls
 let _gameStartCDActive = false; // prevent overlapping 3-2-1 overlays
 let _lastLaunchTick = -1; // last launch_timer value we played a tick for
+let _lastCardCount = {};  // stakeStr -> last known cards_count for taken-card refresh
 
 function startTimerSystem() {
     if (_timerPollId) clearInterval(_timerPollId);
@@ -139,6 +140,19 @@ async function _syncTimers() {
             // ── Card Fill Panel (selection screen, current room only) ─────
             if (currentRoom == stake) {
                 _updateCardFillPanel(info);
+            }
+
+            // ── Live taken-cards refresh ──────────────────────────────────
+            // When the purchased-card count changes for the current room,
+            // refresh the taken-cards list so every player on the selection
+            // screen immediately sees newly-bought cards marked as taken.
+            if (currentRoom == stake && info.status !== 'playing' &&
+                    _lastCardCount[stakeStr] !== info.cards_count) {
+                _lastCardCount[stakeStr] = info.cards_count;
+                const selScreen = document.getElementById('selection-screen');
+                if (selScreen && selScreen.classList.contains('active')) {
+                    fetchTakenCards(stake);
+                }
             }
 
             // ── Screen transitions ────────────────────────────────────────
@@ -476,8 +490,16 @@ async function fetchTakenCards(stake) {
         const res = await fetch(`/api/taken-cards/${stake}`);
         if (!res.ok) return;
         const data = await res.json();
-        getRoomState(stake).takenCards = data.taken || [];
-        createAvailableCards();
+        const newTaken = data.taken || [];
+        const state = getRoomState(stake);
+        // Only re-render the grid when the list has actually changed — prevents
+        // constant flicker from re-rendering on every 2-second poll tick.
+        const oldKey = JSON.stringify([...state.takenCards].sort((a, b) => a - b));
+        const newKey = JSON.stringify([...newTaken].sort((a, b) => a - b));
+        if (oldKey !== newKey) {
+            state.takenCards = newTaken;
+            if (stake == currentRoom) createAvailableCards();
+        }
     } catch (e) { /* silent — best effort */ }
 }
 
@@ -504,7 +526,9 @@ function createAvailableCards() {
     if (!cardsGrid) return;
     cardsGrid.innerHTML = '';
     
-    const takenCards = getRoomState(currentRoom).takenCards;
+    const state = getRoomState(currentRoom);
+    const takenCards = state.takenCards;
+    const purchasedCard = state.purchasedCard;
     const availableCount = 100 - takenCards.length;
     const takenCount = takenCards.length;
     
@@ -517,7 +541,15 @@ function createAvailableCards() {
     for (let i = 1; i <= 100; i++) {
         const card = document.createElement('div');
         card.className = 'card-item';
-        if (takenCards.includes(i)) card.classList.add('taken');
+
+        if (i === purchasedCard) {
+            // Highlight the player's own card distinctly — green star badge,
+            // stays visible even after the grid re-renders from a live refresh.
+            card.classList.add('taken', 'my-card');
+        } else if (takenCards.includes(i)) {
+            card.classList.add('taken');
+        }
+
         card.innerText = i;
         
         card.onclick = () => {
@@ -1344,20 +1376,14 @@ if (confirmCard) {
                     });
                 }
 
-                // Mark this card taken in the local grid
+                // Mark this card taken locally and re-render the grid.
+                // createAvailableCards() now applies both 'taken' and 'my-card'
+                // classes automatically based on purchasedCard, so no separate
+                // post-loop highlighting step is needed.
                 if (!state.takenCards.includes(state.currentSelectedCard)) {
                     state.takenCards.push(state.currentSelectedCard);
                 }
                 createAvailableCards();
-
-                // Highlight the owned card in the grid
-                const allCardEls = document.querySelectorAll('#cards-grid .card-item');
-                allCardEls.forEach(el => el.classList.remove('my-card'));
-                allCardEls.forEach(el => {
-                    if (parseInt(el.innerText) === state.currentSelectedCard) {
-                        el.classList.add('my-card');
-                    }
-                });
 
                 const myBoardLabel = document.getElementById('sel-my-board');
                 if (myBoardLabel) myBoardLabel.innerText = `#${state.currentSelectedCard}`;
@@ -1429,6 +1455,10 @@ window.joinStake = (amount) => {
     // "fresh" on its next tick — fixes the race where _prevRoomStatus already
     // holds 'playing' (set before the player joined) and the transition never fires.
     delete _prevRoomStatus[String(amount)];
+    // Reset the card-count tracker so the very first _syncTimers tick after
+    // joining always triggers a taken-cards refresh, even if the count is the
+    // same as whatever was cached from a previous visit to this room.
+    delete _lastCardCount[String(amount)];
     _gameStarted[amount] = false;
     // Reset taken cards immediately when entering a room so stale data is cleared
     getRoomState(amount).takenCards = [];
