@@ -2988,17 +2988,12 @@ if (promoteUserBtn) {
     promoteUserBtn.onclick = async () => {
         const user = window.currentAdminUser;
         if (!user) return;
-        if (!confirm(`${user.name}ን አድሚን ማድረግ ይፈልጋሉ?`)) return;
-        
-        const token = localStorage.getItem('bingo_token');
+        if (!confirm(`${user.username}ን አድሚን ማድረግ ይፈልጋሉ?`)) return;
         try {
             const res = await fetch('/api/admin/promote-user', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify({ targetPhone: user.phone_number })
+                headers: _ah(),
+                body: JSON.stringify({ user_id: user.id, username: user.username })
             });
             const data = await res.json();
             alert(data.message || data.error);
