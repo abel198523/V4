@@ -1051,41 +1051,54 @@ function renderMyGameCard() {
     }
 }
 
+function _buildMasterGrid(masterGrid) {
+    masterGrid.innerHTML = '';
+    for (let row = 0; row < 15; row++) {
+        for (let col = 0; col < 5; col++) {
+            const num = (col * 15) + row + 1;
+            const cell = document.createElement('div');
+            cell.className = 'master-cell';
+            cell.id = `mcell-${num}`;
+            cell.innerText = num;
+            masterGrid.appendChild(cell);
+        }
+    }
+}
+
 function updateGameUI(history) {
     const state = getRoomState(currentRoom);
     state.lastHistory = history;
+
     const counts = { B: 0, I: 0, N: 0, G: 0, O: 0 };
     history.forEach(n => { counts[getBallLetter(n)]++; });
     Object.keys(counts).forEach(l => {
         const el = document.querySelector(`.h-${l}`);
         if (el) el.setAttribute('data-count', counts[l]);
     });
+
+    // ── Master Grid: build once, update classes only (no full rebuild) ──
     const masterGrid = document.getElementById('master-grid');
     if (masterGrid) {
-        masterGrid.innerHTML = '';
-        for (let row = 0; row < 15; row++) {
-            for (let col = 0; col < 5; col++) {
-                const num = (col * 15) + row + 1;
-                const cell = document.createElement('div');
-                cell.className = 'master-cell';
-                cell.innerText = num;
-                if (history.includes(num)) {
-                    cell.classList.add('called');
-                    if (num === history[history.length - 1]) cell.classList.add('last-called');
-                }
-                masterGrid.appendChild(cell);
-            }
+        if (masterGrid.children.length !== 75) _buildMasterGrid(masterGrid);
+        const calledSetMG = new Set(history.map(n => Number(n)));
+        const lastBallMG  = history.length > 0 ? Number(history[history.length - 1]) : null;
+        for (let num = 1; num <= 75; num++) {
+            const cell = document.getElementById(`mcell-${num}`);
+            if (!cell) continue;
+            const isCalled = calledSetMG.has(num);
+            const isLast   = num === lastBallMG;
+            cell.classList.toggle('called',      isCalled || isLast);
+            cell.classList.toggle('last-called', isLast);
         }
     }
-    
-    // Update top bar stats (Derash, Players, Bet)
-    const derashEl = document.getElementById('derash');
-    const playersEl = document.getElementById('players');
-    const betEl = document.getElementById('bet');
-    
+
+    // Update top bar stats
     if (currentRoom) {
-        if (derashEl && globalPrizes[currentRoom]) derashEl.innerText = globalPrizes[currentRoom].toFixed(0);
-        if (playersEl && globalStats[currentRoom]) playersEl.innerText = globalStats[currentRoom];
+        const derashEl  = document.getElementById('derash');
+        const playersEl = document.getElementById('players');
+        const betEl     = document.getElementById('bet');
+        if (derashEl  && globalPrizes[currentRoom]) derashEl.innerText  = globalPrizes[currentRoom].toFixed(0);
+        if (playersEl && globalStats[currentRoom])  playersEl.innerText = globalStats[currentRoom];
         if (betEl) betEl.innerText = currentRoom;
     }
 
@@ -1095,43 +1108,25 @@ function updateGameUI(history) {
         if (state.myGameCard) renderMyGameCard();
         return;
     }
-    const lastBall = history[history.length - 1];
-    const letter = getBallLetter(lastBall);
-    activeBall.innerHTML = `<span style="background:${colors[letter]};color:white;">${letter}${lastBall}</span>`;
-    
-    // Sync top bar stats on every UI update if global data exists
-    if (currentRoom) {
-        const derashEl = document.getElementById('derash');
-        const playersEl = document.getElementById('players');
-        const betEl = document.getElementById('bet');
-        
-        if (derashEl && globalPrizes[currentRoom]) derashEl.innerText = globalPrizes[currentRoom].toFixed(0);
-        if (playersEl && globalStats[currentRoom]) playersEl.innerText = globalStats[currentRoom];
-        if (betEl) betEl.innerText = currentRoom;
-    }
 
+    const lastBall = Number(history[history.length - 1]);
+    const letter   = getBallLetter(lastBall);
+    activeBall.innerHTML = `<span style="background:${colors[letter]};color:white;">${letter}${lastBall}</span>`;
+
+    // ── Player card auto-marking ──────────────────────────────────────────
     if (autoMarking) {
-        const latestBall = Number(history[history.length - 1]);
         const calledSet = new Set(history.map(n => Number(n)));
 
-        // Sync: remove 'called' from any player-card cell NOT in the called set
         document.querySelectorAll('#bingo-board [id^="cell-"]').forEach(el => {
             const n = parseInt(el.id.slice(5), 10);
-            if (!calledSet.has(n)) {
+            const shouldMark = calledSet.has(n);
+            if (!shouldMark && el.classList.contains('called')) {
                 el.classList.remove('called', 'newly-called');
-            }
-        });
-
-        // Mark every called ball that is on the player's card
-        calledSet.forEach(n => {
-            const el = document.getElementById(`cell-${n}`);
-            if (el) {
-                if (!el.classList.contains('called')) {
-                    el.classList.add('called');
-                    if (n === latestBall) {
-                        el.classList.add('newly-called');
-                        setTimeout(() => el.classList.remove('newly-called'), 500);
-                    }
+            } else if (shouldMark && !el.classList.contains('called')) {
+                el.classList.add('called');
+                if (n === lastBall) {
+                    el.classList.add('newly-called');
+                    setTimeout(() => el.classList.remove('newly-called'), 800);
                 }
             }
         });
