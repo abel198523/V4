@@ -411,14 +411,6 @@ function handleGameOverReturn(stake) {
     state.purchasedCard = null;
     state.bingoFlashed = false;
     state.lastHistory = [];
-    // Reset bingo button
-    const btn = document.getElementById('bingo-btn');
-    if (btn) {
-        btn.style.animation = '';
-        btn.style.background = '';
-        btn.style.boxShadow = '';
-    }
-
     // Reset near-bingo bar
     const nbBar = document.getElementById('near-bingo-bar');
     if (nbBar) { nbBar.style.display = 'none'; nbBar.className = 'near-bingo-bar'; }
@@ -772,33 +764,7 @@ socket.onmessage = (event) => {
     }
 
 
-    const bingoBtn = document.getElementById('bingo-btn');
-    if (bingoBtn) {
-        bingoBtn.onclick = async () => {
-            const state = getRoomState(currentRoom);
-            if (!currentRoom) { showToast("በቅድሚያ ክፍል ይግቡ"); return; }
-            if (!state.purchasedCard) { showToast("ካርድ አልተገዛም"); return; }
-
-            bingoBtn.style.transform = 'scale(0.95)';
-            setTimeout(() => bingoBtn.style.transform = '', 150);
-
-            try {
-                const res = await fetch(`/api/bingo-claim/${currentRoom}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ card_number: state.purchasedCard })
-                });
-                const data = await res.json();
-                if (data.valid) {
-                    showToast('🎉 ' + data.message);
-                } else {
-                    showToast('❌ ' + (data.message || 'ቢንጎ አልሆነም'));
-                }
-            } catch (e) {
-                showToast('❌ ከሰርቨር ጋር አልተገናኘም');
-            }
-        };
-    }
+    // Bingo is now fully auto-claimed server-side — no manual button needed.
 
 function logout() {
     localStorage.removeItem('bingo_token');
@@ -1633,11 +1599,26 @@ async function pollGameState(stake) {
         if (!res.ok) return;
         const data = await res.json();
 
+        // ── Auto-claim: winner announced by server (check FIRST, before status gate) ──
+        if (data.winner && !_winnerShown) {
+            _winnerShown = true;
+            stopGameStatePoll();
+            const state = getRoomState(currentRoom);
+            const isMe = (data.winner === (window.CURRENT_USERNAME || ''));
+            const winCard = isMe ? state.myGameCard : null;
+            const winPat = isMe ? getWinningPattern(state.myGameCard, data.balls) : null;
+            showWinnerModal(data.winner, winCard, winPat, data.prize, isMe);
+            if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
+            setTimeout(() => {
+                const modal = document.getElementById('winner-modal');
+                if (modal) modal.classList.remove('active');
+                handleGameOverReturn(stake);
+            }, WINNER_DISPLAY_SECONDS * 1000);
+            return;
+        }
+
         if (data.status !== 'playing') {
             stopGameStatePoll();
-            if (!_winnerShown) {
-                showToast('ጨዋታ ተጠናቋል — አሸናፊ አልተገኘም');
-            }
             return;
         }
 
@@ -1658,23 +1639,6 @@ async function pollGameState(stake) {
                 if (typeof playBallCall === 'function') playBallCall();
                 checkMyCardForBingo(data.balls);
             }
-        }
-
-        // Winner announced by server
-        if (data.winner && !_winnerShown) {
-            _winnerShown = true;
-            stopGameStatePoll();
-            const state = getRoomState(currentRoom);
-            const isMe = (data.winner === (window.CURRENT_USERNAME || ''));
-            const winCard = isMe ? state.myGameCard : null;
-            const winPat = isMe ? getWinningPattern(state.myGameCard, data.balls) : null;
-            showWinnerModal(data.winner, winCard, winPat, data.prize, isMe);
-            if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
-            setTimeout(() => {
-                const modal = document.getElementById('winner-modal');
-                if (modal) modal.classList.remove('active');
-                handleGameOverReturn(stake);
-            }, WINNER_DISPLAY_SECONDS * 1000);
         }
     } catch (e) { /* silent */ }
 }
@@ -1703,13 +1667,8 @@ function checkMyCardForBingo(calledBalls) {
 
     if (hasBingo) {
         state.bingoFlashed = true;
-        const btn = document.getElementById('bingo-btn');
-        if (btn) {
-            btn.style.animation = 'bingo-pulse 0.5s ease infinite';
-            btn.style.background = '#22c55e';
-            btn.style.boxShadow = '0 0 20px rgba(34,197,94,0.8)';
-        }
-        showToast('🎉 ቢንጎ አለዎት! BINGO ይንኩ!');
+        // Auto-claim: server awards prize automatically — just notify the player
+        showToast('🎉 ቢንጎ! ሲስተሙ ክሌም እያደረገ ነው...');
     }
 }
 
