@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-STAKES = [10, 50, 100, 200]
+STAKES = [10]
 BALL_INTERVAL = 3
 WINNER_DISPLAY_SECONDS = 8
 HOUSE_FEE = 0.10

@@ -498,7 +498,7 @@ async function fetchTakenCards(stake) {
     } catch (e) { /* silent — best effort */ }
 }
 
-let STAKES = [10, 50, 100, 200]; // kept as fallback; synced dynamically from server
+let STAKES = [10]; // kept as fallback; synced dynamically from server
 
 const staticCards = [{"id":1,"data":{"B":[7,10,13,14,15],"I":[18,21,23,29,30],"N":[35,36,"FREE",40,43],"G":[46,47,48,49,56],"O":[65,67,69,70,75]}},{"id":2,"data":{"B":[2,7,11,14,15],"I":[16,18,20,21,25],"N":[31,32,"FREE",39,43],"G":[50,53,56,58,60],"O":[63,66,72,73,74]}},{"id":3,"data":{"B":[2,4,12,13,14],"I":[16,22,24,29,30],"N":[32,33,"FREE",44,45],"G":[47,52,56,59,60],"O":[61,62,64,66,68]}},{"id":4,"data":{"B":[3,6,7,10,13],"I":[16,21,24,26,30],"N":[32,33,"FREE",36,41],"G":[46,48,52,54,59],"O":[63,65,66,72,75]}},{"id":5,"data":{"B":[1,4,7,12,15],"I":[17,19,26,29,30],"N":[31,32,"FREE",36,37],"G":[46,51,52,54,58],"O":[64,68,71,73,74]}},{"id":6,"data":{"B":[3,4,5,6,10],"I":[18,20,25,26,27],"N":[32,34,"FREE",41,45],"G":[48,50,51,53,54],"O":[62,63,65,67,75]}},{"id":7,"data":{"B":[1,2,4,5,6],"I":[17,21,24,27,30],"N":[31,33,"FREE",42,45],"G":[48,49,50,56,57],"O":[67,68,71,73,74]}},{"id":8,"data":{"B":[1,6,7,9,12],"I":[17,19,21,27,28],"N":[31,40,"FREE",42,43],"G":[47,49,50,51,57],"O":[64,65,66,70,74]}},{"id":9,"data":{"B":[3,6,9,12,14],"I":[16,17,20,22,27],"N":[31,37,"FREE",39,40],"G":[49,54,55,57,59],"O":[63,67,69,70,74]}},{"id":10,"data":{"B":[1,5,9,10,15],"I":[23,24,27,29,30],"N":[35,39,"FREE",43,45],"G":[47,52,56,58,59],"O":[62,63,64,67,71]}},{"id":11,"data":{"B":[1,2,6,12,14],"I":[16,18,21,28,30],"N":[31,37,"FREE",41,45],"G":[46,52,54,55,56],"O":[63,68,71,72,73]}},{"id":12,"data":{"B":[1,6,7,12,14],"I":[16,17,18,21,29],"N":[31,33,"FREE",43,45],"G":[46,54,55,56,59],"O":[62,63,65,69,70]}},{"id":13,"data":{"B":[1,6,8,11,15],"I":[16,19,20,22,30],"N":[35,38,"FREE",41,42],"G":[48,51,53,56,58],"O":[68,69,70,73,75]}},{"id":14,"data":{"B":[2,9,11,14,15],"I":[16,21,22,25,29],"N":[35,38,"FREE",41,45],"G":[46,51,52,54,57],"O":[66,67,69,72,75]}},{"id":15,"data":{"B":[5,7,11,12,14],"I":[18,19,22,25,26],"N":[33,41,"FREE",44,45],"G":[46,51,53,54,55],"O":[63,67,70,73,74]}},{"id":16,"data":{"B":[1,7,8,14,15],"I":[17,19,25,27,30],"N":[32,37,"FREE",42,44],"G":[50,52,55,56,58],"O":[61,62,65,69,70]}}];
 
@@ -2332,106 +2332,8 @@ window.switchAdminTab = (tab) => {
     if (tab === 'deposits') fetchAdminDeposits();
     if (tab === 'withdrawals') fetchAdminWithdrawals();
     if (tab === 'settings') loadAdminSettings();
-    if (tab === 'rooms') {
-        loadAdminRooms();
-        if (_roomsRefreshId) clearInterval(_roomsRefreshId);
-        _roomsRefreshId = setInterval(loadAdminRooms, 4000);
-    }
 };
 
-// ── Admin Rooms Management ────────────────────────────────────────────────────
-async function loadAdminRooms() {
-    const listEl = document.getElementById('admin-rooms-list');
-    if (!listEl) return;
-    listEl.innerHTML = '<p style="font-size:0.85rem;color:#6b7280;text-align:center;padding:16px 0;">Loading...</p>';
-    try {
-        const res = await fetch('/api/admin/rooms', { headers: _ah() });
-        if (!res.ok) { listEl.innerHTML = '<p style="color:#ef4444;">Error loading rooms</p>'; return; }
-        const rooms = await res.json();
-        if (!rooms.length) { listEl.innerHTML = '<p style="font-size:0.85rem;color:#6b7280;text-align:center;padding:16px;">ምንም ሩም የለም</p>'; return; }
-
-        listEl.innerHTML = rooms.map(r => {
-            const statusColor = r.status === 'playing' ? '#22c55e' : r.status === 'waiting' ? '#3b82f6' : '#6b7280';
-            const statusLabel = r.status === 'playing' ? '🎮 PLAYING' : r.status === 'waiting' ? '⏳ Waiting' : '⛔ Stopped';
-            const canDelete = r.status !== 'playing';
-            const blockReason = r.status === 'playing' ? 'ጨዋታ በሂደት ላይ ነው' : '';
-            return `
-            <div style="background:#1e2435;border-radius:12px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(255,255,255,0.07);">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-                    <div style="flex:1;">
-                        <div style="font-size:1rem;font-weight:800;color:#e2e8f0;">${r.stake % 1 === 0 ? r.stake.toFixed(0) : r.stake} ETB <span style="font-size:0.7rem;color:#64748b;font-weight:600;">per card</span></div>
-                        <div style="margin-top:5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                            <span style="font-size:0.72rem;font-weight:700;color:${statusColor};background:${statusColor}1a;padding:2px 8px;border-radius:6px;">${statusLabel}</span>
-                            <span style="font-size:0.7rem;color:#64748b;">🃏 ${r.cards_in_game} cards</span>
-                            <span style="font-size:0.7rem;color:#f59e0b;">🏆 ${r.prize_pool} ETB pool</span>
-                            <span style="font-size:0.7rem;color:#64748b;">${r.total_sessions} ዙሮች</span>
-                        </div>
-                    </div>
-                    <button onclick="deleteAdminRoom(${r.id}, ${r.stake})" style="
-                        background:${canDelete ? 'rgba(239,68,68,0.12)' : 'rgba(100,116,139,0.08)'};
-                        border:1px solid ${canDelete ? 'rgba(239,68,68,0.3)' : 'rgba(100,116,139,0.2)'};
-                        color:${canDelete ? '#ef4444' : '#4b5563'};
-                        border-radius:8px;padding:6px 12px;font-size:0.75rem;font-weight:700;
-                        cursor:${canDelete ? 'pointer' : 'not-allowed'};flex-shrink:0;
-                    " ${canDelete ? '' : `disabled title="${blockReason}"`}>🗑 ሰርዝ</button>
-                </div>
-            </div>`;
-        }).join('');
-    } catch(e) {
-        listEl.innerHTML = '<p style="color:#ef4444;">Error loading rooms</p>';
-    }
-}
-
-window.deleteAdminRoom = async function(roomId, stake) {
-    if (!confirm(`${stake} ETB ሩሙን እርግጠኛ ሆነው መሰረዝ ይፈልጋሉ?`)) return;
-    try {
-        const res = await fetch(`/api/admin/rooms/${roomId}`, { method: 'DELETE', headers: _ah() });
-        const data = await res.json();
-        if (data.success) {
-            showToast(data.message);
-            loadAdminRooms();
-        } else {
-            showToast(`❌ ${data.error || 'ሊሰረዝ አልቻለም'}`);
-        }
-    } catch(e) {
-        showToast('❌ ግንኙነት ተሳስቷል');
-    }
-};
-
-document.addEventListener('DOMContentLoaded', () => {
-    const addBtn = document.getElementById('add-room-btn');
-    const stakeInput = document.getElementById('new-room-stake');
-    const statusEl = document.getElementById('add-room-status');
-    if (!addBtn || !stakeInput) return;
-
-    addBtn.addEventListener('click', async () => {
-        const stake = parseInt(stakeInput.value);
-        if (!stake || stake < 1) { if(statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">ትክክለኛ የብር መጠን ያስገቡ</span>'; return; }
-        addBtn.disabled = true;
-        addBtn.innerText = '⏳ እየተጨመረ...';
-        if (statusEl) statusEl.innerText = '';
-        try {
-            const res = await fetch('/api/admin/rooms/add', {
-                method: 'POST',
-                headers: { ..._ah(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stake })
-            });
-            const data = await res.json();
-            if (data.success) {
-                if (statusEl) statusEl.innerHTML = `<span style="color:#22c55e;">${data.message}</span>`;
-                stakeInput.value = '';
-                loadAdminRooms();
-            } else {
-                if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">${data.error || 'ሊጨመር አልቻለም'}</span>`;
-            }
-        } catch(e) {
-            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">ግንኙነት ተሳስቷል</span>';
-        } finally {
-            addBtn.disabled = false;
-            addBtn.innerText = '➕ ሩም ጨምር';
-        }
-    });
-});
 
 let _revInterval = null;
 

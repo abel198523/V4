@@ -70,7 +70,7 @@ def game_page():
         db.create_all()
         rooms = Room.query.all()
 
-    stakes_needed = [10, 50, 100, 200]
+    stakes_needed = [10]
     existing_prices = {r.card_price for r in rooms}
     for s in stakes_needed:
         if float(s) not in existing_prices:
@@ -1815,83 +1815,3 @@ def buy_card_by_stake(stake, card_number):
         }), 500
 
 
-# ─── Admin Room Management ─────────────────────────────────────────────────────
-
-@app.route("/api/admin/rooms", methods=["GET"])
-def admin_list_rooms():
-    if not _admin_ok():
-        return jsonify({"error": "Unauthorized"}), 403
-    from game_engine import room_states, STAKES, get_house_fee
-    fee = get_house_fee()
-    rooms = Room.query.order_by(Room.card_price).all()
-    result = []
-    for r in rooms:
-        stake = int(r.card_price)
-        state = room_states.get(stake, {})
-        cards_in_session = 0
-        if r.active_session_id:
-            cards_in_session = Transaction.query.filter_by(
-                room_id=r.id, session_id=r.active_session_id
-            ).count()
-        total_sessions = GameSession.query.filter_by(room_id=r.id, status='completed').count()
-        prize_pool = round(cards_in_session * float(r.card_price) * (1 - fee), 2)
-        result.append({
-            "id":             r.id,
-            "name":           r.name,
-            "stake":          float(r.card_price),
-            "status":         state.get('status', 'stopped'),
-            "cards_in_game":  cards_in_session,
-            "prize_pool":     prize_pool,
-            "total_sessions": total_sessions,
-            "active":         stake in STAKES,
-        })
-    return jsonify(result)
-
-
-@app.route("/api/admin/rooms/add", methods=["POST"])
-def admin_add_room():
-    if not _admin_ok():
-        return jsonify({"error": "Unauthorized"}), 403
-    data = request.get_json() or {}
-    try:
-        stake = int(float(data.get("stake", 0)))
-    except (TypeError, ValueError):
-        return jsonify({"error": "የተሳሳተ የብር መጠን"}), 400
-    if stake < 1 or stake > 100000:
-        return jsonify({"error": "ቢያንስ 1 ETB፣ ቢበዛ 100,000 ETB"}), 400
-
-    existing = Room.query.filter_by(card_price=float(stake)).first()
-    if existing:
-        return jsonify({"error": f"{stake} ETB ሩም አስቀድሞ አለ"}), 400
-
-    room = Room(name=f"Room {stake} ETB", card_price=float(stake))
-    db.session.add(room)
-    db.session.commit()
-
-    from game_engine import add_stake
-    ok, msg = add_stake(stake)
-    if not ok:
-        return jsonify({"error": msg}), 400
-
-    return jsonify({"success": True, "message": f"✅ {stake} ETB ሩም ተጨምሯል", "stake": stake})
-
-
-@app.route("/api/admin/rooms/<int:room_id>", methods=["DELETE"])
-def admin_delete_room(room_id):
-    if not _admin_ok():
-        return jsonify({"error": "Unauthorized"}), 403
-    room = Room.query.get(room_id)
-    if not room:
-        return jsonify({"error": "ሩሙ አልተገኘም"}), 404
-
-    stake = int(room.card_price)
-    from game_engine import remove_stake
-    ok, msg = remove_stake(stake)
-    if not ok:
-        return jsonify({"error": msg}), 400
-
-    has_history = GameSession.query.filter_by(room_id=room.id).first()
-    if not has_history:
-        db.session.delete(room)
-    db.session.commit()
-    return jsonify({"success": True, "message": f"✅ {stake} ETB ሩም ተሰርዟል"})
