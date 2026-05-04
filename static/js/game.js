@@ -564,6 +564,78 @@ function _showDebugPanel(info) {
         });
 }
 
+// ── Room Engine Debug Panel ──────────────────────────────────────────────────
+window.showRoomDebugPanel = async function() {
+    let panel = document.getElementById('_room_debug_panel');
+    if (panel) panel.remove();
+
+    panel = document.createElement('div');
+    panel.id = '_room_debug_panel';
+    panel.style.cssText = `
+        position:fixed;top:0;left:0;right:0;z-index:99998;
+        background:#000d1a;color:#7dd3fc;font-family:monospace;font-size:11px;
+        padding:10px;max-height:70vh;overflow-y:auto;
+        border-bottom:2px solid #0ea5e9;
+    `;
+    const closeBtn = document.createElement('button');
+    closeBtn.innerText = '✕ ዝጋ';
+    closeBtn.style.cssText = 'float:right;background:#0ea5e9;color:#fff;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;margin-bottom:4px;';
+    closeBtn.onclick = () => panel.remove();
+    panel.appendChild(closeBtn);
+
+    const refBtn = document.createElement('button');
+    refBtn.innerText = '🔄 Refresh';
+    refBtn.style.cssText = 'float:right;background:#1e40af;color:#fff;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;margin:0 6px 4px 0;';
+    refBtn.onclick = () => window.showRoomDebugPanel();
+    panel.appendChild(refBtn);
+
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight:bold;color:#38bdf8;margin-bottom:8px;font-size:13px;clear:both;padding-top:4px;';
+    title.innerText = '🔍 ROOM ENGINE DEBUG — ' + new Date().toLocaleTimeString();
+    panel.appendChild(title);
+    document.body.appendChild(panel);
+
+    try {
+        const res = await fetch('/api/debug/room', { credentials: 'include' });
+        const data = await res.json();
+        for (const [stake, info] of Object.entries(data.rooms || {})) {
+            const block = document.createElement('div');
+            block.style.cssText = 'margin:6px 0;padding:8px;background:#0c1a2e;border-radius:6px;border-left:3px solid ' +
+                (info.thread_alive ? '#22c55e' : '#ef4444') + ';';
+
+            const ok   = info.thread_alive && info.live_db_count >= info.min_cards;
+            const icon = info.memory_status === 'playing' ? '🎮' :
+                         info.memory_status === 'launching' ? '🚀' :
+                         info.thread_alive ? '⏳' : '💀';
+
+            block.innerHTML = `<span style="color:#f59e0b;font-weight:bold;font-size:12px;">${icon} ${stake} ETB Room</span>
+<pre style="margin:4px 0;white-space:pre-wrap;word-break:break-all;color:${info.thread_alive ? '#86efac' : '#fca5a5'};">` +
+`  Thread alive  : ${info.thread_alive ? '✅ YES' : '❌ NO — room loop is DEAD!'}
+  Memory status  : ${info.memory_status}  (timer: ${info.memory_timer}s, balls: ${info.memory_balls})
+  live DB count  : ${info.live_db_count}  (cached: ${info.cached_count ?? 'none'}, age: ${info.cache_age_s ?? '-'}s)
+  DB tx count    : ${info.db_tx_count}   (session_id: ${info.db_room?.active_session_id ?? 'NULL'})
+  min_cards      : ${info.min_cards}   launch_countdown: ${info.launch_countdown}s
+  ${info.live_db_count >= info.min_cards && info.memory_status === 'waiting'
+      ? '⚠️  PROBLEM: DB has enough cards but room still WAITING — thread may be stuck or dead!'
+      : ''}
+  ${info.db_room?.active_session_id == null
+      ? '⚠️  PROBLEM: active_session_id is NULL — card count will always return 0!'
+      : ''}
+  ${info.db_error ? '❌ DB Error: ' + info.db_error : ''}</pre>`;
+            panel.appendChild(block);
+        }
+        const settingsBlock = document.createElement('pre');
+        settingsBlock.style.cssText = 'margin:6px 0;padding:8px;background:#0c1a2e;border-radius:6px;color:#a5b4fc;font-size:10px;white-space:pre-wrap;';
+        settingsBlock.innerText = '⚙️ Settings cache:\n' + JSON.stringify(data.settings_cache, null, 2);
+        panel.appendChild(settingsBlock);
+    } catch(e) {
+        const err = document.createElement('pre');
+        err.style.cssText = 'color:#fca5a5;';
+        err.innerText = '❌ Failed to load room debug: ' + e.message;
+        panel.appendChild(err);
+    }
+};
+
 function showToast(message) {
     const toast = document.getElementById('notification-toast');
     const msgEl = document.getElementById('toast-message');
@@ -1266,6 +1338,8 @@ if (confirmCard) {
 
                 previewOverlay.classList.remove('active');
                 showToast(`✅ ካርድ #${state.currentSelectedCard} ተገዝቷል!`);
+                // Auto-show room debug panel so user can see engine state
+                setTimeout(() => window.showRoomDebugPanel(), 1500);
             } else {
                 showToast(`❌ ${data.message || 'ካርዱ ሊገዛ አልተቻለም'}`);
                 previewOverlay.classList.remove('active');

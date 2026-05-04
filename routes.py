@@ -1634,6 +1634,75 @@ def debug_session():
         return jsonify({"ok": False, "error": str(e), "trace": _tb.format_exc()})
 
 
+@app.route("/api/debug/room", methods=["GET"])
+def debug_room():
+    """Deep diagnostic: in-memory room state + live DB counts + thread status."""
+    import traceback as _tb
+    import threading as _threading
+    from game_engine import (room_states, STAKES, _timer_threads,
+                              _count_session_players, _cached_card_count,
+                              get_min_cards, get_launch_countdown, get_house_fee,
+                              _card_count_cache, _settings_cache)
+    result = {}
+    for stake in STAKES:
+        # Live DB count (bypass cache)
+        try:
+            live_db_count = _count_session_players(stake)
+            db_error = None
+        except Exception as ex:
+            live_db_count = -1
+            db_error = str(ex)
+
+        # Cached count
+        cached = _card_count_cache.get(stake)
+
+        # Thread status
+        t = _timer_threads.get(stake)
+        thread_alive = t.is_alive() if t else False
+        thread_name  = t.name if t else None
+
+        # DB room info
+        try:
+            room = Room.query.filter_by(card_price=float(stake)).first()
+            db_room = {
+                "id":                room.id if room else None,
+                "active_session_id": room.active_session_id if room else None,
+            } if room else None
+            if room and room.active_session_id:
+                tx_count = Transaction.query.filter_by(
+                    room_id=room.id, session_id=room.active_session_id
+                ).count()
+            else:
+                tx_count = 0
+        except Exception as ex:
+            db_room  = None
+            tx_count = -1
+            db_error = (db_error or "") + " | room_query: " + str(ex)
+
+        state = room_states.get(stake, {})
+        result[str(stake)] = {
+            "memory_status":    state.get("status"),
+            "memory_timer":     state.get("launch_timer"),
+            "memory_balls":     len(state.get("balls", [])),
+            "thread_alive":     thread_alive,
+            "thread_name":      thread_name,
+            "live_db_count":    live_db_count,
+            "cached_count":     cached["count"] if cached else None,
+            "cache_age_s":      round(__import__("time").time() - cached["ts"], 2) if cached else None,
+            "db_room":          db_room,
+            "db_tx_count":      tx_count,
+            "min_cards":        get_min_cards(),
+            "launch_countdown": get_launch_countdown(),
+            "db_error":         db_error,
+        }
+
+    return jsonify({
+        "ok":    True,
+        "rooms": result,
+        "settings_cache": {k: v["val"] for k, v in _settings_cache.items()},
+    })
+
+
 @app.route("/api/buy-card-by-stake/<int:stake>/<int:card_number>", methods=["POST"])
 @login_required
 def buy_card_by_stake(stake, card_number):
