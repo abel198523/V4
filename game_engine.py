@@ -106,7 +106,11 @@ def get_min_cards():
     return _cached_setting('min_cards', MIN_CARDS, cast=int)
 
 def get_launch_countdown():
-    return _cached_setting('launch_countdown', LAUNCH_COUNTDOWN, cast=int)
+    # Support both key names: 'launch_countdown' (current) and 'countdown_seconds' (legacy)
+    val = _cached_setting('launch_countdown', 0, cast=int)
+    if val == 0:
+        val = _cached_setting('countdown_seconds', LAUNCH_COUNTDOWN, cast=int)
+    return val if val > 0 else LAUNCH_COUNTDOWN
 
 def get_house_fee():
     raw = _cached_setting('house_fee_pct', int(HOUSE_FEE * 100), cast=int)

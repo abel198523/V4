@@ -68,7 +68,11 @@ def game_page():
     existing_prices = {r.card_price for r in rooms}
     for s in stakes_needed:
         if float(s) not in existing_prices:
-            db.session.add(Room(name=f"Room {s} ETB", card_price=float(s)))
+            # Use INSERT ... ON CONFLICT DO NOTHING to prevent race-condition duplicates
+            db.session.execute(db.text(
+                "INSERT INTO room (name, card_price) VALUES (:name, :price) "
+                "ON CONFLICT DO NOTHING"
+            ), {"name": f"Room {s} ETB", "price": float(s)})
     try:
         db.session.commit()
         rooms = Room.query.all()
