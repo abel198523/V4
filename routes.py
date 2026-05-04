@@ -493,22 +493,42 @@ def bingo_claim(stake):
     if not card_number:
         return jsonify({"valid": False, "message": "ካርድ አልተመረጠም"})
     called_set = set(state['balls'])
+    balls_list  = list(state['balls'])
     card_data = get_card_data(int(card_number))
     if check_bingo(card_data, called_set):
         # Immediately award the prize and stop ball-calling
         from game_engine import _find_and_award_winner, room_states, _lock
         awarded_prize = 0.0
+        winner_username = None
+        winner_card_num = None
         if not room_states[stake].get('winner'):
             result = _find_and_award_winner(stake, called_set)
             if result:
-                username, card_num, awarded_prize = result
+                winner_username, winner_card_num, awarded_prize = result
                 with _lock:
-                    room_states[stake]['winner'] = username
-                    room_states[stake]['winner_card'] = card_num
-                    room_states[stake]['prize'] = awarded_prize
+                    room_states[stake]['winner']      = winner_username
+                    room_states[stake]['winner_card'] = winner_card_num
+                    room_states[stake]['prize']       = awarded_prize
         else:
-            awarded_prize = room_states[stake].get('prize', 0.0)
-        return jsonify({"valid": True, "message": "🎉 ቢንጎ! አሸንፈዋል!", "prize": awarded_prize})
+            winner_username = room_states[stake].get('winner')
+            winner_card_num = room_states[stake].get('winner_card')
+            awarded_prize   = room_states[stake].get('prize', 0.0)
+        # Return authoritative winner data so every client renders the same modal
+        winner_card_data = None
+        if winner_card_num:
+            try:
+                winner_card_data = get_card_data(int(winner_card_num))
+            except Exception:
+                pass
+        return jsonify({
+            "valid":            True,
+            "message":          "🎉 ቢንጎ! አሸንፈዋል!",
+            "prize":            awarded_prize,
+            "winner":           winner_username,
+            "winner_card":      winner_card_num,
+            "winner_card_data": winner_card_data,
+            "balls":            balls_list,
+        })
     return jsonify({"valid": False, "message": "ቢንጎ አልሆነም — ቆጠሩ!"})
 
 

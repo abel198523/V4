@@ -1782,8 +1782,14 @@ async function checkMyCardForBingo(calledBalls) {
             if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
             showToast('🏆 ቢንጎ! አሸንፈዋል! ሽልማት ወደ ባላንስዎ ተጨምሯል።');
 
-            // Highlight winning cells on the physical card UI
-            const winInfo = identifyWinPattern(state.myGameCard, calledBalls);
+            // Use server-authoritative data for the modal — same source as all other players
+            const modalWinner   = data.winner      || window.CURRENT_USERNAME || 'You';
+            const modalCard     = data.winner_card  || state.purchasedCard;
+            const modalCardData = data.winner_card_data || state.myGameCard;
+            const modalBalls    = data.balls        || calledBalls;
+
+            // Highlight winning cells on the physical card UI using server balls
+            const winInfo = identifyWinPattern(modalCardData, modalBalls);
             if (winInfo.cells && winInfo.cells.length) {
                 winInfo.cells.forEach(val => {
                     if (val === 'FREE') return;
@@ -1795,12 +1801,12 @@ async function checkMyCardForBingo(calledBalls) {
                 });
             }
 
-            // Show winner modal to the claimant immediately
+            // Show winner modal using same server data every player will see
             showWinnerModal(
-                window.CURRENT_USERNAME || 'You',
-                state.purchasedCard,
-                state.myGameCard,
-                calledBalls,
+                modalWinner,
+                modalCard,
+                modalCardData,
+                modalBalls,
                 data.prize || 0,
                 true
             );
@@ -1810,7 +1816,7 @@ async function checkMyCardForBingo(calledBalls) {
                 const wm = document.getElementById('winner-modal');
                 if (wm) wm.classList.remove('active');
                 handleGameOverReturn(currentRoom);
-            }, 8000);
+            }, WINNER_DISPLAY_SECONDS * 1000);
         } else {
             showToast(`ቢንጎ: ${data.message || 'ክሌም ተቀባይነት አላገኘም'}`);
         }
