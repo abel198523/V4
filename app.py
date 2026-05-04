@@ -176,6 +176,17 @@ with app.app_context():
     except Exception:
         db.session.rollback()
 
+    # Migration: convert bonus_expires_at to TIMESTAMPTZ (timezone-aware)
+    try:
+        db.session.execute(db.text(
+            "ALTER TABLE users ALTER COLUMN bonus_expires_at TYPE TIMESTAMPTZ "
+            "USING bonus_expires_at AT TIME ZONE 'UTC'"
+        ))
+        db.session.commit()
+        logger.info("Migration: bonus_expires_at converted to TIMESTAMPTZ.")
+    except Exception:
+        db.session.rollback()
+
     # Generate referral codes for users who don't have one
     try:
         import secrets as _sec
