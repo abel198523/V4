@@ -20,6 +20,12 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = os.environ.get("SESSION_SECRET")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+# Allow session cookies in cross-site contexts (Telegram Mini App iframe / WebView)
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE']   = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'None'
+app.config['REMEMBER_COOKIE_SECURE']   = True
+
 # Gzip compress JSON/HTML responses — reduces payload size by ~70%
 app.config['COMPRESS_MIMETYPES'] = [
     'text/html', 'text/css', 'application/json',

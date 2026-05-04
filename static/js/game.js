@@ -1137,8 +1137,13 @@ if (confirmCard) {
         try {
             const res = await fetch(
                 `/api/buy-card-by-stake/${currentRoom}/${state.currentSelectedCard}`,
-                { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+                { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include' }
             );
+            if (res.status === 401 || res.redirected) {
+                showToast('❌ ክፍለ ጊዜ አልፏል። እባክዎ ዳግም ይግቡ።');
+                setTimeout(() => { window.location.href = '/login'; }, 1500);
+                return;
+            }
             const data = await res.json();
 
             if (data.success) {
