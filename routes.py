@@ -642,6 +642,32 @@ def admin_revenue():
     # Total registered users
     total_users = User.query.count()
 
+    # Today's approved deposits
+    today_deposits = round(db.session.query(func.coalesce(func.sum(DepositRequest.amount), 0))
+                           .filter(DepositRequest.status == 'approved')
+                           .filter(DepositRequest.created_at >= today_start)
+                           .scalar() or 0, 2)
+
+    # All-time approved deposits
+    all_deposits = round(db.session.query(func.coalesce(func.sum(DepositRequest.amount), 0))
+                         .filter(DepositRequest.status == 'approved')
+                         .scalar() or 0, 2)
+
+    # Today's approved withdrawals
+    today_withdrawals = round(db.session.query(func.coalesce(func.sum(WithdrawRequest.amount), 0))
+                              .filter(WithdrawRequest.status == 'approved')
+                              .filter(WithdrawRequest.created_at >= today_start)
+                              .scalar() or 0, 2)
+
+    # All-time approved withdrawals
+    all_withdrawals = round(db.session.query(func.coalesce(func.sum(WithdrawRequest.amount), 0))
+                            .filter(WithdrawRequest.status == 'approved')
+                            .scalar() or 0, 2)
+
+    # Net app profit = deposits received - withdrawals paid out + game house-fee profit
+    today_net = round(today_deposits - today_withdrawals + (t_income - t_payout), 2)
+    all_net   = round(all_deposits - all_withdrawals + (a_income - a_payout), 2)
+
     # Last 10 completed rounds detail
     recent_sessions = (GameSession.query
                        .filter(GameSession.status == 'completed')
@@ -670,18 +696,24 @@ def admin_revenue():
 
     return jsonify({
         "today": {
-            "rounds":  len(today_sessions),
-            "cards":   t_cards,
-            "income":  t_income,
-            "payout":  t_payout,
-            "profit":  round(t_income - t_payout, 2),
+            "rounds":      len(today_sessions),
+            "cards":       t_cards,
+            "income":      t_income,
+            "payout":      t_payout,
+            "game_profit": round(t_income - t_payout, 2),
+            "deposits":    today_deposits,
+            "withdrawals": today_withdrawals,
+            "net_profit":  today_net,
         },
         "alltime": {
-            "rounds":  len(all_sessions),
-            "cards":   a_cards,
-            "income":  a_income,
-            "payout":  a_payout,
-            "profit":  round(a_income - a_payout, 2),
+            "rounds":      len(all_sessions),
+            "cards":       a_cards,
+            "income":      a_income,
+            "payout":      a_payout,
+            "game_profit": round(a_income - a_payout, 2),
+            "deposits":    all_deposits,
+            "withdrawals": all_withdrawals,
+            "net_profit":  all_net,
         },
         "recent_rounds":          recent_rounds,
         "active_players_today":   active_today,

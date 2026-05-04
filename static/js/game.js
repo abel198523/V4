@@ -2492,27 +2492,38 @@ async function loadAdminRevenue() {
             set('rev-today-rounds',  d.today.rounds);
             set('rev-active',        d.active_players_today);
             set('rev-today-income',  d.today.income.toFixed(2) + ' ETB');
-            set('rev-today-profit',  d.today.profit.toFixed(2) + ' ETB');
+            set('rev-today-profit',  d.today.game_profit.toFixed(2) + ' ETB');
 
-            set('rev-today-cards',   d.today.cards);
-            set('rev-today-income2', d.today.income.toFixed(2) + ' ETB');
-            set('rev-today-payout',  d.today.payout.toFixed(2) + ' ETB');
-            set('rev-today-profit2', d.today.profit.toFixed(2) + ' ETB');
-            set('rev-fee-pct',       d.house_fee_pct);
+            set('rev-today-cards',        d.today.cards);
+            set('rev-today-income2',      d.today.income.toFixed(2) + ' ETB');
+            set('rev-today-payout',       d.today.payout.toFixed(2) + ' ETB');
+            set('rev-today-deposits',     d.today.deposits.toFixed(2) + ' ETB');
+            set('rev-today-withdrawals',  d.today.withdrawals.toFixed(2) + ' ETB');
+            set('rev-today-profit2',      d.today.game_profit.toFixed(2) + ' ETB');
+            set('rev-today-net',          (d.today.net_profit >= 0 ? '+' : '') + d.today.net_profit.toFixed(2) + ' ETB');
+            set('rev-fee-pct',            d.house_fee_pct);
 
-            set('rev-all-rounds',  d.alltime.rounds);
-            set('rev-all-cards',   d.alltime.cards);
-            set('rev-all-income',  d.alltime.income.toFixed(2) + ' ETB');
-            set('rev-all-payout',  d.alltime.payout.toFixed(2) + ' ETB');
-            set('rev-all-profit',  d.alltime.profit.toFixed(2) + ' ETB');
-            set('rev-users',       d.total_users);
-            set('rev-updated',     'Updated ' + d.generated_at);
+            set('rev-all-rounds',       d.alltime.rounds);
+            set('rev-all-cards',        d.alltime.cards);
+            set('rev-all-income',       d.alltime.income.toFixed(2) + ' ETB');
+            set('rev-all-payout',       d.alltime.payout.toFixed(2) + ' ETB');
+            set('rev-all-deposits',     d.alltime.deposits.toFixed(2) + ' ETB');
+            set('rev-all-withdrawals',  d.alltime.withdrawals.toFixed(2) + ' ETB');
+            set('rev-all-profit',       d.alltime.game_profit.toFixed(2) + ' ETB');
+            set('rev-all-net',          (d.alltime.net_profit >= 0 ? '+' : '') + d.alltime.net_profit.toFixed(2) + ' ETB');
+            set('rev-users',            d.total_users);
+            set('rev-updated',          'Updated ' + d.generated_at);
 
-            // Colour today's profit
+            // Colour today's profit card
             const profitEl = document.getElementById('rev-today-profit');
-            if (profitEl) profitEl.style.color = d.today.profit > 0 ? '#f59e0b' : '#6b7280';
+            if (profitEl) profitEl.style.color = d.today.game_profit > 0 ? '#f59e0b' : '#6b7280';
             const profitEl2 = document.getElementById('rev-today-profit2');
-            if (profitEl2) profitEl2.style.color = d.today.profit > 0 ? '#f59e0b' : '#6b7280';
+            if (profitEl2) profitEl2.style.color = d.today.game_profit > 0 ? '#a3e635' : '#6b7280';
+            // Colour net profit
+            const netEl = document.getElementById('rev-today-net');
+            if (netEl) netEl.style.color = d.today.net_profit > 0 ? '#f59e0b' : '#ef4444';
+            const allNetEl = document.getElementById('rev-all-net');
+            if (allNetEl) allNetEl.style.color = d.alltime.net_profit > 0 ? '#f59e0b' : '#ef4444';
 
             // Recent rounds log
             const listEl = document.getElementById('rev-rounds-list');

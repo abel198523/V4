@@ -847,28 +847,40 @@
 
                     <!-- Today breakdown -->
                     <div style="background:#1e2435;border-radius:10px;padding:14px;margin-bottom:10px;">
-                        <div style="font-size:0.75rem;font-weight:700;color:#9ca3af;margin-bottom:10px;">TODAY'S BREAKDOWN</div>
+                        <div style="font-size:0.75rem;font-weight:700;color:#9ca3af;margin-bottom:10px;">📅 የዛሬ ዝርዝር / TODAY'S BREAKDOWN</div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
                             <span style="font-size:0.8rem;color:#d1d5db;">Cards Sold</span>
                             <span id="rev-today-cards" style="font-size:0.8rem;font-weight:700;color:#fff;">—</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
-                            <span style="font-size:0.8rem;color:#d1d5db;">Total Income</span>
+                            <span style="font-size:0.8rem;color:#d1d5db;">Game Income (IN)</span>
                             <span id="rev-today-income2" style="font-size:0.8rem;font-weight:700;color:#22c55e;">—</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
-                            <span style="font-size:0.8rem;color:#d1d5db;">Total Payouts</span>
+                            <span style="font-size:0.8rem;color:#d1d5db;">Prize Payouts (OUT)</span>
                             <span id="rev-today-payout" style="font-size:0.8rem;font-weight:700;color:#ef4444;">—</span>
                         </div>
-                        <div style="display:flex;justify-content:space-between;padding:6px 0;">
-                            <span style="font-size:0.8rem;font-weight:700;color:#f59e0b;">Net Profit (<span id="rev-fee-pct">—</span>% fee)</span>
-                            <span id="rev-today-profit2" style="font-size:0.8rem;font-weight:800;color:#f59e0b;">—</span>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;color:#3b82f6;font-weight:600;">💵 ጠቅላላ ዲፖዚት</span>
+                            <span id="rev-today-deposits" style="font-size:0.8rem;font-weight:700;color:#60a5fa;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;color:#f87171;font-weight:600;">🏧 ጠቅላላ ዊዝድሮው</span>
+                            <span id="rev-today-withdrawals" style="font-size:0.8rem;font-weight:700;color:#f87171;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;font-weight:700;color:#a3e635;">🎮 የጨዋታ ትርፍ (<span id="rev-fee-pct">—</span>% fee)</span>
+                            <span id="rev-today-profit2" style="font-size:0.8rem;font-weight:800;color:#a3e635;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0 0;">
+                            <span style="font-size:0.85rem;font-weight:800;color:#f59e0b;">🏆 ጠቅላላ የዛሬ ትርፍ</span>
+                            <span id="rev-today-net" style="font-size:0.85rem;font-weight:900;color:#f59e0b;">—</span>
                         </div>
                     </div>
 
                     <!-- All-time -->
                     <div style="background:#1e2435;border-radius:10px;padding:14px;margin-bottom:10px;">
-                        <div style="font-size:0.75rem;font-weight:700;color:#9ca3af;margin-bottom:10px;">ALL-TIME TOTALS</div>
+                        <div style="font-size:0.75rem;font-weight:700;color:#9ca3af;margin-bottom:10px;">♾️ ALL-TIME TOTALS</div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
                             <span style="font-size:0.8rem;color:#d1d5db;">Total Rounds</span>
                             <span id="rev-all-rounds" style="font-size:0.8rem;font-weight:700;color:#fff;">—</span>
@@ -878,16 +890,28 @@
                             <span id="rev-all-cards" style="font-size:0.8rem;font-weight:700;color:#fff;">—</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
-                            <span style="font-size:0.8rem;color:#d1d5db;">Total Income</span>
+                            <span style="font-size:0.8rem;color:#d1d5db;">Game Income (IN)</span>
                             <span id="rev-all-income" style="font-size:0.8rem;font-weight:700;color:#22c55e;">—</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
-                            <span style="font-size:0.8rem;color:#d1d5db;">Total Payouts</span>
+                            <span style="font-size:0.8rem;color:#d1d5db;">Prize Payouts (OUT)</span>
                             <span id="rev-all-payout" style="font-size:0.8rem;font-weight:700;color:#ef4444;">—</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
-                            <span style="font-size:0.8rem;font-weight:700;color:#f59e0b;">Net Profit</span>
-                            <span id="rev-all-profit" style="font-size:0.8rem;font-weight:800;color:#f59e0b;">—</span>
+                            <span style="font-size:0.8rem;color:#60a5fa;font-weight:600;">💵 ጠቅላላ ዲፖዚት</span>
+                            <span id="rev-all-deposits" style="font-size:0.8rem;font-weight:700;color:#60a5fa;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;color:#f87171;font-weight:600;">🏧 ጠቅላላ ዊዝድሮው</span>
+                            <span id="rev-all-withdrawals" style="font-size:0.8rem;font-weight:700;color:#f87171;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2d3748;">
+                            <span style="font-size:0.8rem;font-weight:700;color:#a3e635;">🎮 የጨዋታ ትርፍ</span>
+                            <span id="rev-all-profit" style="font-size:0.8rem;font-weight:800;color:#a3e635;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0 0;border-top:1px solid #2d3748;margin-top:4px;">
+                            <span style="font-size:0.85rem;font-weight:800;color:#f59e0b;">🏆 ጠቅላላ ትርፍ</span>
+                            <span id="rev-all-net" style="font-size:0.85rem;font-weight:900;color:#f59e0b;">—</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;padding:6px 0;">
                             <span style="font-size:0.8rem;color:#d1d5db;">Registered Users</span>
