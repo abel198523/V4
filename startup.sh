@@ -35,7 +35,5 @@ exec gunicorn main:app \
     --workers 1 \
     --threads 8 \
     --worker-class gthread \
-    --timeout 60 \
-    --keep-alive 5 \
-    --max-requests 1000 \
-    --max-requests-jitter 100
+    --timeout 120 \
+    --keep-alive 5
