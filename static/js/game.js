@@ -445,7 +445,8 @@ function handleGameOverReturn(stake) {
     const nbBar = document.getElementById('near-bingo-bar');
     if (nbBar) { nbBar.style.display = 'none'; nbBar.className = 'near-bingo-bar'; }
 
-    ['master-grid', 'bingo-board', 'recent-balls'].forEach(id => {
+    resetMasterGrid();
+    ['bingo-board', 'recent-balls'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '';
     });
@@ -1057,17 +1058,65 @@ function renderMyGameCard() {
     }
 }
 
-function _buildMasterGrid(masterGrid) {
-    masterGrid.innerHTML = '';
+// ══════════════════════════════════════════════════════════════════════
+// MASTER GRID SYSTEM — clean, isolated, self-healing
+// Only source of truth: data.balls array from server.
+// Layout: 5 columns (B I N G O), 15 rows.  B=1-15, I=16-30, N=31-45, G=46-60, O=61-75
+// DOM order: row-major  →  row0=(1,16,31,46,61)  row1=(2,17,32,47,62) ...
+// ══════════════════════════════════════════════════════════════════════
+
+function initMasterGrid() {
+    const mg = document.getElementById('master-grid');
+    if (!mg) return;
+    mg.innerHTML = '';
     for (let row = 0; row < 15; row++) {
         for (let col = 0; col < 5; col++) {
-            const num = (col * 15) + row + 1;
+            const num = col * 15 + row + 1;
             const cell = document.createElement('div');
             cell.className = 'master-cell';
             cell.id = `mcell-${num}`;
-            cell.innerText = num;
-            masterGrid.appendChild(cell);
+            cell.textContent = String(num);
+            mg.appendChild(cell);
         }
+    }
+}
+
+function updateMasterGrid(balls) {
+    const mg = document.getElementById('master-grid');
+    if (!mg) return;
+    // Auto-init if grid was cleared or never built
+    if (mg.children.length !== 75) initMasterGrid();
+
+    // Build a clean set of valid called numbers (1-75 only)
+    const calledSet = new Set();
+    if (Array.isArray(balls)) {
+        for (let i = 0; i < balls.length; i++) {
+            const n = Number(balls[i]);
+            if (Number.isInteger(n) && n >= 1 && n <= 75) calledSet.add(n);
+        }
+    }
+    const latestBall = (Array.isArray(balls) && balls.length > 0)
+        ? Number(balls[balls.length - 1])
+        : 0;
+
+    for (let num = 1; num <= 75; num++) {
+        const cell = document.getElementById(`mcell-${num}`);
+        if (!cell) continue;
+        const shouldBeCalled  = calledSet.has(num);
+        const shouldBeLatest  = (num === latestBall);
+        // Only touch DOM when state actually differs (no unnecessary repaints)
+        if (cell.classList.contains('called') !== shouldBeCalled)
+            cell.classList.toggle('called', shouldBeCalled);
+        if (cell.classList.contains('last-called') !== shouldBeLatest)
+            cell.classList.toggle('last-called', shouldBeLatest);
+    }
+}
+
+function resetMasterGrid() {
+    // Remove marks without destroying DOM (keeps 75 cells intact for next game)
+    for (let num = 1; num <= 75; num++) {
+        const cell = document.getElementById(`mcell-${num}`);
+        if (cell) cell.classList.remove('called', 'last-called');
     }
 }
 
@@ -1082,21 +1131,7 @@ function updateGameUI(history) {
         if (el) el.setAttribute('data-count', counts[l]);
     });
 
-    // ── Master Grid: build once, update classes only (no full rebuild) ──
-    const masterGrid = document.getElementById('master-grid');
-    if (masterGrid) {
-        if (masterGrid.children.length !== 75) _buildMasterGrid(masterGrid);
-        const calledSetMG = new Set(history.map(n => Number(n)));
-        const lastBallMG  = history.length > 0 ? Number(history[history.length - 1]) : null;
-        for (let num = 1; num <= 75; num++) {
-            const cell = document.getElementById(`mcell-${num}`);
-            if (!cell) continue;
-            const isCalled = calledSetMG.has(num);
-            const isLast   = num === lastBallMG;
-            cell.classList.toggle('called',      isCalled || isLast);
-            cell.classList.toggle('last-called', isLast);
-        }
-    }
+    // Master grid is handled by updateMasterGrid() called directly from pollGameState
 
     // Update top bar stats
     if (currentRoom) {
@@ -1701,7 +1736,10 @@ async function pollGameState(stake) {
             return;
         }
 
-        // Update board only when new balls have been called
+        // Always sync master grid from server (self-healing, runs every poll)
+        updateMasterGrid(data.balls);
+
+        // Update rest of game UI only when new balls arrive
         if (data.balls && data.balls.length !== rs.lastBallCount) {
             rs.lastBallCount = data.balls.length;
             updateGameUI(data.balls);
@@ -1843,7 +1881,9 @@ function startGame() {
     // Show player's card number in game header
     const myBoardEl = document.getElementById('sel-my-board-game');
     if (myBoardEl) myBoardEl.innerText = state.purchasedCard ? `#${state.purchasedCard}` : '--';
-    // Reset game board
+    // Build master grid fresh (clean slate before polling starts)
+    initMasterGrid();
+    // Reset rest of game board UI
     updateGameUI([]);
     // Start polling for balls
     if (currentRoom) startGameStatePoll(currentRoom);
