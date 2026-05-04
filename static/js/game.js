@@ -411,6 +411,7 @@ function handleGameOverReturn(stake) {
     state.purchasedCard = null;
     state.bingoFlashed = false;
     state.lastHistory = [];
+    _autoClaimInProgress = false;
     // Reset near-bingo bar
     const nbBar = document.getElementById('near-bingo-bar');
     if (nbBar) { nbBar.style.display = 'none'; nbBar.className = 'near-bingo-bar'; }
@@ -1645,30 +1646,88 @@ async function pollGameState(stake) {
 
 const WINNER_DISPLAY_SECONDS = 8;
 
-function checkMyCardForBingo(calledBalls) {
-    const state = getRoomState(currentRoom);
-    if (!state.myGameCard || state.bingoFlashed) return;
+function _detectBingo(cardData, calledBalls) {
+    if (!cardData || !calledBalls) return false;
     const called = new Set(calledBalls);
     const letters = ['B', 'I', 'N', 'G', 'O'];
     const grid = [];
     for (let row = 0; row < 5; row++) {
         const r = [];
         for (const l of letters) {
-            const val = state.myGameCard[l][row];
+            const val = cardData[l][row];
             r.push(val === 'FREE' ? true : called.has(val));
         }
         grid.push(r);
     }
-    let hasBingo = false;
-    for (const row of grid) if (row.every(Boolean)) { hasBingo = true; break; }
-    if (!hasBingo) for (let c = 0; c < 5; c++) if (grid.every(r => r[c])) { hasBingo = true; break; }
-    if (!hasBingo && grid.every((r, i) => r[i])) hasBingo = true;
-    if (!hasBingo && grid.every((r, i) => r[4 - i])) hasBingo = true;
+    for (const row of grid) if (row.every(Boolean)) return true;
+    for (let c = 0; c < 5; c++) if (grid.every(r => r[c])) return true;
+    if (grid.every((r, i) => r[i])) return true;
+    if (grid.every((r, i) => r[4 - i])) return true;
+    return false;
+}
 
-    if (hasBingo) {
-        state.bingoFlashed = true;
-        // Auto-claim: server awards prize automatically — just notify the player
-        showToast('🎉 ቢንጎ! ሲስተሙ ክሌም እያደረገ ነው...');
+let _autoClaimInProgress = false;
+
+async function checkMyCardForBingo(calledBalls) {
+    const state = getRoomState(currentRoom);
+    if (!state.myGameCard || state.bingoFlashed || _autoClaimInProgress) return;
+
+    const hasBingo = _detectBingo(state.myGameCard, calledBalls);
+    if (!hasBingo) return;
+
+    // Lock immediately to prevent duplicate claims
+    state.bingoFlashed = true;
+    _autoClaimInProgress = true;
+
+    showToast('🎉 ቢንጎ ተገኝቷል! ክሌም እየተደረገ ነው...');
+
+    try {
+        const res = await fetch(`/api/bingo-claim/${currentRoom}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ card_number: state.purchasedCard })
+        });
+
+        if (!res.ok) {
+            // Non-200 — game may have already been won by someone else
+            const errData = await res.json().catch(() => ({}));
+            showToast(`ቢንጎ: ${errData.message || 'ክሌም አልተቻለም'}`);
+            _autoClaimInProgress = false;
+            return;
+        }
+
+        const data = await res.json();
+
+        if (data.valid) {
+            // Winning claim accepted — play fanfare and show result
+            if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
+            showToast('🏆 ቢንጎ! አሸንፈዋል! ሽልማት ወደ ባላንስዎ ተጨምሯል።');
+
+            // Highlight winning cells on the card
+            const winPat = getWinningPattern(state.myGameCard, calledBalls);
+            if (winPat && winPat.length) {
+                winPat.forEach(val => {
+                    if (val === 'FREE') return;
+                    const el = document.getElementById(`cell-${val}`);
+                    if (el) {
+                        el.classList.add('win-highlight');
+                        el.style.animation = 'win-pulse 0.6s ease-in-out infinite alternate';
+                    }
+                });
+            }
+
+            // Refresh balance after short delay so prize is reflected
+            setTimeout(() => fetchAndSyncBalance(), 2000);
+        } else {
+            showToast(`ቢንጎ: ${data.message || 'ክሌም ተቀባይነት አላገኘም'}`);
+        }
+    } catch (e) {
+        showToast('⚠️ ቢንጎ ክሌም ግንኙነት ተሳስቷል — ዳግም ሞክሩ');
+        // Reset flag so the next ball poll can retry
+        state.bingoFlashed = false;
+    } finally {
+        _autoClaimInProgress = false;
     }
 }
 
@@ -1679,6 +1738,7 @@ function startGame() {
         state.myGameCard = state.currentCardData;
     }
     state.bingoFlashed = false;
+    _autoClaimInProgress = false;
     renderMyGameCard();
     // Show player's card number in game header
     const myBoardEl = document.getElementById('sel-my-board-game');

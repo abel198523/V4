@@ -290,6 +290,21 @@ body {
     from { transform: scale(1); }
     to { transform: scale(1.05); }
 }
+
+.win-highlight {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+    border-color: #fbbf24 !important;
+    color: #0f172a !important;
+    font-weight: 900 !important;
+    box-shadow: 0 0 14px rgba(251, 191, 36, 0.85) !important;
+    z-index: 2;
+    position: relative;
+}
+
+@keyframes win-pulse {
+    from { transform: scale(1);    box-shadow: 0 0 10px rgba(251,191,36,0.7); }
+    to   { transform: scale(1.12); box-shadow: 0 0 22px rgba(251,191,36,1);   }
+}
 .winner-modal {
     position: fixed;
     top: 0;
