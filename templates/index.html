@@ -323,6 +323,99 @@
             <div id="cards-grid" class="cards-grid"></div>
         </div>
 
+        <!-- GAME SCREEN -->
+        <div id="game-screen" class="game-screen">
+
+            <!-- Stats Bar -->
+            <div class="gs-stats-bar">
+                <div class="gs-stat-box">
+                    <div class="gs-stat-lbl">Game ID</div>
+                    <div class="gs-stat-val gs-small" id="gs-game-id">NOVA</div>
+                </div>
+                <div class="gs-stat-box">
+                    <div class="gs-stat-lbl">Players</div>
+                    <div class="gs-stat-val" id="players">0</div>
+                </div>
+                <div class="gs-stat-box">
+                    <div class="gs-stat-lbl">Bet</div>
+                    <div class="gs-stat-val" id="bet">—</div>
+                </div>
+                <div class="gs-stat-box">
+                    <div class="gs-stat-lbl">Derash</div>
+                    <div class="gs-stat-val gs-amber" id="derash">0</div>
+                </div>
+                <div class="gs-stat-box" style="border-right:none;">
+                    <div class="gs-stat-lbl">Called</div>
+                    <div class="gs-stat-val" id="call-count">0</div>
+                </div>
+            </div>
+
+            <!-- Main body: left = master grid, right = ball + card -->
+            <div class="gs-body">
+
+                <!-- LEFT: BINGO headers + Master Grid -->
+                <div class="gs-left-panel">
+                    <div class="gs-bingo-col-hdrs">
+                        <div class="gs-col-hdr gs-b h-B" data-count="0">B</div>
+                        <div class="gs-col-hdr gs-i h-I" data-count="0">I</div>
+                        <div class="gs-col-hdr gs-n h-N" data-count="0">N</div>
+                        <div class="gs-col-hdr gs-g h-G" data-count="0">G</div>
+                        <div class="gs-col-hdr gs-o h-O" data-count="0">O</div>
+                    </div>
+                    <div id="master-grid" class="master-grid gs-master-grid"></div>
+                </div>
+
+                <!-- RIGHT: Current ball + card -->
+                <div class="gs-right-panel">
+
+                    <!-- Active ball chip + mute -->
+                    <div class="gs-call-top-row">
+                        <div id="active-ball" class="gs-active-chip"><span>--</span></div>
+                        <button class="mute-btn mute-btn-game gs-mute-btn" onclick="if(typeof toggleMute==='function'){toggleMute();}">
+                            <svg class="mute-icon-on" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                            <svg class="mute-icon-off" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Big golden ball circle -->
+                    <div class="gs-big-circle" id="gs-big-ball">--</div>
+
+                    <!-- Automatic toggle row -->
+                    <div class="gs-auto-toggle-row">
+                        <span class="gs-auto-lbl">Automatic</span>
+                        <div id="auto-toggle" class="toggle-switch active"><div class="toggle-handle"></div></div>
+                    </div>
+
+                    <!-- Player bingo card -->
+                    <div class="gs-card-wrap">
+                        <div id="bingo-board" class="gs-bingo-board-grid"></div>
+                        <div id="my-card-label" class="gs-cartela-lbl">ካርድ አልተመረጠም</div>
+                        <div id="near-bingo-bar" class="near-bingo-bar" style="display:none;"></div>
+                    </div>
+
+                    <!-- Recent balls row -->
+                    <div id="recent-balls" class="gs-recent-balls-row"></div>
+
+                </div>
+            </div>
+
+            <!-- Hidden elements required by game.js globals -->
+            <span id="sel-my-board-game" style="display:none;">--</span>
+            <span id="progress-text" style="display:none;">0/75</span>
+            <div id="progress-bar" style="display:none;width:0%"></div>
+            <span id="game-screen-timer" style="display:none;">--</span>
+
+            <!-- Bottom action buttons -->
+            <div class="gs-bottom-bar">
+                <button class="gs-action-btn gs-leave-btn" onclick="navTo('selection')">Leave</button>
+                <button class="gs-action-btn gs-refresh-btn" onclick="if(typeof currentRoom!='undefined'&&currentRoom){startGameStatePoll(currentRoom);}">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refresh
+                </button>
+                <button class="gs-action-btn gs-auto-btn" onclick="var t=document.getElementById('auto-toggle');if(t)t.click()">Automatic</button>
+            </div>
+
+        </div>
+
         <!-- PROFILE SCREEN -->
         <div id="profile-screen" class="profile-screen">
             <div style="padding:15px;overflow-y:auto;flex:1;">
@@ -1282,7 +1375,34 @@
             window.navTo = function(id) {
                 if (_orig) _orig(id);
                 updateNavHighlight(id);
+                if (id === 'game') {
+                    const gid = document.getElementById('gs-game-id');
+                    if (gid && typeof currentRoom !== 'undefined' && currentRoom) {
+                        const ts = Date.now().toString(36).toUpperCase();
+                        gid.textContent = 'NV' + ts.slice(-6);
+                    }
+                }
             };
+
+            // Sync big golden circle from #active-ball chip
+            const _activeBall = document.getElementById('active-ball');
+            const _bigBall    = document.getElementById('gs-big-ball');
+            if (_activeBall && _bigBall) {
+                const _syncBig = () => {
+                    const sp = _activeBall.querySelector('span');
+                    const txt = sp ? sp.textContent.trim() : '--';
+                    _bigBall.textContent = txt;
+                    // Flash animation on new ball
+                    if (txt !== '--' && txt !== _bigBall._lastTxt) {
+                        _bigBall._lastTxt = txt;
+                        _bigBall.classList.remove('ball-flash');
+                        void _bigBall.offsetWidth;
+                        _bigBall.classList.add('ball-flash');
+                        setTimeout(() => _bigBall.classList.remove('ball-flash'), 650);
+                    }
+                };
+                new MutationObserver(_syncBig).observe(_activeBall, { childList: true, subtree: true, characterData: true });
+            }
         });
     </script>
     <!-- In-Game Alert Overlay -->

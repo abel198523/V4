@@ -2761,3 +2761,329 @@ header {
     from { transform: scale(1);    box-shadow: 0 0 6px rgba(245,158,11,0.5); }
     to   { transform: scale(1.09); box-shadow: 0 0 16px rgba(245,158,11,0.95); }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   NOVA BINGO — NEW GAME SCREEN (matches Beteseb Bingo design)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Stats Bar ─────────────────────────────────────────────── */
+.gs-stats-bar {
+    display: flex;
+    background: linear-gradient(90deg, #2d2468 0%, #1e1852 100%);
+    padding: 5px 6px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.gs-stat-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 2px;
+    border-right: 1px solid rgba(255,255,255,0.1);
+}
+.gs-stat-lbl {
+    font-size: 8.5px;
+    color: rgba(255,255,255,0.5);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+    text-align: center;
+}
+.gs-stat-val {
+    font-size: 13px;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1.3;
+    text-align: center;
+}
+.gs-stat-val.gs-small { font-size: 9px; letter-spacing: 0.3px; }
+.gs-stat-val.gs-amber { color: #f59e0b; }
+
+/* ── Body layout ────────────────────────────────────────────── */
+.gs-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    padding: 4px;
+    gap: 5px;
+}
+
+/* ── LEFT panel: master grid ────────────────────────────────── */
+.gs-left-panel {
+    width: 44%;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+/* BINGO column headers */
+.gs-bingo-col-hdrs {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+    flex-shrink: 0;
+}
+.gs-col-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 900;
+    color: white;
+    letter-spacing: 0.5px;
+}
+.gs-col-hdr.gs-b { background: #3b82f6; }
+.gs-col-hdr.gs-i { background: #8b5cf6; }
+.gs-col-hdr.gs-n { background: #22c55e; }
+.gs-col-hdr.gs-g { background: #f59e0b; }
+.gs-col-hdr.gs-o { background: #ef4444; }
+
+/* Master grid overrides for the new game screen */
+.gs-master-grid {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: none;
+    gap: 2px !important;
+}
+.gs-master-grid::-webkit-scrollbar { display: none; }
+#game-screen .master-cell {
+    background: #1a1635;
+    border: 1px solid rgba(255,255,255,0.07);
+    color: #9090b8;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 4px;
+    aspect-ratio: 1;
+}
+#game-screen .master-cell.called {
+    background: #22c55e;
+    color: #fff;
+    border-color: #4ade80;
+    box-shadow: 0 0 4px rgba(34,197,94,0.45);
+}
+#game-screen .master-cell.last-called {
+    background: #f59e0b;
+    color: #0d0800;
+    border-color: #fbbf24;
+    box-shadow: 0 0 8px rgba(245,158,11,0.65);
+    animation: pulseLast 1s infinite alternate;
+}
+
+/* ── RIGHT panel ────────────────────────────────────────────── */
+.gs-right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+.gs-right-panel::-webkit-scrollbar { display: none; }
+
+/* Active ball top row */
+.gs-call-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+/* Active ball small chip (styled by JS inline background) */
+#game-screen #active-ball {
+    display: flex;
+    align-items: center;
+}
+#game-screen #active-ball span {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 900;
+    color: white;
+}
+
+/* Mute button */
+.gs-mute-btn {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px;
+    padding: 6px 8px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+/* ── Big golden ball circle ──────────────────────────────────── */
+.gs-big-circle {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 32%, #fde68a 0%, #f59e0b 42%, #d97706 82%);
+    box-shadow:
+        0 0 0 5px rgba(245,158,11,0.22),
+        0 4px 28px rgba(245,158,11,0.48);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #1a0900;
+    margin: 0 auto;
+    flex-shrink: 0;
+    letter-spacing: -0.5px;
+    transition: transform 0.15s ease;
+}
+.gs-big-circle.ball-flash {
+    animation: ball-flash 0.6s ease-out !important;
+}
+
+/* ── Automatic toggle row ───────────────────────────────────── */
+.gs-auto-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    padding: 6px 12px;
+    flex-shrink: 0;
+}
+.gs-auto-lbl {
+    font-size: 12px;
+    font-weight: 700;
+    color: #e2e8f0;
+    flex: 1;
+}
+/* Green toggle when active (override default blue) */
+#game-screen .toggle-switch.active { background: #22c55e; }
+#game-screen .toggle-handle {
+    transition: left 0.2s ease;
+}
+#game-screen .toggle-switch.active .toggle-handle { left: 26px; }
+
+/* ── Player Bingo Card ──────────────────────────────────────── */
+.gs-card-wrap {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 7px;
+    flex-shrink: 0;
+}
+.gs-bingo-board-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+    width: 100%;
+}
+
+/* Bingo cells in new game screen */
+#game-screen .bingo-cell {
+    background: #1a1635;
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 5px;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #c0bfe0;
+}
+
+/* Column header cells (B I N G O) — colored circles */
+#game-screen .bingo-cell.card-header-cell {
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 900;
+    color: white;
+    border: none;
+}
+#game-screen #bingo-board .card-header-cell:nth-child(1) { background: #3b82f6; }
+#game-screen #bingo-board .card-header-cell:nth-child(2) { background: #8b5cf6; }
+#game-screen #bingo-board .card-header-cell:nth-child(3) { background: #22c55e; }
+#game-screen #bingo-board .card-header-cell:nth-child(4) { background: #f59e0b; }
+#game-screen #bingo-board .card-header-cell:nth-child(5) { background: #ef4444; }
+
+/* Called cell */
+#game-screen .bingo-cell.called {
+    background: #22c55e;
+    color: white;
+    border-color: #4ade80;
+    box-shadow: 0 0 5px rgba(34,197,94,0.4);
+}
+
+/* Free spot — show star, hide "FREE" text */
+#game-screen .bingo-cell.free-spot {
+    background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(34,197,94,0.1));
+    border-color: rgba(34,197,94,0.4);
+    font-size: 0 !important;
+}
+#game-screen .bingo-cell.free-spot::after {
+    content: '✦';
+    font-size: 1.15rem;
+    color: #22c55e;
+    text-shadow: 0 0 8px rgba(34,197,94,0.55);
+}
+
+/* Newly called flash */
+#game-screen .bingo-cell.newly-called {
+    animation: cell-pop 0.5s ease-out;
+}
+
+/* Cartela / card number label */
+.gs-cartela-lbl {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #d4a96a;
+    background: rgba(120,75,15,0.22);
+    border-radius: 6px;
+    padding: 4px 8px;
+    margin-top: 6px;
+}
+
+/* ── Recent balls row ───────────────────────────────────────── */
+.gs-recent-balls-row {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+.gs-recent-balls-row .hist-ball {
+    width: 28px;
+    height: 28px;
+    font-size: 9px;
+}
+
+/* ── Bottom action buttons ──────────────────────────────────── */
+.gs-bottom-bar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 10px;
+    flex-shrink: 0;
+    background: #0c0a1e;
+    border-top: 1px solid rgba(255,255,255,0.07);
+}
+.gs-action-btn {
+    flex: 1;
+    padding: 13px 6px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.83rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.2px;
+}
+.gs-leave-btn   { background: #ef4444; color: #fff; }
+.gs-refresh-btn { background: #f97316; color: #fff; }
+.gs-auto-btn    { background: #78570a; color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
