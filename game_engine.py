@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 STAKES = [10]
 BALL_INTERVAL = 3
-WINNER_DISPLAY_SECONDS = 12
+WINNER_DISPLAY_SECONDS = 4
 HOUSE_FEE = 0.10
 CARD_SELECT_TIME = 20  # seconds players have to buy cards before each game
 

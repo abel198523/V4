@@ -1760,7 +1760,7 @@ async function pollGameState(stake) {
     } catch (e) { /* silent */ }
 }
 
-const WINNER_DISPLAY_SECONDS = 12;
+const WINNER_DISPLAY_SECONDS = 4;
 
 function _detectBingo(cardData, calledBalls) {
     if (!cardData || !calledBalls) return false;
