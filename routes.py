@@ -944,10 +944,9 @@ def _get_streak_milestone_msg():
 def get_admin_settings():
     if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
-    from game_engine import get_min_cards, get_launch_countdown, get_house_fee
+    from game_engine import get_card_select_time, get_house_fee
     return jsonify({
-        "min_cards":            get_min_cards(),
-        "launch_countdown":     get_launch_countdown(),
+        "card_select_time":     get_card_select_time(),
         "house_fee_pct":        round(get_house_fee() * 100),
         "referral_bonus":       _get_referral_bonus(),
         "bonus_expiry_days":    _get_bonus_expiry_days(),
@@ -979,8 +978,7 @@ def update_admin_settings():
         else:
             db.session.add(Setting(key=key, value=str(val)))
 
-    _save('min_cards',        data.get('min_cards'),        1,  50)
-    _save('launch_countdown', data.get('launch_countdown'), 5, 120)
+    _save('card_select_time', data.get('card_select_time'), 5, 120)
     _save('house_fee_pct',    data.get('house_fee_pct'),    0,  50)
 
     # referral_bonus: float, 0–100 ETB
@@ -1077,11 +1075,10 @@ def update_admin_settings():
                     db.session.add(Setting(key=sub_key, value=val))
 
     db.session.commit()
-    from game_engine import get_min_cards, get_launch_countdown, get_house_fee
+    from game_engine import get_card_select_time, get_house_fee
     return jsonify({
         "success":          True,
-        "min_cards":        get_min_cards(),
-        "launch_countdown": get_launch_countdown(),
+        "card_select_time": get_card_select_time(),
         "house_fee_pct":    round(get_house_fee() * 100),
         "referral_bonus":    _get_referral_bonus(),
         "bonus_expiry_days": _get_bonus_expiry_days(),
@@ -1671,7 +1668,7 @@ def debug_room():
     import threading as _threading
     from game_engine import (room_states, STAKES, _timer_threads,
                               _count_session_players, _cached_card_count,
-                              get_min_cards, get_launch_countdown, get_house_fee,
+                              get_card_select_time, get_house_fee,
                               _card_count_cache, _settings_cache)
     result = {}
     for stake in STAKES:
@@ -1721,8 +1718,7 @@ def debug_room():
             "cache_age_s":      round(__import__("time").time() - cached["ts"], 2) if cached else None,
             "db_room":          db_room,
             "db_tx_count":      tx_count,
-            "min_cards":        get_min_cards(),
-            "launch_countdown": get_launch_countdown(),
+            "card_select_time": get_card_select_time(),
             "db_error":         db_error,
         }
 

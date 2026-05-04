@@ -9,8 +9,7 @@ STAKES = [10, 50, 100, 200]
 BALL_INTERVAL = 3
 WINNER_DISPLAY_SECONDS = 8
 HOUSE_FEE = 0.10
-MIN_CARDS = 5        # cards needed before launch countdown begins
-LAUNCH_COUNTDOWN = 10  # seconds of warning before game starts after threshold met
+CARD_SELECT_TIME = 20  # seconds players have to buy cards before each game
 
 _lock = threading.Lock()
 
@@ -55,8 +54,7 @@ def _invalidate_card_count(stake):
     _card_count_cache.pop(stake, None)
 
 # status values:
-#   'waiting'   – not enough cards yet, showing fill progress
-#   'launching' – threshold met, 10-s countdown running
+#   'waiting'   – 20-s card-selection countdown running (loops if no cards bought)
 #   'playing'   – balls being called
 room_states = {
     s: {
@@ -102,15 +100,10 @@ def get_broadcast_alert():
     return None
 
 
-def get_min_cards():
-    return _cached_setting('min_cards', MIN_CARDS, cast=int)
-
-def get_launch_countdown():
-    # Support both key names: 'launch_countdown' (current) and 'countdown_seconds' (legacy)
-    val = _cached_setting('launch_countdown', 0, cast=int)
-    if val == 0:
-        val = _cached_setting('countdown_seconds', LAUNCH_COUNTDOWN, cast=int)
-    return val if val > 0 else LAUNCH_COUNTDOWN
+def get_card_select_time():
+    """Seconds players have to buy cards before each game. Admin-configurable."""
+    val = _cached_setting('card_select_time', CARD_SELECT_TIME, cast=int)
+    return val if val > 0 else CARD_SELECT_TIME
 
 def get_house_fee():
     raw = _cached_setting('house_fee_pct', int(HOUSE_FEE * 100), cast=int)
@@ -285,7 +278,7 @@ def remove_stake(stake):
             # Already stopped or never started — treat as success
             return True, "ሩሙ ቀደም ብሎ ቆሟል"
         state = room_states.get(stake, {})
-        if state.get('status') in ('playing', 'launching'):
+        if state.get('status') == 'playing':
             return False, "ጨዋታ በሂደት ላይ ነው — ሩም ሊሰረዝ አይችልም"
         _stopped_stakes.add(stake)
         STAKES.remove(stake)
@@ -304,61 +297,33 @@ def _room_loop(stake):
                     logger.info(f"Room {stake} ETB: loop stopping (room removed).")
                     return
 
-            # ── WAITING PHASE: poll until enough cards are purchased ──────────
-            min_cards = get_min_cards()
+            # ── CARD SELECTION COUNTDOWN ──────────────────────────────────────
+            # A fixed countdown gives every player a fair window to buy a card.
+            # When it reaches 0: if ≥1 card was purchased → start the game;
+            # if nobody bought → restart from the top of the countdown.
+            select_time = get_card_select_time()
             with _lock:
                 room_states[stake]['status'] = 'waiting'
-                room_states[stake]['launch_timer'] = 0
+                room_states[stake]['launch_timer'] = select_time
 
-            logger.info(f"Room {stake} ETB: WAITING — need {min_cards} cards to launch.")
+            logger.info(f"Room {stake} ETB: CARD SELECTION — {select_time}s for players to buy cards.")
 
-            while True:
+            for t in range(select_time, -1, -1):
                 with _lock:
                     if stake in _stopped_stakes:
                         return
-                player_count = _cached_card_count(stake)
-                min_cards = get_min_cards()
-                if player_count >= min_cards:
-                    break
-                time.sleep(2)  # poll every 2s instead of 1s to reduce DB load
-
-            # ── LAUNCHING PHASE: countdown before game starts ─────────────────
-            countdown = get_launch_countdown()
-            logger.info(f"Room {stake} ETB: {player_count}/{min_cards} cards — LAUNCHING in {countdown}s.")
-
-            aborted = False
-            for t in range(countdown, -1, -1):
-                with _lock:
-                    room_states[stake]['status'] = 'launching'
                     room_states[stake]['launch_timer'] = t
+                if t > 0:
+                    time.sleep(1)
 
-                # If cards drop below threshold during countdown, abort and wait again
-                current = _cached_card_count(stake)
-                current_min = get_min_cards()
-                if current < current_min:
-                    logger.info(
-                        f"Room {stake} ETB: cards dropped to {current}/{current_min} "
-                        f"during launch countdown — aborting."
-                    )
-                    aborted = True
-                    break
-                time.sleep(1)
-
-            if aborted:
-                # Countdown was aborted (cards dropped) — loop back to WAITING
-                with _lock:
-                    room_states[stake]['status'] = 'waiting'
-                    room_states[stake]['launch_timer'] = 0
-                continue
-
-            # Countdown completed — check final count
+            # ── Check if anyone bought a card ─────────────────────────────────
+            _invalidate_card_count(stake)
             player_count = _count_session_players(stake)
-            min_cards = get_min_cards()
-            if player_count < min_cards:
-                logger.info(f"Room {stake} ETB: cards insufficient at launch time — restarting wait.")
-                continue
+            if player_count < 1:
+                logger.info(f"Room {stake} ETB: no cards purchased — restarting countdown.")
+                continue  # loop back to card selection
 
-            # ── PLAYING PHASE ─────────────────────────────────────────────
+            # ── PLAYING PHASE ─────────────────────────────────────────────────
             balls = list(range(1, 76))
             random.shuffle(balls)
 
@@ -400,7 +365,7 @@ def _room_loop(stake):
                 logger.info(f"Room {stake} ETB: all 75 balls called, no winner.")
                 _complete_session_no_winner(stake)
 
-            # ── GAME OVER: hold winner display, then reset ─────────────────
+            # ── GAME OVER: hold winner display, then start next countdown ──────
             time.sleep(WINNER_DISPLAY_SECONDS)
 
             with _lock:
@@ -411,7 +376,7 @@ def _room_loop(stake):
                 room_states[stake]['winner_card'] = None
                 room_states[stake]['prize'] = 0.0
 
-            logger.info(f"Room {stake} ETB: reset to WAITING")
+            logger.info(f"Room {stake} ETB: game over — starting next card-selection countdown.")
 
         except Exception as e:
             logger.error(f"Room {stake} ETB: UNHANDLED EXCEPTION in loop — restarting in 5s: {e}", exc_info=True)
@@ -666,10 +631,8 @@ def get_all_room_status():
         states_snapshot = {stake: dict(room_states[stake]) for stake in STAKES}
 
     alert = get_broadcast_alert()
-    # Read shared settings once — they are cached, so this is cheap
-    min_c = get_min_cards()
     fee = get_house_fee()
-    countdown = get_launch_countdown()
+    select_time = get_card_select_time()
     fee_pct = round(fee * 100)
 
     result = {}
@@ -681,10 +644,9 @@ def get_all_room_status():
             'status':           s['status'],
             'launch_timer':     s['launch_timer'],
             'cards_count':      count,
-            'min_cards':        min_c,
             'prize_pool':       prize_pool,
             'house_fee_pct':    fee_pct,
-            'launch_countdown': countdown,
+            'card_select_time': select_time,
             'broadcast_alert':  alert,
         }
     return result
