@@ -1311,13 +1311,24 @@
     <!-- Winner Modal -->
     <div id="winner-modal" class="winner-modal">
         <div class="winner-content">
-            <div class="winner-icon">🏆</div>
-            <div id="winner-title">WINNER!</div>
-            <div class="winner-name-box">
-                <div id="winner-display-name"></div>
+            <div class="winner-trophy-anim">🏆</div>
+            <div id="winner-title" class="winner-title-text">WINNER!</div>
+
+            <div class="winner-info-section">
+                <div class="winner-name-row">
+                    <span id="winner-display-name" class="winner-name"></span>
+                    <span id="winner-card-badge" class="winner-card-badge">#--</span>
+                </div>
+                <div id="winner-prize-display" class="winner-prize-display"></div>
+                <div id="winner-pattern-label" class="winner-pattern-label"></div>
             </div>
-            <div id="winner-card-container" class="winner-card-preview"></div>
-            <button class="modal-close-btn" onclick="document.getElementById('winner-modal').classList.remove('active')">ዝጋ / Close</button>
+
+            <div class="winner-card-section">
+                <div class="winner-card-col-headers" id="winner-card-header"></div>
+                <div id="winner-card-container" class="winner-card-grid"></div>
+            </div>
+
+            <button class="modal-close-btn" onclick="document.getElementById('winner-modal').classList.remove('active')">ዝጋ</button>
         </div>
     </div>
 

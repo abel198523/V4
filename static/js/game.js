@@ -361,27 +361,34 @@ function _showGameStartCountdown(callback) {
 
 // ── Winning Pattern Helper ────────────────────────────
 function getWinningPattern(cardData, calledBalls) {
-    if (!cardData || !calledBalls) return [];
-    const called = new Set(calledBalls);
+    const info = identifyWinPattern(cardData, calledBalls);
+    return info.cells;
+}
+
+function identifyWinPattern(cardData, calledBalls) {
+    if (!cardData || !calledBalls) return { cells: [], type: 'ቢንጎ' };
+    const called = new Set((calledBalls).map(n => Number(n)));
     const letters = ['B', 'I', 'N', 'G', 'O'];
     const grid = [];
     for (let row = 0; row < 5; row++) {
         const r = [];
         for (const l of letters) {
             const val = cardData[l][row];
-            r.push({ val, hit: val === 'FREE' || called.has(val) });
+            r.push({ val, hit: val === 'FREE' || called.has(Number(val)) });
         }
         grid.push(r);
     }
-    for (const row of grid) {
-        if (row.every(c => c.hit)) return row.map(c => c.val);
+    const rowNames = ['1ኛ ረድፍ', '2ኛ ረድፍ', '3ኛ ረድፍ', '4ኛ ረድፍ', '5ኛ ረድፍ'];
+    for (let i = 0; i < 5; i++) {
+        if (grid[i].every(c => c.hit)) return { cells: grid[i].map(c => c.val), type: rowNames[i] };
     }
+    const colNames = ['B አምድ', 'I አምድ', 'N አምድ', 'G አምድ', 'O አምድ'];
     for (let c = 0; c < 5; c++) {
-        if (grid.every(r => r[c].hit)) return grid.map(r => r[c].val);
+        if (grid.every(r => r[c].hit)) return { cells: grid.map(r => r[c].val), type: colNames[c] };
     }
-    if (grid.every((r, i) => r[i].hit)) return grid.map((r, i) => r[i].val);
-    if (grid.every((r, i) => r[4 - i].hit)) return grid.map((r, i) => r[4 - i].val);
-    return calledBalls;
+    if (grid.every((r, i) => r[i].hit)) return { cells: grid.map((r, i) => r[i].val), type: 'ዲያጎናል ↘' };
+    if (grid.every((r, i) => r[4 - i].hit)) return { cells: grid.map((r, i) => r[4 - i].val), type: 'ዲያጎናል ↙' };
+    return { cells: [], type: 'ቢንጎ' };
 }
 
 // ── Near-Bingo Calculator ─────────────────────────────
@@ -658,40 +665,74 @@ function showToast(message) {
     setTimeout(() => toast.classList.remove('active'), 3000);
 }
 
-function showWinnerModal(name, winCard, winPattern, prize, isMe) {
+function showWinnerModal(name, cardNumber, cardData, calledBalls, prize, isMe) {
     const modal = document.getElementById('winner-modal');
-    const nameEl = document.getElementById('winner-display-name');
-    const cardCont = document.getElementById('winner-card-container');
-    const titleEl = document.getElementById('winner-title');
-    if (!modal || !nameEl || !cardCont) return;
+    if (!modal) return;
 
-    if (isMe) {
-        if (titleEl) titleEl.innerText = '🏆 አሸነፉ! YOU WIN!';
-        nameEl.innerHTML = `<span style="color:#f59e0b;font-size:1.2rem;font-weight:900;">${name}</span>
-            <div style="color:#22c55e;font-size:1rem;font-weight:800;margin-top:6px;">+${prize ? prize.toFixed(2) : '0.00'} ETB</div>`;
-        // Sync balance
-        fetchAndSyncBalance();
-    } else {
-        if (titleEl) titleEl.innerText = 'WINNER!';
-        nameEl.innerHTML = `<span style="color:#f59e0b;">${name}</span>
-            <div style="color:#64748b;font-size:0.85rem;margin-top:4px;">Prize: ${prize ? prize.toFixed(2) : '0.00'} ETB</div>`;
+    // Title
+    const titleEl = document.getElementById('winner-title');
+    if (titleEl) titleEl.innerText = isMe ? '🏆 አሸንፈዋል!' : '🏆 አሸናፊ!';
+
+    // Winner name
+    const nameEl = document.getElementById('winner-display-name');
+    if (nameEl) nameEl.innerText = name || '';
+
+    // Card number badge
+    const badgeEl = document.getElementById('winner-card-badge');
+    if (badgeEl) badgeEl.innerText = cardNumber ? `ካርድ #${cardNumber}` : '';
+
+    // Prize display
+    const prizeEl = document.getElementById('winner-prize-display');
+    if (prizeEl) {
+        const amt = (prize || 0).toFixed(2);
+        prizeEl.innerHTML = `<span class="prize-amount">+${amt}</span><span class="prize-currency"> ETB</span>`;
     }
 
-    cardCont.innerHTML = '';
-    if (winCard && winPattern) {
-        const letters = ['B', 'I', 'N', 'G', 'O'];
-        for (let row = 0; row < 5; row++) {
-            letters.forEach(l => {
-                const val = winCard[l][row];
-                const cell = document.createElement('div');
-                cell.className = 'win-cell';
-                cell.innerText = val === 'FREE' ? '★' : val;
-                if (winPattern.includes(val) || val === 'FREE') cell.classList.add('highlight');
-                cardCont.appendChild(cell);
-            });
+    // Winning pattern identification
+    const winInfo = identifyWinPattern(cardData, calledBalls || []);
+    const patternEl = document.getElementById('winner-pattern-label');
+    if (patternEl) patternEl.innerHTML = `⚡ ${winInfo.type}`;
+
+    // Build BINGO column headers
+    const headerEl = document.getElementById('winner-card-header');
+    if (headerEl) {
+        const colColors = { B: '#3b82f6', I: '#8b5cf6', N: '#22c55e', G: '#f59e0b', O: '#ef4444' };
+        headerEl.innerHTML = '';
+        ['B','I','N','G','O'].forEach(l => {
+            const h = document.createElement('div');
+            h.className = 'wcch-cell';
+            h.innerText = l;
+            h.style.color = colColors[l];
+            headerEl.appendChild(h);
+        });
+    }
+
+    // Build 5×5 card grid
+    const cardCont = document.getElementById('winner-card-container');
+    if (cardCont) {
+        cardCont.innerHTML = '';
+        const calledSet = new Set((calledBalls || []).map(n => Number(n)));
+        const winCells = new Set(winInfo.cells.map(v => v === 'FREE' ? 'FREE' : Number(v)));
+        if (cardData) {
+            const letters = ['B','I','N','G','O'];
+            for (let row = 0; row < 5; row++) {
+                letters.forEach(l => {
+                    const val = cardData[l][row];
+                    const cell = document.createElement('div');
+                    const isFree = val === 'FREE';
+                    const numVal = isFree ? null : Number(val);
+                    const isWin = isFree ? winCells.has('FREE') : winCells.has(numVal);
+                    const isCalled = isFree || calledSet.has(numVal);
+                    cell.className = 'wc-cell' + (isWin ? ' winning' : isCalled ? ' called' : '');
+                    cell.innerText = isFree ? '★' : val;
+                    cardCont.appendChild(cell);
+                });
+            }
         }
     }
+
     modal.classList.add('active');
+    if (isMe) fetchAndSyncBalance();
 }
 
 socket.onmessage = (event) => {
@@ -1624,9 +1665,7 @@ async function pollGameState(stake) {
             rs.winnerShown = true;
             stopGameStatePoll();
             const isMe = (data.winner === (window.CURRENT_USERNAME || ''));
-            const winCard = isMe ? rs.myGameCard : null;
-            const winPat = isMe ? getWinningPattern(rs.myGameCard, data.balls) : null;
-            showWinnerModal(data.winner, winCard, winPat, data.prize, isMe);
+            showWinnerModal(data.winner, data.winner_card, data.winner_card_data, data.balls, data.prize, isMe);
             if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
             setTimeout(() => {
                 const modal = document.getElementById('winner-modal');
@@ -1722,10 +1761,10 @@ async function checkMyCardForBingo(calledBalls) {
             if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
             showToast('🏆 ቢንጎ! አሸንፈዋል! ሽልማት ወደ ባላንስዎ ተጨምሯል።');
 
-            // Highlight winning cells on the card
-            const winPat = getWinningPattern(state.myGameCard, calledBalls);
-            if (winPat && winPat.length) {
-                winPat.forEach(val => {
+            // Highlight winning cells on the physical card UI
+            const winInfo = identifyWinPattern(state.myGameCard, calledBalls);
+            if (winInfo.cells && winInfo.cells.length) {
+                winInfo.cells.forEach(val => {
                     if (val === 'FREE') return;
                     const el = document.getElementById(`cell-${val}`);
                     if (el) {
@@ -1735,10 +1774,22 @@ async function checkMyCardForBingo(calledBalls) {
                 });
             }
 
-            // Refresh balance after short delay so prize is reflected
-            setTimeout(() => fetchAndSyncBalance(), 2000);
+            // Show winner modal to the claimant immediately
+            showWinnerModal(
+                window.CURRENT_USERNAME || 'You',
+                state.purchasedCard,
+                state.myGameCard,
+                calledBalls,
+                data.prize || 0,
+                true
+            );
+
             // Return to lobby after showing the win
-            setTimeout(() => handleGameOverReturn(currentRoom), 8000);
+            setTimeout(() => {
+                const wm = document.getElementById('winner-modal');
+                if (wm) wm.classList.remove('active');
+                handleGameOverReturn(currentRoom);
+            }, 8000);
         } else {
             showToast(`ቢንጎ: ${data.message || 'ክሌም ተቀባይነት አላገኘም'}`);
         }

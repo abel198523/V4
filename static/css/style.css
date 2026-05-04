@@ -2585,3 +2585,179 @@ header {
     flex-shrink: 0;
     margin-left: 6px;
 }
+
+/* ═══════════════════════════════════════════════════
+   WINNER MODAL — Full Redesign
+═══════════════════════════════════════════════════ */
+.winner-modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.92);
+    z-index: 9500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(12px);
+}
+.winner-modal.active { display: flex; animation: fadeIn 0.35s ease; }
+
+.winner-content {
+    background: linear-gradient(150deg, #1a0f35, #0f172a 50%, #12213a);
+    border: 2px solid #f59e0b;
+    border-radius: 28px;
+    padding: 26px 22px 22px;
+    text-align: center;
+    max-width: 360px;
+    width: 93%;
+    box-shadow: 0 0 60px rgba(245,158,11,0.45), 0 0 120px rgba(245,158,11,0.15);
+    animation: winner-pop 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    max-height: 92vh;
+    overflow-y: auto;
+}
+@keyframes winner-pop {
+    from { transform: scale(0.5) rotate(-4deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0deg);    opacity: 1; }
+}
+
+.winner-trophy-anim {
+    font-size: 58px;
+    display: block;
+    animation: trophy-bounce 1.1s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 18px #f59e0b);
+    margin-bottom: 6px;
+    line-height: 1;
+}
+@keyframes trophy-bounce {
+    from { transform: translateY(0) scale(1);    filter: drop-shadow(0 0 12px #f59e0b); }
+    to   { transform: translateY(-7px) scale(1.07); filter: drop-shadow(0 0 26px #fbbf24); }
+}
+
+.winner-title-text {
+    font-size: 2rem;
+    font-weight: 900;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24, #f97316, #f59e0b);
+    background-size: 300% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 4px;
+    margin-bottom: 14px;
+    animation: shine-text 2.5s linear infinite;
+}
+@keyframes shine-text {
+    to { background-position: 300% center; }
+}
+
+.winner-info-section {
+    background: rgba(245,158,11,0.07);
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 16px;
+    padding: 13px 16px;
+    margin-bottom: 14px;
+}
+.winner-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.winner-name {
+    font-size: 1.35rem;
+    font-weight: 900;
+    color: #f59e0b;
+}
+.winner-card-badge {
+    background: rgba(59,130,246,0.18);
+    border: 1px solid rgba(59,130,246,0.5);
+    color: #93c5fd;
+    padding: 3px 11px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.winner-prize-display {
+    margin: 5px 0 8px;
+    line-height: 1;
+}
+.prize-amount {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #22c55e;
+    text-shadow: 0 0 20px rgba(34,197,94,0.5);
+}
+.prize-currency {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #4ade80;
+    margin-left: 3px;
+}
+.winner-pattern-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(139,92,246,0.18);
+    border: 1px solid rgba(139,92,246,0.4);
+    color: #c4b5fd;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+/* Card preview inside winner modal */
+.winner-card-section { margin: 4px 0 16px; }
+
+.winner-card-col-headers {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+    margin-bottom: 3px;
+    padding: 0 2px;
+}
+.wcch-cell {
+    text-align: center;
+    font-size: 0.88rem;
+    font-weight: 900;
+    padding: 2px 0;
+    letter-spacing: 1px;
+}
+
+.winner-card-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+    padding: 2px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+}
+.wc-cell {
+    aspect-ratio: 1;
+    background: #1e293b;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    color: #475569;
+    border: 1px solid transparent;
+}
+.wc-cell.called {
+    background: rgba(34,197,94,0.14);
+    border-color: rgba(34,197,94,0.3);
+    color: #4ade80;
+}
+.wc-cell.winning {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    border-color: #f59e0b;
+    color: #0f172a;
+    font-weight: 900;
+    box-shadow: 0 0 10px rgba(245,158,11,0.7);
+    animation: wc-pulse 0.9s ease-in-out infinite alternate;
+}
+@keyframes wc-pulse {
+    from { transform: scale(1);    box-shadow: 0 0 6px rgba(245,158,11,0.5); }
+    to   { transform: scale(1.09); box-shadow: 0 0 16px rgba(245,158,11,0.95); }
+}

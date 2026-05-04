@@ -693,11 +693,19 @@ def get_all_room_status():
 def get_room_game_state(stake):
     with _lock:
         s = room_states[stake]
+        winner_card_data = None
+        if s.get('winner_card'):
+            try:
+                from card_data import get_card_data
+                winner_card_data = get_card_data(int(s['winner_card']))
+            except Exception:
+                pass
         return {
             'status': s['status'],
             'balls': list(s['balls']),
             'winner': s['winner'],
             'winner_card': s['winner_card'],
+            'winner_card_data': winner_card_data,
             'prize': s['prize'],
             'launch_timer': s['launch_timer'],
         }
