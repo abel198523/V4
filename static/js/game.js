@@ -161,7 +161,13 @@ async function _syncTimers() {
             // ① playing → waiting/launching: game ended → return to selection screen
             if (prev.status === 'playing' && info.status !== 'playing' && currentRoom == stake) {
                 _gameStarted[stake] = false;
-                handleGameOverReturn(stake);
+                // If the winner modal is already showing (poll caught the winner),
+                // let its own setTimeout handle the return so we don't interrupt it.
+                const _winModal = document.getElementById('winner-modal');
+                const _winModalActive = _winModal && _winModal.classList.contains('active');
+                if (!_winModalActive) {
+                    handleGameOverReturn(stake);
+                }
             }
 
             // ② non-playing → playing: game just started
@@ -1657,7 +1663,7 @@ function startGameStatePoll(stake) {
     const rs = getRoomState(stake);
     rs.lastBallCount = 0;
     rs.winnerShown = false;
-    _gameStatePollInterval = setInterval(() => pollGameState(stake), 1500);
+    _gameStatePollInterval = setInterval(() => pollGameState(stake), 1000);
 }
 
 function stopGameStatePoll() {
@@ -1716,7 +1722,7 @@ async function pollGameState(stake) {
     } catch (e) { /* silent */ }
 }
 
-const WINNER_DISPLAY_SECONDS = 8;
+const WINNER_DISPLAY_SECONDS = 12;
 
 function _detectBingo(cardData, calledBalls) {
     if (!cardData || !calledBalls) return false;
