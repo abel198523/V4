@@ -289,50 +289,60 @@ def remove_stake(stake):
 def _room_loop(stake):
     logger.info(f"Room loop started for {stake} ETB room.")
     while True:
-        # ── Check if this room has been removed ───────────────────────────
-        with _lock:
-            if stake in _stopped_stakes:
-                logger.info(f"Room {stake} ETB: loop stopping (room removed).")
-                return
-
-        # ── WAITING PHASE: poll until enough cards are purchased ──────────
-        min_cards = get_min_cards()
-        with _lock:
-            room_states[stake]['status'] = 'waiting'
-            room_states[stake]['launch_timer'] = 0
-
-        logger.info(f"Room {stake} ETB: WAITING — need {min_cards} cards to launch.")
-
-        while True:
+        try:
+            # ── Check if this room has been removed ───────────────────────────
             with _lock:
                 if stake in _stopped_stakes:
+                    logger.info(f"Room {stake} ETB: loop stopping (room removed).")
                     return
-            player_count = _cached_card_count(stake)
+
+            # ── WAITING PHASE: poll until enough cards are purchased ──────────
             min_cards = get_min_cards()
-            if player_count >= min_cards:
-                break
-            time.sleep(2)  # poll every 2s instead of 1s to reduce DB load
-
-        # ── LAUNCHING PHASE: countdown before game starts ─────────────────
-        countdown = get_launch_countdown()
-        logger.info(f"Room {stake} ETB: {player_count}/{min_cards} cards — LAUNCHING in {countdown}s.")
-
-        for t in range(countdown, -1, -1):
             with _lock:
-                room_states[stake]['status'] = 'launching'
-                room_states[stake]['launch_timer'] = t
+                room_states[stake]['status'] = 'waiting'
+                room_states[stake]['launch_timer'] = 0
 
-            # If cards drop below threshold during countdown, abort and wait again
-            current = _cached_card_count(stake)
-            current_min = get_min_cards()
-            if current < current_min:
-                logger.info(
-                    f"Room {stake} ETB: cards dropped to {current}/{current_min} "
-                    f"during launch countdown — aborting."
-                )
-                break
-            time.sleep(1)
-        else:
+            logger.info(f"Room {stake} ETB: WAITING — need {min_cards} cards to launch.")
+
+            while True:
+                with _lock:
+                    if stake in _stopped_stakes:
+                        return
+                player_count = _cached_card_count(stake)
+                min_cards = get_min_cards()
+                if player_count >= min_cards:
+                    break
+                time.sleep(2)  # poll every 2s instead of 1s to reduce DB load
+
+            # ── LAUNCHING PHASE: countdown before game starts ─────────────────
+            countdown = get_launch_countdown()
+            logger.info(f"Room {stake} ETB: {player_count}/{min_cards} cards — LAUNCHING in {countdown}s.")
+
+            aborted = False
+            for t in range(countdown, -1, -1):
+                with _lock:
+                    room_states[stake]['status'] = 'launching'
+                    room_states[stake]['launch_timer'] = t
+
+                # If cards drop below threshold during countdown, abort and wait again
+                current = _cached_card_count(stake)
+                current_min = get_min_cards()
+                if current < current_min:
+                    logger.info(
+                        f"Room {stake} ETB: cards dropped to {current}/{current_min} "
+                        f"during launch countdown — aborting."
+                    )
+                    aborted = True
+                    break
+                time.sleep(1)
+
+            if aborted:
+                # Countdown was aborted (cards dropped) — loop back to WAITING
+                with _lock:
+                    room_states[stake]['status'] = 'waiting'
+                    room_states[stake]['launch_timer'] = 0
+                continue
+
             # Countdown completed — check final count
             player_count = _count_session_players(stake)
             min_cards = get_min_cards()
@@ -390,12 +400,10 @@ def _room_loop(stake):
                 room_states[stake]['prize'] = 0.0
 
             logger.info(f"Room {stake} ETB: reset to WAITING")
-            continue
 
-        # Countdown was aborted (cards dropped) — loop back to WAITING
-        with _lock:
-            room_states[stake]['status'] = 'waiting'
-            room_states[stake]['launch_timer'] = 0
+        except Exception as e:
+            logger.error(f"Room {stake} ETB: UNHANDLED EXCEPTION in loop — restarting in 5s: {e}", exc_info=True)
+            time.sleep(5)  # brief pause then loop resumes automatically
 
 
 def _send_daily_revenue_report(manual=False):
@@ -586,6 +594,29 @@ def _daily_report_loop():
         _warn_expiring_bonuses()
 
 
+def _ensure_threads_alive():
+    """Restart any room-loop threads that have died unexpectedly."""
+    for stake in list(STAKES):
+        t = _timer_threads.get(stake)
+        if t is None or not t.is_alive():
+            logger.warning(f"Room {stake} ETB: thread dead — restarting!")
+            new_t = threading.Thread(target=_room_loop, args=(stake,), daemon=True)
+            new_t.name = f"room-loop-{stake}"
+            _timer_threads[stake] = new_t
+            new_t.start()
+
+
+def _watchdog_loop():
+    """Daemon thread: check every 30s that all room loops are alive; revive any that died."""
+    logger.info("Watchdog started — monitoring room loop threads every 30s.")
+    while True:
+        time.sleep(30)
+        try:
+            _ensure_threads_alive()
+        except Exception as e:
+            logger.error(f"Watchdog error: {e}")
+
+
 def start_all_room_timers():
     for stake in STAKES:
         if stake not in _timer_threads or not _timer_threads[stake].is_alive():
@@ -598,7 +629,11 @@ def start_all_room_timers():
     report_thread.name = "daily-report-scheduler"
     report_thread.start()
 
-    logger.info("All room loops started.")
+    watchdog_thread = threading.Thread(target=_watchdog_loop, daemon=True)
+    watchdog_thread.name = "room-watchdog"
+    watchdog_thread.start()
+
+    logger.info("All room loops and watchdog started.")
 
 
 def set_room_playing(stake):
