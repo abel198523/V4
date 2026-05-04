@@ -1603,54 +1603,93 @@ def admin_in_game_alert():
 
 # ─── Card Purchase (by stake) ─────────────────────────────────────────────────
 
+@app.route("/api/debug/session", methods=["GET", "POST"])
+def debug_session():
+    """Debug endpoint: returns full session/auth/cookie/request info."""
+    import traceback as _tb
+    try:
+        from flask import session as flask_session
+        info = {
+            "method":           request.method,
+            "is_authenticated": current_user.is_authenticated,
+            "user_id":          current_user.get_id() if current_user.is_authenticated else None,
+            "username":         getattr(current_user, 'username', None),
+            "session_keys":     list(flask_session.keys()),
+            "cookies_received": list(request.cookies.keys()),
+            "content_type":     request.content_type,
+            "headers": {
+                "Origin":      request.headers.get("Origin"),
+                "Referer":     request.headers.get("Referer"),
+                "User-Agent":  request.headers.get("User-Agent"),
+                "X-Forwarded-Proto": request.headers.get("X-Forwarded-Proto"),
+            },
+            "scheme":           request.scheme,
+            "host":             request.host,
+        }
+        return jsonify({"ok": True, "debug": info})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e), "trace": _tb.format_exc()})
+
+
 @app.route("/api/buy-card-by-stake/<int:stake>/<int:card_number>", methods=["POST"])
 @login_required
 def buy_card_by_stake(stake, card_number):
     """Buy a card by stake amount. JS uses this instead of WebSocket."""
-    room = Room.query.filter_by(card_price=float(stake)).first()
-    if not room:
-        return jsonify({"success": False, "message": "Room not found"}), 404
-    db.session.refresh(current_user)
-    _maybe_expire_user_bonus(current_user)
-    price = room.card_price
-    dep   = float(current_user.balance or 0)
-    bonus = float(current_user.bonus_balance or 0)
-    if dep + bonus < price:
+    import traceback as _tb
+    try:
+        room = Room.query.filter_by(card_price=float(stake)).first()
+        if not room:
+            return jsonify({"success": False, "message": "Room not found", "detail": f"No room with card_price={stake}"}), 404
+        db.session.refresh(current_user)
+        _maybe_expire_user_bonus(current_user)
+        price = room.card_price
+        dep   = float(current_user.balance or 0)
+        bonus = float(current_user.bonus_balance or 0)
+        if dep + bonus < price:
+            return jsonify({
+                "success": False,
+                "message": f"ባላንስ አነስተኛ ነው። ያሎት: {dep + bonus:.2f} ETB"
+            }), 400
+        game_session = get_or_create_session(room.id)
+        if not game_session:
+            return jsonify({"success": False, "message": "Session error", "detail": "get_or_create_session returned None"}), 500
+        if Transaction.query.filter_by(
+            room_id=room.id, session_id=game_session.id, card_number=card_number
+        ).first():
+            return jsonify({"success": False, "message": "ይህ ካርድ ተወስዷል"}), 400
+        # Deduct bonus_balance first, then deposit balance
+        if bonus >= price:
+            current_user.bonus_balance = round(bonus - price, 2)
+        else:
+            current_user.bonus_balance = 0.0
+            current_user.balance       = round(dep - (price - bonus), 2)
+        # Snapshot balance BEFORE streak reward is added
+        dep_new   = round(float(current_user.balance), 2)
+        bonus_new = round(float(current_user.bonus_balance), 2)
+        _check_and_update_streak(current_user)
+        db.session.add(Transaction(
+            user_id=current_user.id,
+            room_id=room.id,
+            session_id=game_session.id,
+            amount=room.card_price,
+            card_number=card_number
+        ))
+        db.session.commit()
+        # Invalidate the in-memory card-count cache so next poll sees fresh count
+        from game_engine import _invalidate_card_count
+        _invalidate_card_count(stake)
+        return jsonify({"success": True, "new_balance": dep_new + bonus_new,
+                        "deposit_balance": dep_new, "bonus_balance": bonus_new,
+                        "streak": current_user.current_streak})
+    except Exception as e:
+        db.session.rollback()
+        import logging as _log
+        _log.error(f"buy_card_by_stake ERROR stake={stake} card={card_number}: {e}\n{_tb.format_exc()}")
         return jsonify({
             "success": False,
-            "message": f"ባላንስ አነስተኛ ነው። ያሎት: {dep + bonus:.2f} ETB"
-        }), 400
-    game_session = get_or_create_session(room.id)
-    if not game_session:
-        return jsonify({"success": False, "message": "Session error"}), 500
-    if Transaction.query.filter_by(
-        room_id=room.id, session_id=game_session.id, card_number=card_number
-    ).first():
-        return jsonify({"success": False, "message": "ይህ ካርድ ተወስዷል"}), 400
-    # Deduct bonus_balance first, then deposit balance
-    if bonus >= price:
-        current_user.bonus_balance = round(bonus - price, 2)
-    else:
-        current_user.bonus_balance = 0.0
-        current_user.balance       = round(dep - (price - bonus), 2)
-    # Snapshot balance BEFORE streak reward is added
-    dep_new   = round(float(current_user.balance), 2)
-    bonus_new = round(float(current_user.bonus_balance), 2)
-    _check_and_update_streak(current_user)
-    db.session.add(Transaction(
-        user_id=current_user.id,
-        room_id=room.id,
-        session_id=game_session.id,
-        amount=room.card_price,
-        card_number=card_number
-    ))
-    db.session.commit()
-    # Invalidate the in-memory card-count cache so next poll sees fresh count
-    from game_engine import _invalidate_card_count
-    _invalidate_card_count(stake)
-    return jsonify({"success": True, "new_balance": dep_new + bonus_new,
-                    "deposit_balance": dep_new, "bonus_balance": bonus_new,
-                    "streak": current_user.current_streak})
+            "message": f"Server error: {str(e)}",
+            "detail":  _tb.format_exc()
+        }), 500
 
 
 # ─── Admin Room Management ─────────────────────────────────────────────────────

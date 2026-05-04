@@ -520,6 +520,50 @@ function createAvailableCards() {
     }
 }
 
+function _showDebugPanel(info) {
+    let panel = document.getElementById('_debug_panel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = '_debug_panel';
+        panel.style.cssText = `
+            position:fixed;bottom:0;left:0;right:0;z-index:99999;
+            background:#1a0000;color:#ff9999;font-family:monospace;font-size:11px;
+            padding:10px;max-height:55vh;overflow-y:auto;
+            border-top:2px solid #ff4444;
+        `;
+        const closeBtn = document.createElement('button');
+        closeBtn.innerText = '✕ ዝጋ';
+        closeBtn.style.cssText = 'float:right;background:#ff4444;color:#fff;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;';
+        closeBtn.onclick = () => panel.remove();
+        panel.appendChild(closeBtn);
+        const title = document.createElement('div');
+        title.style.cssText = 'font-weight:bold;color:#ff6666;margin-bottom:6px;font-size:12px;';
+        title.innerText = '🔴 DEBUG — ስህተት ዝርዝር';
+        panel.appendChild(title);
+        document.body.appendChild(panel);
+    }
+    const entry = document.createElement('pre');
+    entry.style.cssText = 'margin:4px 0;padding:6px;background:#2a0000;border-radius:4px;white-space:pre-wrap;word-break:break-all;';
+    entry.innerText = JSON.stringify(info, null, 2);
+    panel.appendChild(entry);
+
+    // Also run session debug fetch and show result
+    fetch('/api/debug/session', { method: 'POST', credentials: 'include' })
+        .then(r => r.json())
+        .then(d => {
+            const sess = document.createElement('pre');
+            sess.style.cssText = 'margin:4px 0;padding:6px;background:#001a00;color:#99ff99;border-radius:4px;white-space:pre-wrap;word-break:break-all;';
+            sess.innerText = '🔐 SESSION INFO:\n' + JSON.stringify(d, null, 2);
+            panel.appendChild(sess);
+        })
+        .catch(err => {
+            const sess = document.createElement('pre');
+            sess.style.cssText = 'margin:4px 0;padding:6px;background:#001a00;color:#ff9999;border-radius:4px;';
+            sess.innerText = '🔐 SESSION fetch failed: ' + err.message;
+            panel.appendChild(sess);
+        });
+}
+
 function showToast(message) {
     const toast = document.getElementById('notification-toast');
     const msgEl = document.getElementById('toast-message');
@@ -1144,7 +1188,31 @@ if (confirmCard) {
                 setTimeout(() => { window.location.href = '/login'; }, 1500);
                 return;
             }
-            const data = await res.json();
+            const rawText = await res.text();
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (parseErr) {
+                _showDebugPanel({
+                    phase: 'JSON parse failed',
+                    status: res.status,
+                    redirected: res.redirected,
+                    url: res.url,
+                    rawBody: rawText.substring(0, 600),
+                    parseError: parseErr.message
+                });
+                return;
+            }
+            if (!res.ok && !data.success) {
+                _showDebugPanel({
+                    phase: 'Server error response',
+                    status: res.status,
+                    message: data.message,
+                    detail: data.detail || '(no detail)'
+                });
+                showToast(`❌ ${data.message || 'ስህተት ተፈጥሯል'}`);
+                return;
+            }
 
             if (data.success) {
                 // Commit card to game state
@@ -1203,6 +1271,7 @@ if (confirmCard) {
                 previewOverlay.classList.remove('active');
             }
         } catch (e) {
+            _showDebugPanel({ phase: 'fetch threw exception', error: e.message, stack: e.stack });
             showToast('❌ ግንኙነት ተሳስቷል። እባክዎ ዳግም ሞክሩ።');
         } finally {
             confirmCard.disabled = false;
