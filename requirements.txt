@@ -16,3 +16,8 @@ flask-sqlalchemy
 gunicorn
 psycopg2-binary
 Flask-Compress==1.15
+email_validator
+flask
+flask-sqlalchemy
+gunicorn
+psycopg2-binary
