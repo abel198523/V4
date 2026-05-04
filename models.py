@@ -8,6 +8,7 @@ class User(UserMixin, db.Model):
     telegram_chat_id = db.Column(db.String(64), unique=True, nullable=True)
     phone_number = db.Column(db.String(32), nullable=True)
     balance = db.Column(db.Float, default=0.0)
+    withdrawable_balance = db.Column(db.Float, default=0.0, nullable=False, server_default='0')
     is_admin = db.Column(db.Boolean, default=False)
     bonus_balance = db.Column(db.Float, default=0.0, nullable=False, server_default='0')
     bonus_expires_at = db.Column(db.DateTime(timezone=True), nullable=True)

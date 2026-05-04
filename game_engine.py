@@ -169,7 +169,7 @@ def _find_and_award_winner(stake, called_set):
 
             winner_list = []
             for user, card_num, card_data in winning_pairs:
-                user.balance += prize_share
+                user.withdrawable_balance = round(float(user.withdrawable_balance or 0) + prize_share, 2)
                 winner_list.append((user.username, card_num, prize_share, card_data))
 
             game_session = GameSession.query.get(session_id)

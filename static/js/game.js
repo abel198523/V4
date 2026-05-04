@@ -1693,9 +1693,10 @@ async function initApp() {
 }
 
 // Initialize immediately from server-rendered value (never stale)
-let userBalance        = (typeof window.INITIAL_BALANCE === 'number') ? window.INITIAL_BALANCE : 0;
-let userDepositBalance = (typeof window.INITIAL_DEPOSIT_BALANCE === 'number') ? window.INITIAL_DEPOSIT_BALANCE : 0;
-let userBonusBalance   = (typeof window.INITIAL_BONUS_BALANCE === 'number') ? window.INITIAL_BONUS_BALANCE : 0;
+let userBalance            = (typeof window.INITIAL_BALANCE === 'number') ? window.INITIAL_BALANCE : 0;
+let userDepositBalance     = (typeof window.INITIAL_DEPOSIT_BALANCE === 'number') ? window.INITIAL_DEPOSIT_BALANCE : 0;
+let userWithdrawable       = (typeof window.INITIAL_WITHDRAWABLE_BALANCE === 'number') ? window.INITIAL_WITHDRAWABLE_BALANCE : 0;
+let userBonusBalance       = (typeof window.INITIAL_BONUS_BALANCE === 'number') ? window.INITIAL_BONUS_BALANCE : 0;
 
 // Central balance sync — always fetches fresh value from DB
 async function fetchAndSyncBalance() {
@@ -1706,24 +1707,27 @@ async function fetchAndSyncBalance() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        const dep   = typeof data.balance       === 'number' ? data.balance       : 0;
-        const bonus = typeof data.bonus_balance === 'number' ? data.bonus_balance : 0;
-        const total = typeof data.total_balance === 'number' ? data.total_balance : dep + bonus;
+        const dep          = typeof data.balance              === 'number' ? data.balance              : 0;
+        const withdrawable = typeof data.withdrawable_balance === 'number' ? data.withdrawable_balance : 0;
+        const bonus        = typeof data.bonus_balance        === 'number' ? data.bonus_balance        : 0;
+        const total        = typeof data.total_balance        === 'number' ? data.total_balance        : dep + withdrawable + bonus;
         userDepositBalance = dep;
+        userWithdrawable   = withdrawable;
         userBonusBalance   = bonus;
         userBalance        = total;
-        const rounded = Math.round(total);
+        const rounded = Math.round(dep + bonus);
         const els = {
-            'sel-balance':          total.toFixed(2),
-            'wallet-balance-value': total.toFixed(2),
-            'walletBalance':        total.toFixed(2),
-            'profile-balance':      total.toFixed(2),
-            'sel-main-wallet':      rounded,
-            'sel-play-wallet':      rounded,
-            'wallet-deposit-value':   dep.toFixed(2),
-            'wallet-bonus-value':     bonus.toFixed(2),
-            'withdraw-balance-value': dep.toFixed(2),
-            'withdraw-bonus-display': bonus.toFixed(2),
+            'sel-balance':              total.toFixed(2),
+            'wallet-balance-value':     total.toFixed(2),
+            'walletBalance':            total.toFixed(2),
+            'profile-balance':          total.toFixed(2),
+            'sel-main-wallet':          rounded,
+            'sel-play-wallet':          rounded,
+            'wallet-deposit-value':     dep.toFixed(2),
+            'wallet-bonus-value':       bonus.toFixed(2),
+            'wallet-withdrawable-value': withdrawable.toFixed(2),
+            'withdraw-balance-value':   withdrawable.toFixed(2),
+            'withdraw-bonus-display':   bonus.toFixed(2),
         };
         Object.entries(els).forEach(([id, val]) => {
             const el = document.getElementById(id);

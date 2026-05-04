@@ -93,6 +93,7 @@ def game_page():
         rooms=rooms,
         balance=current_user.balance,
         bonus_balance=current_user.bonus_balance,
+        withdrawable_balance=current_user.withdrawable_balance,
         bot_username=BOT_USERNAME,
         has_telegram=bool(current_user.telegram_chat_id),
         tg_link_status=tg_link_status,
@@ -427,19 +428,21 @@ def do_signup():
 def get_balance():
     # Reload only the balance columns — avoids a full ORM refresh round-trip
     user = User.query.with_entities(
-        User.balance, User.bonus_balance, User.bonus_expires_at, User.username
+        User.balance, User.withdrawable_balance, User.bonus_balance, User.bonus_expires_at, User.username
     ).filter_by(id=current_user.id).first()
     if not user:
         return jsonify({"error": "user not found"}), 404
-    dep   = round(float(user.balance or 0), 2)
-    bonus = round(float(user.bonus_balance or 0), 2)
-    exp   = user.bonus_expires_at.isoformat() if user.bonus_expires_at else None
+    dep          = round(float(user.balance or 0), 2)
+    withdrawable = round(float(user.withdrawable_balance or 0), 2)
+    bonus        = round(float(user.bonus_balance or 0), 2)
+    exp          = user.bonus_expires_at.isoformat() if user.bonus_expires_at else None
     return jsonify({
-        "balance":          dep,
-        "bonus_balance":    bonus,
-        "total_balance":    round(dep + bonus, 2),
-        "bonus_expires_at": exp,
-        "username":         user.username,
+        "balance":              dep,
+        "withdrawable_balance": withdrawable,
+        "bonus_balance":        bonus,
+        "total_balance":        round(dep + withdrawable + bonus, 2),
+        "bonus_expires_at":     exp,
+        "username":             user.username,
     })
 
 
@@ -490,11 +493,12 @@ def admin_get_user(username):
     if not user:
         return jsonify({"error": "ተጠቃሚ አልተገኘም"}), 404
     return jsonify({
-        "id":            user.id,
-        "username":      user.username,
-        "balance":       round(float(user.balance or 0), 2),
-        "bonus_balance": round(float(user.bonus_balance or 0), 2),
-        "is_admin":      user.is_admin,
+        "id":                   user.id,
+        "username":             user.username,
+        "balance":              round(float(user.balance or 0), 2),
+        "withdrawable_balance": round(float(user.withdrawable_balance or 0), 2),
+        "bonus_balance":        round(float(user.bonus_balance or 0), 2),
+        "is_admin":             user.is_admin,
     })
 
 
@@ -1283,13 +1287,13 @@ def withdraw_request():
     if amount > w_max:
         return jsonify({"error": f"ከፍተኛ ማስወጣት {w_max:.0f} ETB ነው"}), 400
     db.session.refresh(current_user)
-    dep = float(current_user.balance or 0)
-    if dep < amount:
-        return jsonify({"error": f"ዲፖዚት ባላንስዎ {dep:.2f} ETB ብቻ ነው። Bonus ባላንስ ሊወጣ አይችልም።"}), 400
+    withdrawable = float(current_user.withdrawable_balance or 0)
+    if withdrawable < amount:
+        return jsonify({"error": f"ሊወጣ የሚችል ባላንስዎ {withdrawable:.2f} ETB ብቻ ነው። ዲፖዚት ባላንስ ሊወጣ አይችልም — ለጨዋታ ብቻ ነው።"}), 400
     pending = WithdrawRequest.query.filter_by(user_id=current_user.id, status='pending').first()
     if pending:
         return jsonify({"error": f"ቀደም ያስቀመጡት {pending.amount:.0f} ETB ጥያቄ አሁንም pending ነው።"}), 400
-    current_user.balance = round(dep - amount, 2)
+    current_user.withdrawable_balance = round(withdrawable - amount, 2)
     req = WithdrawRequest(user_id=current_user.id, amount=amount, method=method, account_details=account)
     db.session.add(req)
     db.session.commit()
@@ -1447,12 +1451,12 @@ def admin_handle_withdraw():
     elif action == "reject":
         req.status = 'rejected'
         if user:
-            user.balance = round(float(user.balance or 0) + req.amount, 2)
+            user.withdrawable_balance = round(float(user.withdrawable_balance or 0) + req.amount, 2)
         db.session.commit()
         _notify_user_telegram(user,
             f"❌ *ጥያቄ ተቀባይነት አላገኘም / Withdrawal Rejected*\n\n"
             f"💸 መጠን: *{req.amount:.2f} ETB*\n"
-            f"ባላንስዎ ተመልሷል። ለዝርዝር አድሚን ያግኙ።"
+            f"ሊወጣ የሚችል ባላንስዎ ተመልሷል። ለዝርዝር አድሚን ያግኙ።"
         )
         return jsonify({"message": f"❌ Rejected — {req.amount:.0f} ETB refunded to {user.username if user else '?'}"})
     return jsonify({"error": "action required (approve/reject)"}), 400

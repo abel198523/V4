@@ -123,6 +123,16 @@ with app.app_context():
     except Exception:
         db.session.rollback()
 
+    # Migration: add withdrawable_balance column if not present
+    try:
+        db.session.execute(db.text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS withdrawable_balance FLOAT NOT NULL DEFAULT 0"
+        ))
+        db.session.commit()
+        logger.info("Migration: withdrawable_balance column added.")
+    except Exception:
+        db.session.rollback()
+
     # Migration: add bonus_expires_at column if not present
     try:
         db.session.execute(db.text(

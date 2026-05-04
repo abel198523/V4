@@ -617,21 +617,27 @@
                     </div>
                 </div>
 
-                <!-- Split: Deposit + Bonus -->
+                <!-- Split: Deposit + Withdrawable + Bonus -->
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
-                    <!-- Deposit balance -->
-                    <div style="background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(16,185,129,0.08));border:1px solid rgba(34,197,94,0.3);border-radius:14px;padding:14px;">
+                    <!-- Deposit balance — play only -->
+                    <div style="background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(37,99,235,0.08));border:1px solid rgba(59,130,246,0.3);border-radius:14px;padding:14px;">
                         <div style="font-size:0.65rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">💵 ዲፖዚት ባላንስ</div>
-                        <div style="font-size:1.3rem;font-weight:900;color:#22c55e;"><span id="wallet-deposit-value">{{ "%.2f"|format(current_user.balance) }}</span></div>
-                        <div style="font-size:0.62rem;color:#4ade80;margin-top:3px;">✅ ማስወጣት ይቻላል</div>
+                        <div style="font-size:1.3rem;font-weight:900;color:#60a5fa;"><span id="wallet-deposit-value">{{ "%.2f"|format(current_user.balance) }}</span></div>
+                        <div style="font-size:0.62rem;color:#93c5fd;margin-top:3px;">🎮 ለጨዋታ ብቻ</div>
                     </div>
                     <!-- Bonus balance -->
                     <div style="background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(251,191,36,0.08));border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:14px;">
                         <div style="font-size:0.65rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🎁 ቦነስ ባላንስ</div>
                         <div style="font-size:1.3rem;font-weight:900;color:#f59e0b;"><span id="wallet-bonus-value">{{ "%.2f"|format(current_user.bonus_balance) }}</span></div>
-                        <div style="font-size:0.62rem;color:#fbbf24;margin-top:3px;">🎮 መጫወቻ ብቻ</div>
+                        <div style="font-size:0.62rem;color:#fbbf24;margin-top:3px;">🎮 ለጨዋታ ብቻ</div>
                         <div id="wallet-bonus-expiry" style="font-size:0.6rem;color:#92400e;margin-top:4px;display:none;">⏳ ያልፋል: <span id="wallet-bonus-expiry-date"></span></div>
                     </div>
+                </div>
+                <!-- Withdrawable balance — winnings only -->
+                <div style="margin-top:10px;background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(16,185,129,0.08));border:1px solid rgba(34,197,94,0.3);border-radius:14px;padding:14px;">
+                    <div style="font-size:0.65rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🏆 ሽልማት ባላንስ (ሊወጣ ይችላል)</div>
+                    <div style="font-size:1.5rem;font-weight:900;color:#22c55e;"><span id="wallet-withdrawable-value">{{ "%.2f"|format(withdrawable_balance) }}</span> ETB</div>
+                    <div style="font-size:0.62rem;color:#4ade80;margin-top:3px;">✅ ከጨዋታ ሽልማት — ማስወጣት ይቻላል</div>
                 </div>
 
                 <div class="wallet-actions" style="margin-top:12px;">
@@ -717,13 +723,13 @@
             </div>
             <div style="padding:15px;overflow-y:auto;flex:1;">
                 <div class="deposit-section">
-                    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:14px;margin-bottom:15px;">
+                    <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;padding:14px;margin-bottom:15px;">
                         <div style="text-align:center;">
-                            <div style="font-size:0.72rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px;">💵 ዲፖዚት ባላንስ (ሊወጣ ይችላል)</div>
-                            <div style="font-size:1.5rem;font-weight:800;color:#22c55e;"><span id="withdraw-balance-value">{{ "%.2f"|format(current_user.balance) }}</span> ETB</div>
+                            <div style="font-size:0.72rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px;">🏆 ሽልማት ባላንስ (ሊወጣ ይችላል)</div>
+                            <div style="font-size:1.5rem;font-weight:800;color:#22c55e;"><span id="withdraw-balance-value">{{ "%.2f"|format(withdrawable_balance) }}</span> ETB</div>
                         </div>
-                        <div style="margin-top:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:8px;text-align:center;">
-                            <div style="font-size:0.68rem;color:#92400e;font-weight:600;">🎁 ቦነስ ባላንስ — <span id="withdraw-bonus-display">{{ "%.2f"|format(current_user.bonus_balance) }}</span> ETB (ሊወጣ አይችልም)</div>
+                        <div style="margin-top:10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:8px;text-align:center;">
+                            <div style="font-size:0.68rem;color:#93c5fd;font-weight:600;">💵 ዲፖዚት — {{ "%.2f"|format(current_user.balance) }} ETB &nbsp;|&nbsp; 🎁 ቦነስ — <span id="withdraw-bonus-display">{{ "%.2f"|format(current_user.bonus_balance) }}</span> ETB &nbsp;(ለጨዋታ ብቻ)</div>
                         </div>
                     </div>
                     <div class="input-group">
@@ -1350,8 +1356,9 @@
 
     <script>
         // Always expose fresh server-side balance as a global so game.js picks it up immediately
-        window.INITIAL_BALANCE = {{ current_user.balance + current_user.bonus_balance }};
+        window.INITIAL_BALANCE = {{ current_user.balance + withdrawable_balance + current_user.bonus_balance }};
         window.INITIAL_DEPOSIT_BALANCE = {{ current_user.balance }};
+        window.INITIAL_WITHDRAWABLE_BALANCE = {{ withdrawable_balance }};
         window.INITIAL_BONUS_BALANCE = {{ current_user.bonus_balance }};
         window.CURRENT_USERNAME = "{{ current_user.username }}";
         window.CURRENT_USER_ID = {{ current_user.id }};
