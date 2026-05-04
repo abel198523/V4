@@ -30,7 +30,6 @@ function createBingoNumbers() {
 }
 
 let currentRoom = null;
-let roomTakenCards = [];
 let roomStates = {};
 
 function getRoomState(roomId) {
@@ -39,7 +38,13 @@ function getRoomState(roomId) {
             myGameCard: null,
             currentSelectedCard: null,
             currentCardData: null,
-            lastHistory: []
+            lastHistory: [],
+            takenCards: [],
+            lastBallCount: 0,
+            winnerShown: false,
+            autoClaimInProgress: false,
+            bingoFlashed: false,
+            purchasedCard: null,
         };
     }
     return roomStates[roomId];
@@ -411,7 +416,9 @@ function handleGameOverReturn(stake) {
     state.purchasedCard = null;
     state.bingoFlashed = false;
     state.lastHistory = [];
-    _autoClaimInProgress = false;
+    state.autoClaimInProgress = false;
+    state.winnerShown = false;
+    state.lastBallCount = 0;
     // Reset near-bingo bar
     const nbBar = document.getElementById('near-bingo-bar');
     if (nbBar) { nbBar.style.display = 'none'; nbBar.className = 'near-bingo-bar'; }
@@ -430,7 +437,7 @@ function handleGameOverReturn(stake) {
     if (pb) pb.style.width = '0%';
 
     // Clear taken cards so old session's cards don't show as taken in new session
-    roomTakenCards = [];
+    state.takenCards = [];
     createAvailableCards();
 
     // Return to selection screen (countdown already restarted)
@@ -462,7 +469,7 @@ async function fetchTakenCards(stake) {
         const res = await fetch(`/api/taken-cards/${stake}`);
         if (!res.ok) return;
         const data = await res.json();
-        roomTakenCards = data.taken || [];
+        getRoomState(stake).takenCards = data.taken || [];
         createAvailableCards();
     } catch (e) { /* silent — best effort */ }
 }
@@ -490,8 +497,9 @@ function createAvailableCards() {
     if (!cardsGrid) return;
     cardsGrid.innerHTML = '';
     
-    const availableCount = 100 - roomTakenCards.length;
-    const takenCount = roomTakenCards.length;
+    const takenCards = getRoomState(currentRoom).takenCards;
+    const availableCount = 100 - takenCards.length;
+    const takenCount = takenCards.length;
     
     const legendAvailable = document.querySelector('.legend-item:nth-child(1)');
     const legendTaken = document.querySelector('.legend-item:nth-child(2)');
@@ -502,7 +510,7 @@ function createAvailableCards() {
     for (let i = 1; i <= 100; i++) {
         const card = document.createElement('div');
         card.className = 'card-item';
-        if (roomTakenCards.includes(i)) card.classList.add('taken');
+        if (takenCards.includes(i)) card.classList.add('taken');
         card.innerText = i;
         
         card.onclick = () => {
@@ -691,7 +699,7 @@ socket.onmessage = (event) => {
     if (data.type === 'INIT') {
         currentRoom = data.room;
         const state = getRoomState(currentRoom);
-        roomTakenCards = data.takenCards || [];
+        state.takenCards = data.takenCards || [];
         if (!data.isGameRunning) {
             state.myGameCard = null;
             state.currentSelectedCard = null;
@@ -708,7 +716,7 @@ socket.onmessage = (event) => {
         showToast(data.message);
     } else if (data.type === 'ROOM_STATS') {
         if (data.takenCards && data.takenCards[currentRoom]) {
-            roomTakenCards = data.takenCards[currentRoom];
+            getRoomState(currentRoom).takenCards = data.takenCards[currentRoom];
             createAvailableCards();
         }
         updateRoomStats(data.stats, data.prizes);
@@ -1296,8 +1304,8 @@ if (confirmCard) {
                 }
 
                 // Mark this card taken in the local grid
-                if (!roomTakenCards.includes(state.currentSelectedCard)) {
-                    roomTakenCards.push(state.currentSelectedCard);
+                if (!state.takenCards.includes(state.currentSelectedCard)) {
+                    state.takenCards.push(state.currentSelectedCard);
                 }
                 createAvailableCards();
 
@@ -1382,7 +1390,7 @@ window.joinStake = (amount) => {
     delete _prevRoomStatus[String(amount)];
     _gameStarted[amount] = false;
     // Reset taken cards immediately when entering a room so stale data is cleared
-    roomTakenCards = [];
+    getRoomState(amount).takenCards = [];
     createAvailableCards();
     // Fetch fresh taken cards for this room's current session
     fetchTakenCards(amount);
@@ -1587,13 +1595,12 @@ function updateUserData(data) {
 
 // ---- Game State Polling (runs while a room is PLAYING) ----
 let _gameStatePollInterval = null;
-let _lastBallCount = 0;
-let _winnerShown = false;
 
 function startGameStatePoll(stake) {
     stopGameStatePoll();
-    _lastBallCount = 0;
-    _winnerShown = false;
+    const rs = getRoomState(stake);
+    rs.lastBallCount = 0;
+    rs.winnerShown = false;
     _gameStatePollInterval = setInterval(() => pollGameState(stake), 1500);
 }
 
@@ -1610,14 +1617,15 @@ async function pollGameState(stake) {
         if (!res.ok) return;
         const data = await res.json();
 
+        const rs = getRoomState(stake);
+
         // ── Auto-claim: winner announced by server (check FIRST, before status gate) ──
-        if (data.winner && !_winnerShown) {
-            _winnerShown = true;
+        if (data.winner && !rs.winnerShown) {
+            rs.winnerShown = true;
             stopGameStatePoll();
-            const state = getRoomState(currentRoom);
             const isMe = (data.winner === (window.CURRENT_USERNAME || ''));
-            const winCard = isMe ? state.myGameCard : null;
-            const winPat = isMe ? getWinningPattern(state.myGameCard, data.balls) : null;
+            const winCard = isMe ? rs.myGameCard : null;
+            const winPat = isMe ? getWinningPattern(rs.myGameCard, data.balls) : null;
             showWinnerModal(data.winner, winCard, winPat, data.prize, isMe);
             if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
             setTimeout(() => {
@@ -1634,8 +1642,8 @@ async function pollGameState(stake) {
         }
 
         // Update board only when new balls have been called
-        if (data.balls && data.balls.length !== _lastBallCount) {
-            _lastBallCount = data.balls.length;
+        if (data.balls && data.balls.length !== rs.lastBallCount) {
+            rs.lastBallCount = data.balls.length;
             updateGameUI(data.balls);
             // Flash latest ball + always play ball-call sound
             const latest = data.balls[data.balls.length - 1];
@@ -1676,18 +1684,16 @@ function _detectBingo(cardData, calledBalls) {
     return false;
 }
 
-let _autoClaimInProgress = false;
-
 async function checkMyCardForBingo(calledBalls) {
     const state = getRoomState(currentRoom);
-    if (!state.myGameCard || state.bingoFlashed || _autoClaimInProgress) return;
+    if (!state.myGameCard || state.bingoFlashed || state.autoClaimInProgress) return;
 
     const hasBingo = _detectBingo(state.myGameCard, calledBalls);
     if (!hasBingo) return;
 
     // Lock immediately to prevent duplicate claims
     state.bingoFlashed = true;
-    _autoClaimInProgress = true;
+    state.autoClaimInProgress = true;
 
     showToast('🎉 ቢንጎ ተገኝቷል! ክሌም እየተደረገ ነው...');
 
@@ -1703,7 +1709,7 @@ async function checkMyCardForBingo(calledBalls) {
             // Non-200 — game may have already been won by someone else
             const errData = await res.json().catch(() => ({}));
             showToast(`ቢንጎ: ${errData.message || 'ክሌም አልተቻለም'}`);
-            _autoClaimInProgress = false;
+            state.autoClaimInProgress = false;
             return;
         }
 
@@ -1741,7 +1747,7 @@ async function checkMyCardForBingo(calledBalls) {
         // Reset flag so the next ball poll can retry
         state.bingoFlashed = false;
     } finally {
-        _autoClaimInProgress = false;
+        state.autoClaimInProgress = false;
     }
 }
 
@@ -1752,15 +1758,15 @@ function startGame() {
         state.myGameCard = state.currentCardData;
     }
     state.bingoFlashed = false;
-    _autoClaimInProgress = false;
+    state.autoClaimInProgress = false;
+    state.winnerShown = false;
+    state.lastBallCount = 0;
     renderMyGameCard();
     // Show player's card number in game header
     const myBoardEl = document.getElementById('sel-my-board-game');
     if (myBoardEl) myBoardEl.innerText = state.purchasedCard ? `#${state.purchasedCard}` : '--';
     // Reset game board
     updateGameUI([]);
-    _lastBallCount = 0;
-    _winnerShown = false;
     // Start polling for balls
     if (currentRoom) startGameStatePoll(currentRoom);
 }
