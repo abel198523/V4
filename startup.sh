@@ -32,10 +32,10 @@ EOF
 echo "==> Database ready. Starting gunicorn..."
 exec gunicorn main:app \
     --bind 0.0.0.0:$PORT \
-    --workers 2 \
-    --threads 4 \
+    --workers 1 \
+    --threads 8 \
     --worker-class gthread \
     --timeout 60 \
     --keep-alive 5 \
-    --max-requests 500 \
-    --max-requests-jitter 50
+    --max-requests 1000 \
+    --max-requests-jitter 100
