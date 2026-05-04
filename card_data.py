@@ -41,4 +41,6 @@ def check_bingo(card_data, called_set):
         return True
     if all(grid[i][4 - i] for i in range(5)):
         return True
+    if grid[0][0] and grid[0][4] and grid[4][0] and grid[4][4]:
+        return True
     return False

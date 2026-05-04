@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 STAKES = [10]
 BALL_INTERVAL = 3
-WINNER_DISPLAY_SECONDS = 4
+WINNER_DISPLAY_SECONDS = 8
 HOUSE_FEE = 0.10
 CARD_SELECT_TIME = 20  # seconds players have to buy cards before each game
 
@@ -64,6 +64,7 @@ room_states = {
         'winner': None,
         'winner_card': None,
         'prize': 0.0,
+        'winners': [],
     }
     for s in STAKES
 }
@@ -149,32 +150,48 @@ def _find_and_award_winner(stake, called_set):
             if not transactions:
                 return None
 
-            prize = len(transactions) * float(stake) * (1 - get_house_fee())
+            total_prize = len(transactions) * float(stake) * (1 - get_house_fee())
 
+            # Collect ALL winning transactions (support multiple simultaneous winners)
+            winning_pairs = []
             for tx in transactions:
                 card_data = get_card_data(tx.card_number)
                 if check_bingo(card_data, called_set):
                     user = User.query.get(tx.user_id)
                     if user:
-                        user.balance += prize
-                        session = GameSession.query.get(session_id)
-                        if session:
-                            session.status = 'completed'
-                            session.winner_id = user.id
-                        room.active_session_id = None
-                        db.session.commit()
-                        cards_count = len(transactions)
-                        logger.info(
-                            f"Room {stake} ETB: WINNER={user.username} "
-                            f"card=#{tx.card_number} prize={prize:.2f} ETB"
-                        )
-                        _notify_admins_game_result(
-                            stake=stake,
-                            cards=cards_count,
-                            winner=user.username,
-                            prize=round(prize, 2),
-                        )
-                        return (user.username, tx.card_number, round(prize, 2))
+                        winning_pairs.append((user, tx.card_number, get_card_data(tx.card_number)))
+
+            if not winning_pairs:
+                return None
+
+            # Split prize equally among all winners
+            prize_share = round(total_prize / len(winning_pairs), 2)
+
+            winner_list = []
+            for user, card_num, card_data in winning_pairs:
+                user.balance += prize_share
+                winner_list.append((user.username, card_num, prize_share, card_data))
+
+            game_session = GameSession.query.get(session_id)
+            if game_session:
+                game_session.status = 'completed'
+                game_session.winner_id = winning_pairs[0][0].id
+            room.active_session_id = None
+            db.session.commit()
+
+            cards_count = len(transactions)
+            names = ', '.join(f"{w[0]}(#{w[1]})" for w in winner_list)
+            logger.info(
+                f"Room {stake} ETB: WINNERS={names} "
+                f"count={len(winner_list)} prize_share={prize_share:.2f} ETB each"
+            )
+            _notify_admins_game_result(
+                stake=stake,
+                cards=cards_count,
+                winner_list=winner_list,
+                total_prize=round(total_prize, 2),
+            )
+            return winner_list
     except Exception as e:
         logger.error(f"Winner check error for room {stake}: {e}")
     return None
@@ -205,7 +222,7 @@ def _complete_session_no_winner(stake):
         logger.error(f"_complete_session_no_winner error for room {stake}: {e}")
 
 
-def _notify_admins_game_result(stake, cards, winner, prize):
+def _notify_admins_game_result(stake, cards, winner_list, total_prize):
     """Send a Telegram message to all admin users with telegram_chat_id."""
     try:
         from app import app
@@ -221,14 +238,25 @@ def _notify_admins_game_result(stake, cards, winner, prize):
         if not admin_chat_ids:
             return
 
-        if winner:
-            msg = (
-                f"🎉 *ዙር ተጠናቀቀ! / Round Complete!*\n\n"
-                f"🏆 አሸናፊ / Winner: *{winner}*\n"
-                f"💰 ሽልማት / Prize: *{prize:.2f} ETB*\n"
-                f"🃏 ካርዶች / Cards: *{cards}*\n"
-                f"🎮 Stake: *{stake} ETB*"
-            )
+        if winner_list:
+            if len(winner_list) == 1:
+                w = winner_list[0]
+                msg = (
+                    f"🎉 *ዙር ተጠናቀቀ! / Round Complete!*\n\n"
+                    f"🏆 አሸናፊ / Winner: *{w[0]}* (ካርድ #{w[1]})\n"
+                    f"💰 ሽልማት / Prize: *{total_prize:.2f} ETB*\n"
+                    f"🃏 ካርዶች / Cards: *{cards}*\n"
+                    f"🎮 Stake: *{stake} ETB*"
+                )
+            else:
+                lines = '\n'.join(f"  • {w[0]} (ካርድ #{w[1]}) — {w[2]:.2f} ETB" for w in winner_list)
+                msg = (
+                    f"🎉 *ዙር ተጠናቀቀ! ({len(winner_list)} አሸናፊዎች)*\n\n"
+                    f"🏆 አሸናፊዎች:\n{lines}\n\n"
+                    f"💰 ጠቅላላ ሽልማት: *{total_prize:.2f} ETB*\n"
+                    f"🃏 ካርዶች / Cards: *{cards}*\n"
+                    f"🎮 Stake: *{stake} ETB*"
+                )
         else:
             msg = (
                 f"⚠️ *ዙር ተጠናቀቀ — አሸናፊ የለም*\n\n"
@@ -260,6 +288,7 @@ def add_stake(stake):
             'winner': None,
             'winner_card': None,
             'prize': 0.0,
+            'winners': [],
         }
         _stopped_stakes.discard(stake)
     t = threading.Thread(target=_room_loop, args=(stake,), daemon=True)
@@ -334,6 +363,7 @@ def _room_loop(stake):
                 room_states[stake]['winner'] = None
                 room_states[stake]['winner_card'] = None
                 room_states[stake]['prize'] = 0.0
+                room_states[stake]['winners'] = []
 
             logger.info(f"Room {stake} ETB: GAME STARTED with {player_count} player(s)")
 
@@ -341,7 +371,7 @@ def _room_loop(stake):
             for ball in balls:
                 # If a bingo claim already set the winner, stop immediately
                 with _lock:
-                    if room_states[stake].get('winner'):
+                    if room_states[stake].get('winners'):
                         winner_found = True
                         break
                     room_states[stake]['balls'].append(ball)
@@ -351,11 +381,21 @@ def _room_loop(stake):
 
                 result = _find_and_award_winner(stake, called_set)
                 if result:
-                    username, card_num, prize = result
+                    # result is a list of (username, card_num, prize_share, card_data)
+                    from card_data import get_card_data as _gcd
+                    winners_data = []
+                    for username, card_num, prize_share, card_data in result:
+                        winners_data.append({
+                            'username': username,
+                            'card_number': card_num,
+                            'prize': prize_share,
+                            'card_data': card_data,
+                        })
                     with _lock:
-                        room_states[stake]['winner'] = username
-                        room_states[stake]['winner_card'] = card_num
-                        room_states[stake]['prize'] = prize
+                        room_states[stake]['winners'] = winners_data
+                        room_states[stake]['winner'] = result[0][0]
+                        room_states[stake]['winner_card'] = result[0][1]
+                        room_states[stake]['prize'] = result[0][2]
                     winner_found = True
                     break
 
@@ -375,6 +415,7 @@ def _room_loop(stake):
                 room_states[stake]['winner'] = None
                 room_states[stake]['winner_card'] = None
                 room_states[stake]['prize'] = 0.0
+                room_states[stake]['winners'] = []
 
             logger.info(f"Room {stake} ETB: game over — starting next card-selection countdown.")
 
@@ -670,4 +711,5 @@ def get_room_game_state(stake):
             'winner_card_data': winner_card_data,
             'prize': s['prize'],
             'launch_timer': s['launch_timer'],
+            'winners': list(s.get('winners', [])),
         }

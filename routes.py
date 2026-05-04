@@ -1685,6 +1685,37 @@ def debug_room():
     })
 
 
+@app.route("/api/game-state/<int:stake>")
+def api_game_state(stake):
+    from game_engine import get_room_game_state, STAKES, get_broadcast_alert
+    if stake not in STAKES:
+        return jsonify({"error": "Room not found"}), 404
+    state = get_room_game_state(stake)
+    state['broadcast_alert'] = get_broadcast_alert()
+    return jsonify(state)
+
+
+@app.route("/api/bingo-claim/<int:stake>", methods=["POST"])
+@login_required
+def api_bingo_claim(stake):
+    from game_engine import room_states, STAKES
+    if stake not in STAKES:
+        return jsonify({"error": "Room not found"}), 404
+    state = room_states.get(stake, {})
+    winners = state.get('winners', [])
+    if winners:
+        return jsonify({
+            "valid": True,
+            "winners": winners,
+            "winner": winners[0]['username'],
+            "winner_card": winners[0]['card_number'],
+            "winner_card_data": winners[0]['card_data'],
+            "balls": list(state.get('balls', [])),
+            "prize": winners[0]['prize'],
+        })
+    return jsonify({"valid": False, "message": "ዳቢ ሊጠናቀቅ ጥቂት ይጠብቁ..."})
+
+
 @app.route("/api/buy-card-by-stake/<int:stake>/<int:card_number>", methods=["POST"])
 @login_required
 def buy_card_by_stake(stake, card_number):

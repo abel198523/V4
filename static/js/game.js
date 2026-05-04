@@ -405,6 +405,8 @@ function identifyWinPattern(cardData, calledBalls) {
     }
     if (grid.every((r, i) => r[i].hit)) return { cells: grid.map((r, i) => r[i].val), type: 'ዲያጎናል ↘' };
     if (grid.every((r, i) => r[4 - i].hit)) return { cells: grid.map((r, i) => r[4 - i].val), type: 'ዲያጎናል ↙' };
+    const corners = [grid[0][0], grid[0][4], grid[4][0], grid[4][4]];
+    if (corners.every(c => c.hit)) return { cells: corners.map(c => c.val), type: '4 ማዕዘኖች' };
     return { cells: [], type: 'ቢንጎ' };
 }
 
@@ -701,35 +703,63 @@ function showToast(message) {
     setTimeout(() => toast.classList.remove('active'), 3000);
 }
 
-function showWinnerModal(name, cardNumber, cardData, calledBalls, prize, isMe) {
-    const modal = document.getElementById('winner-modal');
-    if (!modal) return;
-
-    // Title
-    const titleEl = document.getElementById('winner-title');
-    if (titleEl) titleEl.innerText = isMe ? '🏆 አሸንፈዋል!' : '🏆 አሸናፊ!';
-
-    // Winner name
-    const nameEl = document.getElementById('winner-display-name');
-    if (nameEl) nameEl.innerText = name || '';
-
-    // Card number badge
-    const badgeEl = document.getElementById('winner-card-badge');
-    if (badgeEl) badgeEl.innerText = cardNumber ? `ካርድ #${cardNumber}` : '';
-
-    // Prize display
-    const prizeEl = document.getElementById('winner-prize-display');
-    if (prizeEl) {
-        const amt = (prize || 0).toFixed(2);
-        prizeEl.innerHTML = `<span class="prize-amount">+${amt}</span><span class="prize-currency"> ETB</span>`;
+function showWinnerModal(winners, calledBalls, totalPrize, isMe) {
+    if (!Array.isArray(winners)) {
+        const [name, cardNumber, cardData, balls, prize, _isMe] = arguments;
+        winners = [{ username: name, card_number: cardNumber, card_data: cardData, prize: prize }];
+        calledBalls = balls;
+        totalPrize = prize;
+        isMe = _isMe;
     }
 
-    // Winning pattern identification
+    const modal = document.getElementById('winner-modal');
+    if (!modal || !winners || winners.length === 0) return;
+
+    const count = winners.length;
+    const isMeWinner = isMe !== undefined ? isMe : winners.some(w => w.username === (window.CURRENT_USERNAME || ''));
+
+    const titleEl = document.getElementById('winner-title');
+    if (titleEl) titleEl.innerText = isMeWinner ? '🏆 አሸንፈዋል!' : '👑 BINGO!';
+
+    const countEl = document.getElementById('winner-count-label');
+    if (countEl) {
+        countEl.innerText = count === 1
+            ? `🎉 ${winners[0].username} አሸንፏል!`
+            : `🎉 ${count} ተጫዋቾች አሸንፈዋል!`;
+    }
+
+    const chipsEl = document.getElementById('winner-chips-row');
+    if (chipsEl) {
+        chipsEl.innerHTML = winners.map(w => {
+            const mine = w.username === (window.CURRENT_USERNAME || '');
+            return `<div class="winner-chip${mine ? ' mine' : ''}">
+                <div class="chip-avatar">${(w.username || '?')[0].toUpperCase()}</div>
+                <div class="chip-info">
+                    <div class="chip-name">${w.username || ''}</div>
+                    <div class="chip-card">ካርድ #${w.card_number || '?'}</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    const prizeEl = document.getElementById('winner-prize-display');
+    if (prizeEl) {
+        const prize = parseFloat(winners[0].prize || totalPrize || 0).toFixed(2);
+        const suffix = count > 1 ? ' each' : '';
+        prizeEl.innerHTML = `<span class="prize-amount">+${prize}</span><span class="prize-currency"> ETB${suffix}</span>`;
+    }
+
+    const displayWinner = winners.find(w => w.username === (window.CURRENT_USERNAME || '')) || winners[0];
+    const cardData = displayWinner.card_data || displayWinner.winner_card_data || null;
+    const cardNumber = displayWinner.card_number || displayWinner.winner_card || null;
+
     const winInfo = identifyWinPattern(cardData, calledBalls || []);
     const patternEl = document.getElementById('winner-pattern-label');
     if (patternEl) patternEl.innerHTML = `⚡ ${winInfo.type}`;
 
-    // Build BINGO column headers
+    const badgeEl = document.getElementById('winner-card-badge');
+    if (badgeEl) badgeEl.innerText = cardNumber ? `ካርድ #${cardNumber}` : '';
+
     const headerEl = document.getElementById('winner-card-header');
     if (headerEl) {
         const colColors = { B: '#3b82f6', I: '#8b5cf6', N: '#22c55e', G: '#f59e0b', O: '#ef4444' };
@@ -743,7 +773,6 @@ function showWinnerModal(name, cardNumber, cardData, calledBalls, prize, isMe) {
         });
     }
 
-    // Build 5×5 card grid
     const cardCont = document.getElementById('winner-card-container');
     if (cardCont) {
         cardCont.innerHTML = '';
@@ -768,7 +797,7 @@ function showWinnerModal(name, cardNumber, cardData, calledBalls, prize, isMe) {
     }
 
     modal.classList.add('active');
-    if (isMe) fetchAndSyncBalance();
+    if (isMeWinner) fetchAndSyncBalance();
 }
 
 socket.onmessage = (event) => {
@@ -1767,11 +1796,15 @@ async function pollGameState(stake) {
         const rs = getRoomState(stake);
 
         // ── Auto-claim: winner announced by server (check FIRST, before status gate) ──
-        if (data.winner && !rs.winnerShown) {
+        const hasWinner = (data.winners && data.winners.length > 0) || data.winner;
+        if (hasWinner && !rs.winnerShown) {
             rs.winnerShown = true;
             stopGameStatePoll();
-            const isMe = (data.winner === (window.CURRENT_USERNAME || ''));
-            showWinnerModal(data.winner, data.winner_card, data.winner_card_data, data.balls, data.prize, isMe);
+            const winners = (data.winners && data.winners.length > 0)
+                ? data.winners
+                : [{ username: data.winner, card_number: data.winner_card, card_data: data.winner_card_data, prize: data.prize }];
+            const isMe = winners.some(w => w.username === (window.CURRENT_USERNAME || ''));
+            showWinnerModal(winners, data.balls, data.prize, isMe);
             if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
             setTimeout(() => {
                 const modal = document.getElementById('winner-modal');
@@ -1810,7 +1843,7 @@ async function pollGameState(stake) {
     } catch (e) { /* silent */ }
 }
 
-const WINNER_DISPLAY_SECONDS = 4;
+const WINNER_DISPLAY_SECONDS = 8;
 
 function _detectBingo(cardData, calledBalls) {
     if (!cardData || !calledBalls) return false;
@@ -1829,6 +1862,7 @@ function _detectBingo(cardData, calledBalls) {
     for (let c = 0; c < 5; c++) if (grid.every(r => r[c])) return true;
     if (grid.every((r, i) => r[i])) return true;
     if (grid.every((r, i) => r[4 - i])) return true;
+    if (grid[0][0] && grid[0][4] && grid[4][0] && grid[4][4]) return true;
     return false;
 }
 
@@ -1878,14 +1912,17 @@ async function checkMyCardForBingo(calledBalls) {
             if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
             showToast('🏆 ቢንጎ! አሸንፈዋል! ሽልማት ወደ ባላንስዎ ተጨምሯል።');
 
-            // Use server-authoritative data for the modal — same source as all other players
-            const modalWinner   = data.winner      || window.CURRENT_USERNAME || 'You';
-            const modalCard     = data.winner_card  || state.purchasedCard;
-            const modalCardData = data.winner_card_data || state.myGameCard;
-            const modalBalls    = data.balls        || calledBalls;
+            const modalBalls = data.balls || calledBalls;
+            const winners = (data.winners && data.winners.length > 0)
+                ? data.winners
+                : [{ username: data.winner || window.CURRENT_USERNAME || 'You',
+                     card_number: data.winner_card || state.purchasedCard,
+                     card_data: data.winner_card_data || state.myGameCard,
+                     prize: data.prize || 0 }];
 
-            // Highlight winning cells on the physical card UI using server balls
-            const winInfo = identifyWinPattern(modalCardData, modalBalls);
+            // Highlight winning cells on the physical card UI
+            const myWin = winners.find(w => w.username === (window.CURRENT_USERNAME || '')) || winners[0];
+            const winInfo = identifyWinPattern(myWin.card_data, modalBalls);
             if (winInfo.cells && winInfo.cells.length) {
                 winInfo.cells.forEach(val => {
                     if (val === 'FREE') return;
@@ -1897,15 +1934,7 @@ async function checkMyCardForBingo(calledBalls) {
                 });
             }
 
-            // Show winner modal using same server data every player will see
-            showWinnerModal(
-                modalWinner,
-                modalCard,
-                modalCardData,
-                modalBalls,
-                data.prize || 0,
-                true
-            );
+            showWinnerModal(winners, modalBalls, data.prize || 0, true);
 
             // Return to lobby after showing the win
             setTimeout(() => {
