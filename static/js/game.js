@@ -436,6 +436,10 @@ function handleGameOverReturn(stake) {
     const pb = document.getElementById('progress-bar');
     if (pb) pb.style.width = '0%';
 
+    // Clear taken cards so old session's cards don't show as taken in new session
+    roomTakenCards = [];
+    createAvailableCards();
+
     // Return to selection screen (countdown already restarted)
     const screens = ['game-screen', 'profile-screen', 'wallet-screen', 'deposit-screen', 'withdraw-screen'];
     screens.forEach(s => {
@@ -444,6 +448,10 @@ function handleGameOverReturn(stake) {
     });
     const selScreen = document.getElementById('selection-screen');
     if (selScreen) selScreen.classList.add('active');
+
+    // Fetch fresh taken cards for the new session after a short delay
+    // (server needs a moment to reset active_session_id)
+    setTimeout(() => fetchTakenCards(stake), 1500);
 }
 
 function updateRoomStats(stats, prizes) {
@@ -455,6 +463,16 @@ function updateRoomStats(stats, prizes) {
 
 // Legacy no-op
 function updateCountdown(seconds) {}
+
+async function fetchTakenCards(stake) {
+    try {
+        const res = await fetch(`/api/taken-cards/${stake}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        roomTakenCards = data.taken || [];
+        createAvailableCards();
+    } catch (e) { /* silent — best effort */ }
+}
 
 let STAKES = [10, 50, 100, 200]; // kept as fallback; synced dynamically from server
 
@@ -1238,6 +1256,11 @@ window.joinStake = (amount) => {
     // holds 'playing' (set before the player joined) and the transition never fires.
     delete _prevRoomStatus[String(amount)];
     _gameStarted[amount] = false;
+    // Reset taken cards immediately when entering a room so stale data is cleared
+    roomTakenCards = [];
+    createAvailableCards();
+    // Fetch fresh taken cards for this room's current session
+    fetchTakenCards(amount);
     const token = localStorage.getItem('bingo_token');
     try {
         if (socket.readyState === WebSocket.OPEN) {

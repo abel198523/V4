@@ -432,6 +432,25 @@ def room_status():
     return jsonify(get_all_room_status())
 
 
+@app.route("/api/taken-cards/<int:stake>")
+@login_required
+def taken_cards(stake):
+    """Return list of card numbers taken in the current active session for a room."""
+    room = Room.query.filter_by(card_price=float(stake)).first()
+    if not room:
+        return jsonify({"taken": []})
+    if not room.active_session_id:
+        return jsonify({"taken": []})
+    taken = [
+        t.card_number for t in
+        Transaction.query.filter_by(
+            room_id=room.id,
+            session_id=room.active_session_id
+        ).with_entities(Transaction.card_number).all()
+    ]
+    return jsonify({"taken": taken})
+
+
 @app.route("/api/game-state/<int:stake>")
 @login_required
 def game_state(stake):
