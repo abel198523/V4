@@ -1329,6 +1329,15 @@ def withdraw_request():
     req = WithdrawRequest(user_id=current_user.id, amount=amount, method=method, account_details=account)
     db.session.add(req)
     db.session.commit()
+
+    # Notify all admins on Telegram with full player stats
+    try:
+        admin_msg = _build_player_withdraw_stats(current_user, amount, method, account)
+        _notify_admins_telegram(admin_msg)
+    except Exception as _e:
+        import logging
+        logging.warning(f"Admin withdraw notification failed: {_e}")
+
     return jsonify({"success": True, "message": f"የ{amount:.0f} ETB ጥያቄ ተልኳል። አድሚን ያረጋግጣል።"})
 
 
@@ -1442,6 +1451,84 @@ def _notify_user_telegram(user, message):
     except Exception as e:
         import logging
         logging.warning(f"Telegram notify user failed for {getattr(user,'username','?')}: {e}")
+
+
+def _notify_admins_telegram(message):
+    """Send a Telegram message to every admin who has a linked telegram_chat_id."""
+    if not bot:
+        return
+    admins = User.query.filter_by(is_admin=True).all()
+    for admin in admins:
+        if admin.telegram_chat_id:
+            try:
+                bot.send_message(admin.telegram_chat_id, message, parse_mode='Markdown')
+            except Exception as e:
+                import logging
+                logging.warning(f"Telegram notify admin failed for {admin.username}: {e}")
+
+
+def _build_player_withdraw_stats(user, amount, method, account):
+    """Build a detailed Telegram message for admins when a player requests a withdrawal."""
+    from game_engine import get_house_fee
+    from sqlalchemy import func
+
+    # Total approved deposits
+    total_deposits = db.session.query(
+        func.coalesce(func.sum(DepositRequest.amount), 0)
+    ).filter_by(user_id=user.id, status='approved').scalar() or 0
+
+    # Games won + total prize earned
+    won_sessions = (GameSession.query
+                    .filter_by(winner_id=user.id, status='completed')
+                    .all())
+    games_won = len(won_sessions)
+    fee = get_house_fee()
+    total_prize_earned = 0.0
+    for gs in won_sessions:
+        room = Room.query.get(gs.room_id)
+        if room:
+            tx_count = Transaction.query.filter_by(session_id=gs.id).count()
+            total_prize_earned += tx_count * float(room.card_price) * (1 - fee)
+    total_prize_earned = round(total_prize_earned, 2)
+
+    # Total games played (sessions where user bought a card)
+    games_played = db.session.query(
+        func.count(func.distinct(Transaction.session_id))
+    ).filter_by(user_id=user.id).scalar() or 0
+
+    # Total cards bought
+    cards_bought = Transaction.query.filter_by(user_id=user.id).count()
+
+    # Previous withdrawals (approved)
+    prev_withdrawals = db.session.query(
+        func.coalesce(func.sum(WithdrawRequest.amount), 0)
+    ).filter_by(user_id=user.id, status='approved').scalar() or 0
+
+    dep_bal        = round(float(user.balance or 0), 2)
+    withdrawable   = round(float(user.withdrawable_balance or 0), 2)
+    bonus_bal      = round(float(user.bonus_balance or 0), 2)
+
+    msg = (
+        f"🏧 *ዊዝድሮው ጥያቄ / Withdrawal Request*\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 ተጫዋች: *{user.username}*\n"
+        f"💸 መጠን: *{amount:.2f} ETB*\n"
+        f"📲 ዘዴ: {method}\n"
+        f"🔢 Account: `{account}`\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📊 *የተጫዋቹ ሙሉ ታሪክ*\n"
+        f"💵 ጠቅላላ ዲፖዚት (approved): *{total_deposits:.2f} ETB*\n"
+        f"🎮 ጨዋታ የተጫወተ: *{games_played}* ዙር | ካርድ: *{cards_bought}*\n"
+        f"🏆 ያሸነፈ ዙር: *{games_won}*\n"
+        f"🎁 ከጨዋታ ሽልማት ያገኘ: *{total_prize_earned:.2f} ETB*\n"
+        f"🏧 ቀደም ያወጣ (approved): *{prev_withdrawals:.2f} ETB*\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"💰 *አሁን ያለ ባላንስ*\n"
+        f"   ዲፖዚት: {dep_bal:.2f} ETB\n"
+        f"   ሊወጣ ይችላል: {withdrawable:.2f} ETB\n"
+        f"   ቦነስ: {bonus_bal:.2f} ETB"
+    )
+    return msg
 
 
 @app.route("/api/user/my-withdrawals")
