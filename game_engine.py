@@ -25,9 +25,10 @@ def _cached_setting(key: str, default, cast=int):
     if entry and now - entry['ts'] < _SETTINGS_TTL:
         return entry['val']
     try:
-        from app import app
+        from app import app, db
         from models import Setting
         with app.app_context():
+            db.session.remove()  # clear any cached state, force fresh DB read
             s = Setting.query.get(key)
             val = cast(s.value) if s else default
     except Exception:
@@ -117,6 +118,7 @@ def _count_session_players(stake):
         from app import app, db
         from models import Transaction, Room
         with app.app_context():
+            db.session.remove()  # force fresh read — avoid stale session cache
             room = Room.query.filter_by(card_price=float(stake)).first()
             if not room or not room.active_session_id:
                 return 0
@@ -136,6 +138,7 @@ def _find_and_award_winner(stake, called_set):
         from card_data import get_card_data, check_bingo
 
         with app.app_context():
+            db.session.remove()  # force fresh read — avoid stale session cache
             room = Room.query.filter_by(card_price=float(stake)).first()
             if not room or not room.active_session_id:
                 return None
@@ -186,6 +189,7 @@ def _complete_session_no_winner(stake):
         from app import app, db
         from models import Room, GameSession, Transaction
         with app.app_context():
+            db.session.remove()  # force fresh read — avoid stale session cache
             room = Room.query.filter_by(card_price=float(stake)).first()
             if room and room.active_session_id:
                 tx_count = Transaction.query.filter_by(session_id=room.active_session_id).count()
