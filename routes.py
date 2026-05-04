@@ -753,7 +753,10 @@ def _check_and_update_streak(user):
     expiry_days = _get_bonus_expiry_days()
     new_exp = datetime.now(timezone.utc) + timedelta(days=expiry_days)
     user.bonus_balance = round(float(user.bonus_balance or 0) + reward, 2)
-    if not user.bonus_expires_at or user.bonus_expires_at < new_exp:
+    exp_at = user.bonus_expires_at
+    if exp_at is not None and exp_at.tzinfo is None:
+        exp_at = exp_at.replace(tzinfo=timezone.utc)
+    if not exp_at or exp_at < new_exp:
         user.bonus_expires_at = new_exp
 
     milestones = {3, 7, 14, 21, 30}
