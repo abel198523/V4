@@ -1,73 +1,69 @@
-# Royal Bingo
+# NOVA BINGO
 
-## Overview
-A multiplayer bingo game web application built with Flask. Users register via Telegram OTP, join stake rooms, and play real-time bingo games. Supports an admin interface for balance management.
+A Telegram-integrated bingo game platform built with Flask and PostgreSQL.
 
 ## Architecture
 
-### Backend
-- **Framework**: Python Flask
-- **Database**: PostgreSQL via Flask-SQLAlchemy (Replit built-in DB)
-- **Auth**: Flask-Login with session-based authentication
-- **Telegram Bot**: pyTelegramBotAPI for OTP-based signup verification
+- **Backend**: Flask (Python 3.11) with Flask-SQLAlchemy, Flask-Login, Flask-Compress
+- **Database**: PostgreSQL (Replit-managed via `DATABASE_URL`)
+- **Auth**: Custom Telegram OTP / token-based login (no external auth provider)
+- **Bot**: Telegram bot (`pyTelegramBotAPI`) for user registration and login link delivery
+- **Frontend**: Jinja2 templates + vanilla JS + static CSS
 
-### Frontend
-- **Templates**: Jinja2 HTML templates with Bootstrap
-- **Real-time**: WebSocket-driven game UI (`static/js/game.js`)
-- **Pages**: landing, login, signup, game (rooms), admin, dashboard
+## Project Structure
 
-### Key Files
-- `main.py` — App entrypoint; starts the Flask app via gunicorn and optionally the Telegram bot
-- `app.py` — Flask app factory, SQLAlchemy config, LoginManager setup
-- `routes.py` — All route handlers and API endpoints
-- `models.py` — SQLAlchemy models: User, Room, GameSession, Transaction
-- `bot.py` — Telegram bot definition with OTP and /id command handlers
-- `static/js/game.js` — WebSocket game client logic
-- `templates/` — Jinja2 HTML templates
-- `cards.json` — Predefined bingo card data
+```
+app.py           — Flask app, DB, session/auth setup, startup migrations
+main.py          — Entry point: imports app, starts Telegram bot thread conditionally
+routes.py        — All Flask route handlers and API endpoints
+models.py        — SQLAlchemy models (User, Room, GameSession, Transaction, etc.)
+game_engine.py   — Game/session logic, room timers, daily report scheduler
+bot.py           — Telegram bot (OTP/login flow, webhook vs polling logic)
+card_data.py     — Card data helpers
+cards.json       — Card data
+gunicorn.conf.py — Gunicorn runtime config (1 worker, 8 threads, post_fork timer restart)
+templates/       — Jinja2 HTML templates
+static/          — CSS, JS, images
+```
 
 ## Running the App
-The app runs via gunicorn on port 5000:
+
+The app is started via gunicorn:
 ```
-gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app
+python -m gunicorn --bind 0.0.0.0:5000 --reuse-port --reload --config gunicorn.conf.py main:app
 ```
 
 ## Environment Variables / Secrets
-- `DATABASE_URL` — PostgreSQL connection string (auto-set by Replit DB; on Render, set manually from your Render PostgreSQL service)
-- `SESSION_SECRET` — Flask session secret key (random string, keep it secret)
-- `TELEGRAM_BOT_TOKEN` — (Optional) Telegram bot token for OTP signup flow
-- `APP_URL` — (Optional, local dev only) Public URL fallback if not on Render or Replit
 
-## Render Deployment (Manual Setup — No Blueprint)
+| Key | Required | Notes |
+|-----|----------|-------|
+| `DATABASE_URL` | Yes | Auto-managed by Replit PostgreSQL |
+| `SESSION_SECRET` | Yes | Auto-managed by Replit |
+| `TELEGRAM_BOT_TOKEN` | Optional | Set to enable Telegram bot features |
 
-### 1. Create a Render Web Service
-- Go to https://dashboard.render.com → **New → Web Service**
-- Connect your GitHub/GitLab repo
-- **Environment**: Python 3
-- **Build Command**: `pip install -r requirements.txt`
-- **Start Command**: `gunicorn main:app --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120`
+## Key Features
 
-### 2. Create a Render PostgreSQL Database
-- Go to **New → PostgreSQL** on Render dashboard
-- After creation, copy the **Internal Database URL**
+- **Bingo rooms**: Multiple rooms with configurable card prices (ETB)
+- **Telegram login**: Users register and log in via the Telegram bot
+- **Wallet system**: Balance, bonus balance, deposits, withdrawals
+- **Referral system**: Referral codes with bonus rewards
+- **Streak tracking**: Daily play streak tracking
+- **Admin panel**: `/admin` route for managing users, rooms, deposit/withdraw requests
+- **Real-time game**: Per-room countdown timers running as background threads
 
-### 3. Set Environment Variables on Render
-In your Web Service → **Environment** tab, add:
+## Auth Flow
 
-| Key | Value |
-|-----|-------|
-| `DATABASE_URL` | Internal Database URL from your Render PostgreSQL |
-| `SESSION_SECRET` | Any long random string (e.g. generate with `python -c "import secrets; print(secrets.token_hex(32))"`) |
-| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token from @BotFather (optional) |
+1. User clicks "Login via Telegram" on landing page
+2. Telegram bot sends a one-time login token
+3. User clicks the login link which calls `/auth/token/<token>`
+4. Flask-Login session is established
 
-> Render automatically sets `RENDER=true` and `RENDER_EXTERNAL_URL` — **do not add these manually**.
+## Telegram Bot Modes
 
-### 4. Deploy
-Click **Deploy** — the app will start automatically. Telegram webhook will be registered to `RENDER_EXTERNAL_URL/webhook/<token>` on startup.
+- **Replit** (dev): Sets webhook to `REPLIT_DEV_DOMAIN`
+- **Render** (prod): Sets webhook to `RENDER_EXTERNAL_URL`
+- **Local**: Falls back to long polling
 
-## User Flow
-1. User visits the landing page
-2. User opens Telegram and sends `/start` to the bot to get an OTP
-3. User signs up on the website using their Telegram chat ID + OTP
-4. User logs in and enters bingo rooms to buy cards and play
-5. Admin can manage user balances via `/admin`
+## Database Migrations
+
+Inline migrations run at startup in `app.py` using `ALTER TABLE ... IF NOT EXISTS` patterns — safe to re-run on every boot.
