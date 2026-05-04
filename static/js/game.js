@@ -1040,16 +1040,26 @@ function updateGameUI(history) {
     }
 
     if (autoMarking) {
-        const latestBall = history[history.length - 1];
-        history.forEach(num => {
-            const el = document.getElementById(`cell-${num}`);
+        const latestBall = Number(history[history.length - 1]);
+        const calledSet = new Set(history.map(n => Number(n)));
+
+        // Sync: remove 'called' from any player-card cell NOT in the called set
+        document.querySelectorAll('#bingo-board [id^="cell-"]').forEach(el => {
+            const n = parseInt(el.id.slice(5), 10);
+            if (!calledSet.has(n)) {
+                el.classList.remove('called', 'newly-called');
+            }
+        });
+
+        // Mark every called ball that is on the player's card
+        calledSet.forEach(n => {
+            const el = document.getElementById(`cell-${n}`);
             if (el) {
                 if (!el.classList.contains('called')) {
                     el.classList.add('called');
-                    if (num === latestBall) {
+                    if (n === latestBall) {
                         el.classList.add('newly-called');
                         setTimeout(() => el.classList.remove('newly-called'), 500);
-                        if (typeof playBallCall === 'function') playBallCall();
                     }
                 }
             }
@@ -1700,7 +1710,9 @@ async function checkMyCardForBingo(calledBalls) {
         const data = await res.json();
 
         if (data.valid) {
-            // Winning claim accepted — play fanfare and show result
+            // Stop ball-calling immediately — game is won
+            stopGameStatePoll();
+
             if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
             showToast('🏆 ቢንጎ! አሸንፈዋል! ሽልማት ወደ ባላንስዎ ተጨምሯል።');
 
@@ -1719,6 +1731,8 @@ async function checkMyCardForBingo(calledBalls) {
 
             // Refresh balance after short delay so prize is reflected
             setTimeout(() => fetchAndSyncBalance(), 2000);
+            // Return to lobby after showing the win
+            setTimeout(() => handleGameOverReturn(currentRoom), 8000);
         } else {
             showToast(`ቢንጎ: ${data.message || 'ክሌም ተቀባይነት አላገኘም'}`);
         }

@@ -374,7 +374,11 @@ def _room_loop(stake):
 
             winner_found = False
             for ball in balls:
+                # If a bingo claim already set the winner, stop immediately
                 with _lock:
+                    if room_states[stake].get('winner'):
+                        winner_found = True
+                        break
                     room_states[stake]['balls'].append(ball)
                     called_set = set(room_states[stake]['balls'])
 

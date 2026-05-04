@@ -482,6 +482,16 @@ def bingo_claim(stake):
     called_set = set(state['balls'])
     card_data = get_card_data(int(card_number))
     if check_bingo(card_data, called_set):
+        # Immediately award the prize and stop ball-calling
+        from game_engine import _find_and_award_winner, room_states, _lock
+        if not room_states[stake].get('winner'):
+            result = _find_and_award_winner(stake, called_set)
+            if result:
+                username, card_num, prize = result
+                with _lock:
+                    room_states[stake]['winner'] = username
+                    room_states[stake]['winner_card'] = card_num
+                    room_states[stake]['prize'] = prize
         return jsonify({"valid": True, "message": "🎉 ቢንጎ! አሸንፈዋል!"})
     return jsonify({"valid": False, "message": "ቢንጎ አልሆነም — ቆጠሩ!"})
 
