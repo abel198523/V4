@@ -1375,6 +1375,7 @@
             window.navTo = function(id) {
                 if (_orig) _orig(id);
                 updateNavHighlight(id);
+                document.body.classList.toggle('game-mode', id === 'game');
                 if (id === 'game') {
                     const gid = document.getElementById('gs-game-id');
                     if (gid && typeof currentRoom !== 'undefined' && currentRoom) {

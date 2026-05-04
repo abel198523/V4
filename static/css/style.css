@@ -2766,6 +2766,10 @@ header {
    NOVA BINGO — NEW GAME SCREEN (matches Beteseb Bingo design)
    ═══════════════════════════════════════════════════════════ */
 
+/* Hide header & bottom-nav during game */
+body.game-mode .top-header,
+body.game-mode .bottom-nav { display: none !important; }
+
 /* ── Stats Bar ─────────────────────────────────────────────── */
 .gs-stats-bar {
     display: flex;
