@@ -2894,9 +2894,12 @@ body.game-mode .bottom-nav { display: none !important; }
     flex-direction: column;
     gap: 7px;
     overflow-y: auto;
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.15) transparent;
+    min-height: 0;
 }
-.gs-right-panel::-webkit-scrollbar { display: none; }
+.gs-right-panel::-webkit-scrollbar { width: 3px; }
+.gs-right-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 
 /* Active ball top row */
 .gs-call-top-row {

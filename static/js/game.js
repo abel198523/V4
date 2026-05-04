@@ -36,6 +36,7 @@ function getRoomState(roomId) {
     if (!roomStates[roomId]) {
         roomStates[roomId] = {
             myGameCard: null,
+            myGameCard2: null,
             currentSelectedCard: null,
             currentCardData: null,
             lastHistory: [],
@@ -45,6 +46,7 @@ function getRoomState(roomId) {
             autoClaimInProgress: false,
             bingoFlashed: false,
             purchasedCard: null,
+            purchasedCard2: null,
         };
     }
     return roomStates[roomId];
@@ -433,9 +435,11 @@ function handleGameOverReturn(stake) {
     // Clear game board state for this room
     const state = getRoomState(stake);
     state.myGameCard = null;
+    state.myGameCard2 = null;
     state.currentSelectedCard = null;
     state.currentCardData = null;
     state.purchasedCard = null;
+    state.purchasedCard2 = null;
     state.bingoFlashed = false;
     state.lastHistory = [];
     state.autoClaimInProgress = false;
@@ -444,9 +448,12 @@ function handleGameOverReturn(stake) {
     // Reset near-bingo bar
     const nbBar = document.getElementById('near-bingo-bar');
     if (nbBar) { nbBar.style.display = 'none'; nbBar.className = 'near-bingo-bar'; }
+    // Hide card2 wrap
+    const c2wrap = document.getElementById('gs-card2-wrap');
+    if (c2wrap) c2wrap.style.display = 'none';
 
     resetMasterGrid();
-    ['bingo-board', 'recent-balls'].forEach(id => {
+    ['bingo-board', 'bingo-board-2', 'recent-balls'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '';
     });
@@ -1028,33 +1035,51 @@ function renderMyGameCard() {
     const bingoBoard = document.getElementById('bingo-board');
     const state = getRoomState(currentRoom);
     if (!bingoBoard || !state.myGameCard) return;
-    bingoBoard.innerHTML = '';
-    const cardLabel = document.getElementById('my-card-label');
-    if (cardLabel && state.currentSelectedCard) cardLabel.innerText = `የእርስዎ ካርድ #${state.currentSelectedCard}`;
-    const cardData = JSON.parse(JSON.stringify(state.myGameCard));
-    cardData['N'][2] = 'FREE';
-    const letters = ['B', 'I', 'N', 'G', 'O'];
-    letters.forEach(l => {
-        const header = document.createElement('div');
-        header.className = 'bingo-cell card-header-cell';
-        header.innerText = l;
-        bingoBoard.appendChild(header);
-    });
-    for (let row = 0; row < 5; row++) {
+
+    // ── Helper: render a single card into a board element ──────────
+    function _renderCardIntoBoard(boardEl, cardRaw, cardNum, labelEl, cellPrefix) {
+        boardEl.innerHTML = '';
+        if (labelEl) labelEl.innerText = `የእርስዎ ካርድ #${cardNum}`;
+        const cardData = JSON.parse(JSON.stringify(cardRaw));
+        cardData['N'][2] = 'FREE';
+        const letters = ['B', 'I', 'N', 'G', 'O'];
         letters.forEach(l => {
-            const val = cardData[l][row];
-            const cell = document.createElement('div');
-            cell.className = 'bingo-cell';
-            if (val === 'FREE') {
-                cell.classList.add('free-spot', 'called');
-                cell.innerText = 'FREE';
-            } else {
-                cell.id = `cell-${val}`;
-                cell.innerText = val;
-                cell.onclick = () => { if (!autoMarking) cell.classList.toggle('called'); };
-            }
-            bingoBoard.appendChild(cell);
+            const h = document.createElement('div');
+            h.className = 'bingo-cell card-header-cell';
+            h.innerText = l;
+            boardEl.appendChild(h);
         });
+        for (let row = 0; row < 5; row++) {
+            letters.forEach(l => {
+                const val = cardData[l][row];
+                const cell = document.createElement('div');
+                cell.className = 'bingo-cell';
+                if (val === 'FREE') {
+                    cell.classList.add('free-spot', 'called');
+                    cell.innerText = 'FREE';
+                } else {
+                    cell.id = `${cellPrefix}${val}`;
+                    cell.innerText = val;
+                    cell.onclick = () => { if (!autoMarking) cell.classList.toggle('called'); };
+                }
+                boardEl.appendChild(cell);
+            });
+        }
+    }
+
+    // Render card 1
+    const cardLabel = document.getElementById('my-card-label');
+    _renderCardIntoBoard(bingoBoard, state.myGameCard, state.purchasedCard || state.currentSelectedCard, cardLabel, 'cell-');
+
+    // Render card 2 if present
+    const board2 = document.getElementById('bingo-board-2');
+    const label2 = document.getElementById('my-card-label-2');
+    const wrap2  = document.getElementById('gs-card2-wrap');
+    if (state.myGameCard2 && board2) {
+        _renderCardIntoBoard(board2, state.myGameCard2, state.purchasedCard2, label2, 'cell2-');
+        if (wrap2) wrap2.style.display = '';
+    } else if (wrap2) {
+        wrap2.style.display = 'none';
     }
 }
 
@@ -1158,8 +1183,24 @@ function updateGameUI(history) {
     if (autoMarking) {
         const calledSet = new Set(history.map(n => Number(n)));
 
+        // Card 1
         document.querySelectorAll('#bingo-board [id^="cell-"]').forEach(el => {
             const n = parseInt(el.id.slice(5), 10);
+            const shouldMark = calledSet.has(n);
+            if (!shouldMark && el.classList.contains('called')) {
+                el.classList.remove('called', 'newly-called');
+            } else if (shouldMark && !el.classList.contains('called')) {
+                el.classList.add('called');
+                if (n === lastBall) {
+                    el.classList.add('newly-called');
+                    setTimeout(() => el.classList.remove('newly-called'), 800);
+                }
+            }
+        });
+
+        // Card 2
+        document.querySelectorAll('#bingo-board-2 [id^="cell2-"]').forEach(el => {
+            const n = parseInt(el.id.slice(6), 10);
             const shouldMark = calledSet.has(n);
             if (!shouldMark && el.classList.contains('called')) {
                 el.classList.remove('called', 'newly-called');
@@ -1371,9 +1412,18 @@ if (confirmCard) {
             }
 
             if (data.success) {
-                // Commit card to game state
-                state.myGameCard = state.currentCardData;
-                state.purchasedCard = state.currentSelectedCard;
+                // Commit card to game state (card1 first, then card2)
+                if (!state.myGameCard) {
+                    state.myGameCard = state.currentCardData;
+                    state.purchasedCard = state.currentSelectedCard;
+                } else {
+                    state.myGameCard2 = state.currentCardData;
+                    state.purchasedCard2 = state.currentSelectedCard;
+                    // Show card2 immediately
+                    const w2 = document.getElementById('gs-card2-wrap');
+                    if (w2) w2.style.display = '';
+                    renderMyGameCard();
+                }
 
                 // Update balance from server response
                 if (typeof data.new_balance === 'number') {
@@ -1784,10 +1834,18 @@ function _detectBingo(cardData, calledBalls) {
 
 async function checkMyCardForBingo(calledBalls) {
     const state = getRoomState(currentRoom);
-    if (!state.myGameCard || state.bingoFlashed || state.autoClaimInProgress) return;
+    if (state.bingoFlashed || state.autoClaimInProgress) return;
 
-    const hasBingo = _detectBingo(state.myGameCard, calledBalls);
-    if (!hasBingo) return;
+    // Check card 1
+    const hasBingo1 = state.myGameCard && _detectBingo(state.myGameCard, calledBalls);
+    // Check card 2
+    const hasBingo2 = state.myGameCard2 && _detectBingo(state.myGameCard2, calledBalls);
+
+    if (!hasBingo1 && !hasBingo2) return;
+
+    // Use whichever card won (prefer card1 if both somehow win simultaneously)
+    const winningCard = hasBingo1 ? state.purchasedCard : state.purchasedCard2;
+    if (!winningCard) return;
 
     // Lock immediately to prevent duplicate claims
     state.bingoFlashed = true;
@@ -1800,7 +1858,7 @@ async function checkMyCardForBingo(calledBalls) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ card_number: state.purchasedCard })
+            body: JSON.stringify({ card_number: winningCard })
         });
 
         if (!res.ok) {
@@ -1873,6 +1931,9 @@ function startGame() {
     if (state.purchasedCard && !state.myGameCard) {
         state.myGameCard = state.currentCardData;
     }
+    // Restore card2 wrap visibility
+    const w2 = document.getElementById('gs-card2-wrap');
+    if (w2) w2.style.display = state.myGameCard2 ? '' : 'none';
     state.bingoFlashed = false;
     state.autoClaimInProgress = false;
     state.winnerShown = false;

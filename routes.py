@@ -1715,18 +1715,19 @@ def buy_card_by_stake(stake, card_number):
                 "message": f"ባላንስ አነስተኛ ነው። ያሎት: {dep + bonus:.2f} ETB"
             }), 400
 
-        # Prevent the same player from buying more than one card per session
-        existing_tx = None
+        # Prevent the same player from buying more than two cards per session
+        existing_txs = []
         if room.active_session_id:
-            existing_tx = Transaction.query.filter_by(
+            existing_txs = Transaction.query.filter_by(
                 room_id=room.id,
                 session_id=room.active_session_id,
                 user_id=current_user.id
-            ).first()
-        if existing_tx:
+            ).all()
+        if len(existing_txs) >= 2:
+            nums = ', '.join(f'#{t.card_number}' for t in existing_txs)
             return jsonify({
                 "success": False,
-                "message": f"ካርድ #{existing_tx.card_number} አስቀድሞ ገዝተዋል — በአንድ ዙር 1 ካርድ ብቻ"
+                "message": f"ካርዶች {nums} ተይዘዋል — በአንድ ዙር ከ2 ካርድ በላይ አይቻልም"
             }), 400
 
         game_session = get_or_create_session(room.id)
