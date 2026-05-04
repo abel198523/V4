@@ -82,7 +82,6 @@ with app.app_context():
         logger.info("Database tables created/verified successfully.")
     except Exception as e:
         logger.error(f"Failed to create database tables: {e}")
-        raise
 
     # Migration: ensure telegram_chat_id is nullable (older DBs had NOT NULL)
     try:
@@ -177,15 +176,24 @@ with app.app_context():
         db.session.rollback()
 
     # Migration: convert bonus_expires_at to TIMESTAMPTZ (timezone-aware)
+    # Only runs if column is currently plain TIMESTAMP (not already TIMESTAMPTZ)
     try:
-        db.session.execute(db.text(
-            "ALTER TABLE users ALTER COLUMN bonus_expires_at TYPE TIMESTAMPTZ "
-            "USING bonus_expires_at AT TIME ZONE 'UTC'"
-        ))
-        db.session.commit()
-        logger.info("Migration: bonus_expires_at converted to TIMESTAMPTZ.")
-    except Exception:
+        result = db.session.execute(db.text(
+            "SELECT data_type FROM information_schema.columns "
+            "WHERE table_name='users' AND column_name='bonus_expires_at'"
+        )).fetchone()
+        if result and result[0] == 'timestamp without time zone':
+            db.session.execute(db.text(
+                "ALTER TABLE users ALTER COLUMN bonus_expires_at TYPE TIMESTAMPTZ "
+                "USING bonus_expires_at AT TIME ZONE 'UTC'"
+            ))
+            db.session.commit()
+            logger.info("Migration: bonus_expires_at converted to TIMESTAMPTZ.")
+        else:
+            logger.info("Migration: bonus_expires_at already TIMESTAMPTZ, skipped.")
+    except Exception as e:
         db.session.rollback()
+        logger.warning(f"Migration bonus_expires_at TIMESTAMPTZ skipped: {e}")
 
     # Generate referral codes for users who don't have one
     try:
@@ -206,5 +214,8 @@ with app.app_context():
         logger.warning(f"Referral code generation failed: {e}")
 
 # Start independent per-room countdown timers
-from game_engine import start_all_room_timers
-start_all_room_timers()
+try:
+    from game_engine import start_all_room_timers
+    start_all_room_timers()
+except Exception as e:
+    logger.error(f"Failed to start room timers: {e}")
