@@ -1,4 +1,5 @@
 import os
+import threading
 import traceback
 import telebot
 import random
@@ -8,6 +9,11 @@ from models import User, Room, Transaction, GameSession, OTPStore, DepositReques
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from bot import bot, BOT_TOKEN, BOT_USERNAME
+
+# Global lock: ensures only one thread can create/fetch a session at a time.
+# This prevents the race condition where two players buying simultaneously
+# each create their own isolated session instead of sharing one.
+_session_create_lock = threading.Lock()
 
 
 from werkzeug.exceptions import HTTPException
@@ -111,21 +117,28 @@ def webhook():
 
 
 def get_or_create_session(room_id):
-    room = Room.query.get(room_id)
-    if not room:
-        return None
-    session = None
-    if room.active_session_id:
-        session = GameSession.query.get(room.active_session_id)
-        if session and session.status != 'active':
-            session = None
-    if not session:
-        session = GameSession(room_id=room_id, status='active')
-        db.session.add(session)
-        db.session.flush()
-        room.active_session_id = session.id
-        db.session.commit()
-    return session
+    with _session_create_lock:
+        # Expire all cached ORM objects so we read fresh state from the DB.
+        # This is critical: without it, a second concurrent thread could read a
+        # stale Room.active_session_id = None even after the first thread already
+        # committed a new session, causing each player to land in a separate
+        # isolated session (the "playing separately" bug).
+        db.session.expire_all()
+        room = Room.query.get(room_id)
+        if not room:
+            return None
+        game_session = None
+        if room.active_session_id:
+            game_session = GameSession.query.get(room.active_session_id)
+            if game_session and game_session.status != 'active':
+                game_session = None
+        if not game_session:
+            game_session = GameSession(room_id=room_id, status='active')
+            db.session.add(game_session)
+            db.session.flush()
+            room.active_session_id = game_session.id
+            db.session.commit()
+        return game_session
 
 
 @app.route("/api/login", methods=["POST"])
@@ -1729,6 +1742,16 @@ def buy_card_by_stake(stake, card_number):
         room = Room.query.filter_by(card_price=float(stake)).first()
         if not room:
             return jsonify({"success": False, "message": "Room not found", "detail": f"No room with card_price={stake}"}), 404
+
+        # Block purchases while a game is actively running — all players must
+        # buy before the round starts so everyone is in the same session.
+        from game_engine import room_states, STAKES as _STAKES
+        if stake in _STAKES and room_states.get(stake, {}).get('status') == 'playing':
+            return jsonify({
+                "success": False,
+                "message": "ጨዋታ ጀምሯል — ቀጣዩን ዙር ይጠብቁ"
+            }), 400
+
         db.session.refresh(current_user)
         _maybe_expire_user_bonus(current_user)
         price = room.card_price
@@ -1739,6 +1762,21 @@ def buy_card_by_stake(stake, card_number):
                 "success": False,
                 "message": f"ባላንስ አነስተኛ ነው። ያሎት: {dep + bonus:.2f} ETB"
             }), 400
+
+        # Prevent the same player from buying more than one card per session
+        existing_tx = None
+        if room.active_session_id:
+            existing_tx = Transaction.query.filter_by(
+                room_id=room.id,
+                session_id=room.active_session_id,
+                user_id=current_user.id
+            ).first()
+        if existing_tx:
+            return jsonify({
+                "success": False,
+                "message": f"ካርድ #{existing_tx.card_number} አስቀድሞ ገዝተዋል — በአንድ ዙር 1 ካርድ ብቻ"
+            }), 400
+
         game_session = get_or_create_session(room.id)
         if not game_session:
             return jsonify({"success": False, "message": "Session error", "detail": "get_or_create_session returned None"}), 500
