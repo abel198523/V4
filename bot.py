@@ -8,12 +8,10 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 
-if not BOT_TOKEN:
-    raise EnvironmentError(
-        "TELEGRAM_BOT_TOKEN environment variable is not set or is empty. "
-        "Set it before starting the application."
-    )
-logger.info(f"TELEGRAM_BOT_TOKEN loaded — length={len(BOT_TOKEN)}, starts_with={BOT_TOKEN[:6]}***")
+if BOT_TOKEN:
+    logger.info(f"TELEGRAM_BOT_TOKEN loaded — length={len(BOT_TOKEN)}, starts_with={BOT_TOKEN[:6]}***")
+else:
+    logger.warning("TELEGRAM_BOT_TOKEN is not set — Telegram bot features will be disabled.")
 
 BOT_USERNAME = None
 
