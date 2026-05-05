@@ -6,7 +6,7 @@ from telebot import types
 
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN") or "8638648550:AAFTip5rF-nn0XBK1ykFTCArvfx3nFytArU"
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 BOT_USERNAME = None
 
 bot = None
