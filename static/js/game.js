@@ -2264,7 +2264,7 @@ function _lbRender() {
 
         // Prize badge for top-3 on "played" sort
         const lbPrize = (l.lb_prize || 0);
-        const prizeBadge = (_lbSortKey === 'played' && i < 3 && lbPrize > 0)
+        const prizeBadge = (_lbPeriod === 'weekly' && _lbSortKey === 'played' && i < 3 && lbPrize > 0)
             ? `<div class="lb-prize-badge">🎁 ${lbPrize.toFixed(0)} ETB ሽልማት</div>`
             : '';
 

@@ -1360,8 +1360,8 @@ def leaderboard():
 
     leaders = sorted(user_stats.values(), key=key_fn)[:20]
 
-    # Attach leaderboard prize for top-3 when sorting by most-played
-    if sort == 'played':
+    # Attach leaderboard prize only for weekly + most-played top-3
+    if period == 'weekly' and sort == 'played':
         prizes = _get_lb_prizes()
         for i, entry in enumerate(leaders):
             rank = i + 1
