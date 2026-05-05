@@ -38,15 +38,21 @@ Compress(app)
 # Fix DATABASE_URL: postgres:// -> postgresql://
 database_url = os.environ.get("DATABASE_URL")
 if not database_url:
-    logger.error("DATABASE_URL is not set!")
-else:
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-    logger.info("Database URL configured.")
+    logger.critical(
+        "FATAL: DATABASE_URL environment variable is not set. "
+        "Add a PostgreSQL database to your Railway project and link it to this service, "
+        "or set DATABASE_URL manually in the Railway environment variables."
+    )
+    import sys
+    sys.exit(1)
+
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+logger.info("Database URL configured.")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 
-# Engine options: connection pool + SSL for Render
+# Engine options: connection pool + SSL for Railway/Render
 engine_options = {
     "pool_size":     10,
     "max_overflow":  20,
@@ -54,9 +60,9 @@ engine_options = {
     "pool_recycle":  300,
     "pool_pre_ping": True,
 }
-if os.environ.get("RENDER"):
+if os.environ.get("RENDER") or os.environ.get("RAILWAY_ENVIRONMENT"):
     engine_options["connect_args"] = {"sslmode": "require"}
-    logger.info("Render environment detected — SSL enabled for PostgreSQL.")
+    logger.info("Production environment detected — SSL enabled for PostgreSQL.")
 
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_options
 
