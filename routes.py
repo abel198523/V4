@@ -1192,40 +1192,54 @@ def user_stats():
 def leaderboard():
     from sqlalchemy import func, distinct
     from game_engine import get_house_fee
+    from datetime import datetime, timedelta
+
+    period = request.args.get('period', 'all')   # daily | weekly | monthly | all
+    sort   = request.args.get('sort',   'prize')  # prize | wins | winrate | played
 
     fee = get_house_fee()
+    now = datetime.utcnow()
 
-    # rounds_played per user = distinct completed sessions where they bought a card
-    completed_ids = db.session.query(GameSession.id).filter(GameSession.status == 'completed').scalar_subquery()
+    if period == 'daily':
+        since = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == 'weekly':
+        since = now - timedelta(days=7)
+    elif period == 'monthly':
+        since = now - timedelta(days=30)
+    else:
+        since = None
+
+    # Completed session IDs in period
+    sess_q = db.session.query(GameSession.id).filter(GameSession.status == 'completed')
+    if since:
+        sess_q = sess_q.filter(GameSession.created_at >= since)
+    completed_sub = sess_q.scalar_subquery()
+
+    # All participants (distinct sessions & total cards) within period
     participation = (
         db.session.query(
             Transaction.user_id,
-            func.count(distinct(Transaction.session_id)).label('rounds_played')
+            func.count(distinct(Transaction.session_id)).label('rounds_played'),
+            func.count(Transaction.id).label('cards_bought'),
         )
-        .filter(Transaction.session_id.in_(completed_ids))
+        .filter(Transaction.session_id.in_(completed_sub))
         .group_by(Transaction.user_id)
         .all()
     )
-    participation_map = {row.user_id: row.rounds_played for row in participation}
+    part_map = {
+        r.user_id: {'rounds_played': r.rounds_played, 'cards_bought': r.cards_bought}
+        for r in participation
+    }
 
-    # total cards bought per user
-    cards_query = (
-        db.session.query(
-            Transaction.user_id,
-            func.count(Transaction.id).label('cards_bought')
-        )
-        .group_by(Transaction.user_id)
-        .all()
-    )
-    cards_map = {row.user_id: row.cards_bought for row in cards_query}
+    # Winning sessions in period
+    won_q = (GameSession.query
+             .filter(GameSession.winner_id.isnot(None))
+             .filter(GameSession.status == 'completed'))
+    if since:
+        won_q = won_q.filter(GameSession.created_at >= since)
 
-    # wins + prize from completed won sessions
-    won_sessions = (GameSession.query
-                    .filter(GameSession.winner_id.isnot(None))
-                    .filter(GameSession.status == 'completed')
-                    .all())
     user_stats = {}
-    for gs in won_sessions:
+    for gs in won_q.all():
         room = Room.query.get(gs.room_id)
         if not room:
             continue
@@ -1233,23 +1247,43 @@ def leaderboard():
         prize = round(tx_count * float(room.card_price) * (1 - fee), 2)
         uid = gs.winner_id
         if uid not in user_stats:
-            user = User.query.get(uid)
+            u = User.query.get(uid)
             user_stats[uid] = {
-                'username': user.username if user else 'Unknown',
+                'username': u.username if u else 'Unknown',
                 'wins': 0,
                 'total_prize': 0.0,
             }
         user_stats[uid]['wins'] += 1
         user_stats[uid]['total_prize'] = round(user_stats[uid]['total_prize'] + prize, 2)
 
-    # attach rounds_played, cards_bought, win_rate
-    for uid, stats in user_stats.items():
-        rp = participation_map.get(uid, stats['wins'])
-        stats['rounds_played'] = rp
-        stats['cards_bought']  = cards_map.get(uid, 0)
-        stats['win_rate']      = round((stats['wins'] / rp * 100) if rp > 0 else 0, 1)
+    # Merge all participants (include non-winners for "most played")
+    all_uids = set(user_stats.keys()) | set(part_map.keys())
+    for uid in all_uids:
+        if uid not in user_stats:
+            u = User.query.get(uid)
+            user_stats[uid] = {
+                'username': u.username if u else 'Unknown',
+                'wins': 0,
+                'total_prize': 0.0,
+            }
+        p  = part_map.get(uid, {})
+        rp = p.get('rounds_played', user_stats[uid]['wins'])
+        user_stats[uid]['rounds_played'] = rp
+        user_stats[uid]['cards_bought']  = p.get('cards_bought', 0)
+        user_stats[uid]['win_rate']      = round(
+            (user_stats[uid]['wins'] / rp * 100) if rp > 0 else 0, 1
+        )
 
-    leaders = sorted(user_stats.values(), key=lambda x: x['total_prize'], reverse=True)[:20]
+    if sort == 'wins':
+        key_fn = lambda x: (-x['wins'],         -x['total_prize'])
+    elif sort == 'winrate':
+        key_fn = lambda x: (-x['win_rate'],      -x['wins'])
+    elif sort == 'played':
+        key_fn = lambda x: (-x['rounds_played'], -x['wins'])
+    else:
+        key_fn = lambda x: (-x['total_prize'],   -x['wins'])
+
+    leaders = sorted(user_stats.values(), key=key_fn)[:20]
     return jsonify(leaders)
 
 

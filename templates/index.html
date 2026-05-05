@@ -155,6 +155,30 @@
             border-color: rgba(59,130,246,0.4);
             color: #3b82f6;
         }
+        /* Period tabs */
+        .lb-period-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+        .lb-period-tab {
+            flex: 1;
+            padding: 6px 4px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: #161b22;
+            color: #64748b;
+            font-size: 0.68rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.18s;
+        }
+        .lb-period-tab.active {
+            background: rgba(245,158,11,0.18);
+            border-color: rgba(245,158,11,0.4);
+            color: #f59e0b;
+        }
         /* Top-3 podium highlight */
         .lb-row {
             display: flex;
@@ -1261,16 +1285,28 @@
         <div id="leaderboard-screen" class="leaderboard-screen">
             <div class="lb-header">
                 <div class="lb-header-left">
-                    <h2 class="lb-title">🏆 የምርጥ አሸናፊዎች</h2>
-                    <p class="lb-subtitle">Top Winners • ምርጥ 20 አሸናፊዎች</p>
+                    <h2 class="lb-title">🏆 ሊደር ቦርድ</h2>
+                    <p class="lb-subtitle">ምርጥ 20 ተጫዋቾች • Top 20 Players</p>
                 </div>
-                <button class="lb-refresh-btn" onclick="loadLeaderboard()">↻ Refresh</button>
+                <button class="lb-refresh-btn" onclick="loadLeaderboard()">↻</button>
             </div>
+
+            <!-- Period tabs -->
+            <div class="lb-period-tabs">
+                <button class="lb-period-tab active" id="lb-period-daily"   onclick="lbSetPeriod('daily')">📅 ዛሬ</button>
+                <button class="lb-period-tab"        id="lb-period-weekly"  onclick="lbSetPeriod('weekly')">📆 ሳምንት</button>
+                <button class="lb-period-tab"        id="lb-period-monthly" onclick="lbSetPeriod('monthly')">🗓️ ወር</button>
+                <button class="lb-period-tab"        id="lb-period-all"     onclick="lbSetPeriod('all')">🌐 ሁልጊዜ</button>
+            </div>
+
+            <!-- Sort tabs -->
             <div class="lb-tabs">
-                <button class="lb-tab active" id="lb-tab-prize"   onclick="lbSort('prize')">💰 By Prize</button>
-                <button class="lb-tab"        id="lb-tab-wins"    onclick="lbSort('wins')">🏅 By Wins</button>
-                <button class="lb-tab"        id="lb-tab-winrate" onclick="lbSort('winrate')">📈 Win Rate</button>
+                <button class="lb-tab active" id="lb-tab-played"  onclick="lbSort('played')">🎮 ጨዋታ</button>
+                <button class="lb-tab"        id="lb-tab-wins"    onclick="lbSort('wins')">🏅 ድሎች</button>
+                <button class="lb-tab"        id="lb-tab-prize"   onclick="lbSort('prize')">💰 ሽልማት</button>
+                <button class="lb-tab"        id="lb-tab-winrate" onclick="lbSort('winrate')">📈 Win%</button>
             </div>
+
             <div id="lb-list"><p class="lb-empty">Loading...</p></div>
         </div>
 

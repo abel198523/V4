@@ -2170,33 +2170,49 @@ function shareReferralLink() {
 }
 
 let _lbData = [];
-let _lbSortKey = 'prize';
+let _lbSortKey  = 'played';
+let _lbPeriod   = 'daily';
+
+function lbSetPeriod(p) {
+    _lbPeriod = p;
+    document.querySelectorAll('.lb-period-tab').forEach(b => b.classList.remove('active'));
+    const ptab = document.getElementById('lb-period-' + p);
+    if (ptab) ptab.classList.add('active');
+    loadLeaderboard();
+}
 
 function lbSort(key) {
     _lbSortKey = key;
     document.querySelectorAll('.lb-tab').forEach(b => b.classList.remove('active'));
     const tab = document.getElementById('lb-tab-' + key);
     if (tab) tab.classList.add('active');
+    // Re-sort cached data client-side for instant feedback
     _lbRender();
 }
 
 function _lbRender() {
     const listEl = document.getElementById('lb-list');
     if (!listEl) return;
+
+    const periodLabels = { daily: 'ዛሬ', weekly: 'ባለፉት 7 ቀናት', monthly: 'ባለፉት 30 ቀናት', all: 'ሁሌም' };
+    const pLabel = periodLabels[_lbPeriod] || '';
+
     if (!_lbData.length) {
-        listEl.innerHTML = '<p class="lb-empty">🏆 ምንም አሸናፊ አልተመዘገበም።<br>No winners recorded yet.</p>';
+        listEl.innerHTML = `<p class="lb-empty">📭 ${pLabel} ምንም ጨዋታ አልተመዘገበም።</p>`;
         return;
     }
+
     const sorted = [..._lbData].sort((a, b) => {
-        if (_lbSortKey === 'wins')    return b.wins - a.wins;
-        if (_lbSortKey === 'winrate') return b.win_rate - a.win_rate;
-        return b.total_prize - a.total_prize;
+        if (_lbSortKey === 'wins')    return b.wins    !== a.wins    ? b.wins    - a.wins    : b.total_prize - a.total_prize;
+        if (_lbSortKey === 'winrate') return b.win_rate !== a.win_rate ? b.win_rate - a.win_rate : b.wins - a.wins;
+        if (_lbSortKey === 'played')  return b.rounds_played !== a.rounds_played ? b.rounds_played - a.rounds_played : b.wins - a.wins;
+        return b.total_prize !== a.total_prize ? b.total_prize - a.total_prize : b.wins - a.wins;
     });
 
-    const medals    = ['🥇', '🥈', '🥉'];
-    const rankCls   = ['gold', 'silver', 'bronze'];
-    const avCls     = ['av-gold', 'av-silver', 'av-bronze'];
-    const rowCls    = ['rank-1', 'rank-2', 'rank-3'];
+    const medals  = ['🥇', '🥈', '🥉'];
+    const rankCls = ['gold', 'silver', 'bronze'];
+    const avCls   = ['av-gold', 'av-silver', 'av-bronze'];
+    const rowCls  = ['rank-1', 'rank-2', 'rank-3'];
 
     listEl.innerHTML = sorted.map((l, i) => {
         const initial  = (l.username || '?')[0].toUpperCase();
@@ -2204,16 +2220,23 @@ function _lbRender() {
         const rCls     = i < 3 ? rankCls[i] : 'other';
         const aC       = i < 3 ? avCls[i] : '';
         const rRowCls  = i < 3 ? rowCls[i] : '';
+        const wr       = l.win_rate || 0;
+        const wrCls    = wr >= 40 ? 'wr-high' : wr >= 20 ? 'wr-mid' : 'wr-low';
 
-        const wr = l.win_rate || 0;
-        const wrCls = wr >= 40 ? 'wr-high' : wr >= 20 ? 'wr-mid' : 'wr-low';
-
-        const highlightVal = _lbSortKey === 'wins'    ? `${l.wins} wins`
-                           : _lbSortKey === 'winrate' ? `${wr}% win rate`
-                           : `${l.total_prize.toFixed(2)} ETB`;
-        const highlightLbl = _lbSortKey === 'wins'    ? 'rounds won'
-                           : _lbSortKey === 'winrate' ? 'win rate'
-                           : 'ETB won';
+        let highlightVal, highlightLbl;
+        if (_lbSortKey === 'wins') {
+            highlightVal = `${l.wins} ድሎች`;
+            highlightLbl = `${l.rounds_played} ጨዋታ`;
+        } else if (_lbSortKey === 'winrate') {
+            highlightVal = `${wr}%`;
+            highlightLbl = `${l.wins}W / ${l.rounds_played}P`;
+        } else if (_lbSortKey === 'played') {
+            highlightVal = `${l.rounds_played} ጨዋታ`;
+            highlightLbl = `${l.wins} ድሎች`;
+        } else {
+            highlightVal = `${(l.total_prize || 0).toFixed(0)} ETB`;
+            highlightLbl = `${l.wins} ድሎች`;
+        }
 
         return `
         <div class="lb-row ${rRowCls}">
@@ -2222,8 +2245,8 @@ function _lbRender() {
             <div class="lb-info">
                 <div class="lb-name">${l.username}</div>
                 <div class="lb-meta">
-                    <span class="lb-wins-badge">🏅 ${l.wins} win${l.wins !== 1 ? 's' : ''}</span>
-                    <span class="lb-rounds-badge">${l.rounds_played} played</span>
+                    <span class="lb-wins-badge">🎮 ${l.rounds_played}</span>
+                    <span class="lb-wins-badge" style="background:rgba(34,197,94,0.12);color:#4ade80;">🏅 ${l.wins}</span>
                     <span class="lb-wr-badge ${wrCls}">📈 ${wr}%</span>
                 </div>
             </div>
@@ -2240,7 +2263,7 @@ async function loadLeaderboard() {
     if (!listEl) return;
     listEl.innerHTML = '<p class="lb-empty">Loading...</p>';
     try {
-        const res = await fetch('/api/leaderboard');
+        const res = await fetch(`/api/leaderboard?period=${_lbPeriod}&sort=${_lbSortKey}`);
         if (!res.ok) throw new Error('Failed');
         _lbData = await res.json();
         _lbRender();
