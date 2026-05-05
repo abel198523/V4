@@ -2968,14 +2968,10 @@ body.game-mode .bottom-nav { display: none !important; }
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 7px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.15) transparent;
+    gap: 5px;
+    overflow: hidden;
     min-height: 0;
 }
-.gs-right-panel::-webkit-scrollbar { width: 3px; }
-.gs-right-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 
 /* Active ball top row */
 .gs-call-top-row {
@@ -3012,17 +3008,17 @@ body.game-mode .bottom-nav { display: none !important; }
 
 /* ── Big golden ball circle ──────────────────────────────────── */
 .gs-big-circle {
-    width: 88px;
-    height: 88px;
+    width: 68px;
+    height: 68px;
     border-radius: 50%;
     background: radial-gradient(circle at 38% 32%, #fde68a 0%, #f59e0b 42%, #d97706 82%);
     box-shadow:
-        0 0 0 5px rgba(245,158,11,0.22),
-        0 4px 28px rgba(245,158,11,0.48);
+        0 0 0 4px rgba(245,158,11,0.22),
+        0 4px 20px rgba(245,158,11,0.45);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 900;
     color: #1a0900;
     margin: 0 auto;
@@ -3038,14 +3034,14 @@ body.game-mode .bottom-nav { display: none !important; }
 .gs-auto-toggle-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     background: rgba(255,255,255,0.05);
-    border-radius: 10px;
-    padding: 6px 12px;
+    border-radius: 8px;
+    padding: 4px 10px;
     flex-shrink: 0;
 }
 .gs-auto-lbl {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: #e2e8f0;
     flex: 1;
@@ -3061,14 +3057,14 @@ body.game-mode .bottom-nav { display: none !important; }
 .gs-card-wrap {
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px;
-    padding: 7px;
+    border-radius: 10px;
+    padding: 5px;
     flex-shrink: 0;
 }
 .gs-bingo-board-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 3px;
+    gap: 2px;
     width: 100%;
 }
 
@@ -3076,12 +3072,12 @@ body.game-mode .bottom-nav { display: none !important; }
 #game-screen .bingo-cell {
     background: #1a1635;
     border: 1px solid rgba(255,255,255,0.09);
-    border-radius: 5px;
+    border-radius: 4px;
     aspect-ratio: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     color: #c0bfe0;
 }
@@ -3129,27 +3125,28 @@ body.game-mode .bottom-nav { display: none !important; }
 /* Cartela / card number label */
 .gs-cartela-lbl {
     text-align: center;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     color: #d4a96a;
     background: rgba(120,75,15,0.22);
-    border-radius: 6px;
-    padding: 4px 8px;
-    margin-top: 6px;
+    border-radius: 5px;
+    padding: 2px 6px;
+    margin-top: 4px;
 }
 
 /* ── Recent balls row ───────────────────────────────────────── */
 .gs-recent-balls-row {
     display: flex;
-    justify-content: center;
-    gap: 5px;
+    justify-content: flex-start;
+    gap: 3px;
     flex-wrap: wrap;
     flex-shrink: 0;
+    min-height: 24px;
 }
 .gs-recent-balls-row .hist-ball {
-    width: 28px;
-    height: 28px;
-    font-size: 9px;
+    width: 22px;
+    height: 22px;
+    font-size: 8px;
 }
 
 /* ── Bottom action buttons ──────────────────────────────────── */
