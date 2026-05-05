@@ -9,8 +9,10 @@ bind = f"0.0.0.0:{os.environ.get('PORT', '5000')}"
 
 
 def on_starting(server):
-    """Called when gunicorn master process starts."""
-    pass
+    """Block startup entirely on Replit — this app runs on Railway only."""
+    if os.environ.get("REPL_ID") or os.environ.get("REPLIT_DEV_DOMAIN"):
+        print("Replit environment detected — this app runs on Railway only. Stopping.")
+        os._exit(0)
 
 
 def post_fork(server, worker):
