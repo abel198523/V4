@@ -11,10 +11,11 @@ def run_bot():
         return
 
     # Determine webhook URL from environment
+    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
     app_url = (
         os.environ.get('APP_URL') or
         os.environ.get('RENDER_EXTERNAL_URL') or
-        os.environ.get('RAILWAY_PUBLIC_DOMAIN') and f"https://{os.environ.get('RAILWAY_PUBLIC_DOMAIN')}"
+        (f"https://{railway_domain}" if railway_domain else None)
     )
     replit_domain = os.environ.get('REPLIT_DEV_DOMAIN') or (
         os.environ.get('REPLIT_DOMAINS', '').split(',')[0]

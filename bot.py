@@ -17,8 +17,11 @@ def _get_web_url():
         if os.environ.get('REPLIT_DOMAINS') else None
     )
     render_url = os.environ.get('RENDER_EXTERNAL_URL')
+    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
     if render_url:
         return render_url
+    elif railway_domain:
+        return f"https://{railway_domain}"
     elif replit_domain:
         return f"https://{replit_domain}"
     return os.environ.get('APP_URL', 'http://localhost:5000')

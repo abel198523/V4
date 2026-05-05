@@ -54,8 +54,10 @@ def delete_otp(telegram_chat_id):
     db.session.commit()
 
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def landing():
+    if request.method == "POST":
+        return jsonify({"status": "ok"}), 200
     if current_user.is_authenticated:
         return redirect(url_for('game_page'))
     return render_template("landing.html")

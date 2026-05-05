@@ -11,13 +11,3 @@ email-validator==2.3.0
 bcrypt==5.0.0
 python-dotenv==1.2.2
 Flask-Compress==1.15
-email_validator
-flask
-flask-sqlalchemy
-gunicorn
-psycopg2-binary
-email_validator
-flask
-flask-sqlalchemy
-gunicorn
-psycopg2-binary
