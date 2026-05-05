@@ -822,6 +822,7 @@ body {
 
 .stake-screen.active {
     display: flex;
+    overflow-y: auto;
 }
 
 .stake-list {
