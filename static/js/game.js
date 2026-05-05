@@ -277,7 +277,7 @@ function _updateCardFillPanel(info) {
     const launchNumEl = document.getElementById('cfp-launch-num');
     const prizePoolEl = document.getElementById('sel-prize-pool');
 
-    // Show cards bought so far (replaces the old min-cards counter)
+    // Show cards bought so far out of 100 total
     if (currentEl) currentEl.innerText = n;
 
     // Prize pool in info bar
