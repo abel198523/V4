@@ -1995,7 +1995,7 @@ function navTo(screenId) {
 
     if (screenId === 'profile') loadProfileData();
     if (screenId === 'wallet') loadBalanceHistory();
-    if (screenId === 'leaderboard') loadLeaderboard();
+    if (screenId === 'leaderboard') { loadLbPeriodConfig(); loadLeaderboard(); }
     if (screenId === 'withdraw') loadWithdrawHistory();
     if (screenId === 'deposit') loadDepositMethods();
 
@@ -2172,6 +2172,30 @@ function shareReferralLink() {
 let _lbData = [];
 let _lbSortKey  = 'played';
 let _lbPeriod   = 'daily';
+
+async function loadLbPeriodConfig() {
+    try {
+        const res = await fetch('/api/leaderboard/config');
+        if (!res.ok) return;
+        const cfg = await res.json();
+        const periods = ['daily', 'weekly', 'monthly', 'all'];
+        let firstEnabled = null;
+        for (const p of periods) {
+            const btn = document.getElementById('lb-period-' + p);
+            if (!btn) continue;
+            const enabled = cfg[p] !== false;
+            btn.style.display = enabled ? '' : 'none';
+            if (enabled && firstEnabled === null) firstEnabled = p;
+        }
+        // If current period was disabled, switch to the first enabled one
+        const curBtn = document.getElementById('lb-period-' + _lbPeriod);
+        if (curBtn && curBtn.style.display === 'none' && firstEnabled) {
+            lbSetPeriod(firstEnabled);
+        }
+    } catch (e) {
+        // Silently ignore — leave tabs as-is
+    }
+}
 
 function lbSetPeriod(p) {
     _lbPeriod = p;
@@ -2594,6 +2618,10 @@ async function loadAdminSettings() {
     const lbP1El       = document.getElementById('settings-lb-prize-1');
     const lbP2El       = document.getElementById('settings-lb-prize-2');
     const lbP3El       = document.getElementById('settings-lb-prize-3');
+    const lbPeriodDailyEl   = document.getElementById('settings-lb-period-daily');
+    const lbPeriodWeeklyEl  = document.getElementById('settings-lb-period-weekly');
+    const lbPeriodMonthlyEl = document.getElementById('settings-lb-period-monthly');
+    const lbPeriodAllEl     = document.getElementById('settings-lb-period-all');
 
     if (statusEl) { statusEl.innerText = 'Loading...'; statusEl.style.color = '#6b7280'; }
 
@@ -2612,6 +2640,10 @@ async function loadAdminSettings() {
         if (lbP1El)    lbP1El.value    = data.lb_prize_1 ?? 500;
         if (lbP2El)    lbP2El.value    = data.lb_prize_2 ?? 300;
         if (lbP3El)    lbP3El.value    = data.lb_prize_3 ?? 100;
+        if (lbPeriodDailyEl)   lbPeriodDailyEl.checked   = data.lb_period_daily_enabled   !== false;
+        if (lbPeriodWeeklyEl)  lbPeriodWeeklyEl.checked  = data.lb_period_weekly_enabled  !== false;
+        if (lbPeriodMonthlyEl) lbPeriodMonthlyEl.checked = data.lb_period_monthly_enabled !== false;
+        if (lbPeriodAllEl)     lbPeriodAllEl.checked     = data.lb_period_all_enabled     !== false;
 
         // Render payment method cards
         const pmListEl = document.getElementById('admin-payment-methods-list');
@@ -2697,18 +2729,22 @@ async function loadAdminSettings() {
                     method: 'POST',
                     headers: _ah(),
                     body: JSON.stringify({
-                        card_select_time:     cntVal,
-                        house_fee_pct:        feeVal,
-                        referral_bonus:       refBonVal,
-                        bonus_expiry_days:    bonExpVal,
-                        withdraw_min:         wMinVal,
-                        withdraw_max:         wMaxVal,
-                        payment_methods:      pmPayload,
-                        streak_auto_msg:      strAutoEl ? strAutoEl.value.trim() : '',
-                        streak_milestone_msg: strMsEl   ? strMsEl.value.trim()   : '',
-                        lb_prize_1:           parseFloat(lbP1El ? lbP1El.value : 500) || 0,
-                        lb_prize_2:           parseFloat(lbP2El ? lbP2El.value : 300) || 0,
-                        lb_prize_3:           parseFloat(lbP3El ? lbP3El.value : 100) || 0,
+                        card_select_time:          cntVal,
+                        house_fee_pct:             feeVal,
+                        referral_bonus:            refBonVal,
+                        bonus_expiry_days:         bonExpVal,
+                        withdraw_min:              wMinVal,
+                        withdraw_max:              wMaxVal,
+                        payment_methods:           pmPayload,
+                        streak_auto_msg:           strAutoEl ? strAutoEl.value.trim() : '',
+                        streak_milestone_msg:      strMsEl   ? strMsEl.value.trim()   : '',
+                        lb_prize_1:                parseFloat(lbP1El ? lbP1El.value : 500) || 0,
+                        lb_prize_2:                parseFloat(lbP2El ? lbP2El.value : 300) || 0,
+                        lb_prize_3:                parseFloat(lbP3El ? lbP3El.value : 100) || 0,
+                        lb_period_daily_enabled:   lbPeriodDailyEl   ? lbPeriodDailyEl.checked   : true,
+                        lb_period_weekly_enabled:  lbPeriodWeeklyEl  ? lbPeriodWeeklyEl.checked  : true,
+                        lb_period_monthly_enabled: lbPeriodMonthlyEl ? lbPeriodMonthlyEl.checked : true,
+                        lb_period_all_enabled:     lbPeriodAllEl     ? lbPeriodAllEl.checked     : true,
                     })
                 });
                 const data = await res.json();

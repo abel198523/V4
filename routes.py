@@ -941,6 +941,14 @@ def _get_lb_prizes():
     return result
 
 
+def _get_lb_period_enabled(period):
+    """Return True if the leaderboard period tab is enabled (default: True)."""
+    s = Setting.query.get(f'lb_period_{period}_enabled')
+    if s is None:
+        return True
+    return s.value == '1'
+
+
 @app.route("/api/admin/settings", methods=["GET"])
 def get_admin_settings():
     if not _admin_ok():
@@ -948,18 +956,22 @@ def get_admin_settings():
     from game_engine import get_card_select_time, get_house_fee
     prizes = _get_lb_prizes()
     return jsonify({
-        "card_select_time":     get_card_select_time(),
-        "house_fee_pct":        round(get_house_fee() * 100),
-        "referral_bonus":       _get_referral_bonus(),
-        "bonus_expiry_days":    _get_bonus_expiry_days(),
-        "withdraw_min":         _get_withdraw_min(),
-        "withdraw_max":         _get_withdraw_max(),
-        "payment_methods":      _get_payment_methods_config(),
-        "streak_auto_msg":      _get_streak_auto_msg(),
-        "streak_milestone_msg": _get_streak_milestone_msg(),
-        "lb_prize_1":           prizes[1],
-        "lb_prize_2":           prizes[2],
-        "lb_prize_3":           prizes[3],
+        "card_select_time":           get_card_select_time(),
+        "house_fee_pct":              round(get_house_fee() * 100),
+        "referral_bonus":             _get_referral_bonus(),
+        "bonus_expiry_days":          _get_bonus_expiry_days(),
+        "withdraw_min":               _get_withdraw_min(),
+        "withdraw_max":               _get_withdraw_max(),
+        "payment_methods":            _get_payment_methods_config(),
+        "streak_auto_msg":            _get_streak_auto_msg(),
+        "streak_milestone_msg":       _get_streak_milestone_msg(),
+        "lb_prize_1":                 prizes[1],
+        "lb_prize_2":                 prizes[2],
+        "lb_prize_3":                 prizes[3],
+        "lb_period_daily_enabled":    _get_lb_period_enabled('daily'),
+        "lb_period_weekly_enabled":   _get_lb_period_enabled('weekly'),
+        "lb_period_monthly_enabled":  _get_lb_period_enabled('monthly'),
+        "lb_period_all_enabled":      _get_lb_period_enabled('all'),
     })
 
 
@@ -1064,6 +1076,18 @@ def update_admin_settings():
             except (ValueError, TypeError):
                 errors.append(f"lb_prize_{rank} must be a number")
 
+    # lb period enable/disable: daily | weekly | monthly | all
+    for period in ('daily', 'weekly', 'monthly', 'all'):
+        key = f'lb_period_{period}_enabled'
+        val = data.get(key)
+        if val is not None:
+            flag = '1' if val else '0'
+            s = Setting.query.get(key)
+            if s:
+                s.value = flag
+            else:
+                db.session.add(Setting(key=key, value=flag))
+
     # cross-validate min < max
     wmin = data.get('withdraw_min')
     wmax = data.get('withdraw_max')
@@ -1101,17 +1125,33 @@ def update_admin_settings():
     from game_engine import get_card_select_time, get_house_fee
     prizes = _get_lb_prizes()
     return jsonify({
-        "success":          True,
-        "card_select_time": get_card_select_time(),
-        "house_fee_pct":    round(get_house_fee() * 100),
-        "referral_bonus":    _get_referral_bonus(),
-        "bonus_expiry_days": _get_bonus_expiry_days(),
-        "withdraw_min":      _get_withdraw_min(),
-        "withdraw_max":      _get_withdraw_max(),
-        "payment_methods":   _get_payment_methods_config(),
-        "lb_prize_1":        prizes[1],
-        "lb_prize_2":        prizes[2],
-        "lb_prize_3":        prizes[3],
+        "success":                    True,
+        "card_select_time":           get_card_select_time(),
+        "house_fee_pct":              round(get_house_fee() * 100),
+        "referral_bonus":             _get_referral_bonus(),
+        "bonus_expiry_days":          _get_bonus_expiry_days(),
+        "withdraw_min":               _get_withdraw_min(),
+        "withdraw_max":               _get_withdraw_max(),
+        "payment_methods":            _get_payment_methods_config(),
+        "lb_prize_1":                 prizes[1],
+        "lb_prize_2":                 prizes[2],
+        "lb_prize_3":                 prizes[3],
+        "lb_period_daily_enabled":    _get_lb_period_enabled('daily'),
+        "lb_period_weekly_enabled":   _get_lb_period_enabled('weekly'),
+        "lb_period_monthly_enabled":  _get_lb_period_enabled('monthly'),
+        "lb_period_all_enabled":      _get_lb_period_enabled('all'),
+    })
+
+
+@app.route("/api/leaderboard/config")
+@login_required
+def leaderboard_config():
+    """Public endpoint: returns which leaderboard period tabs are enabled."""
+    return jsonify({
+        "daily":   _get_lb_period_enabled('daily'),
+        "weekly":  _get_lb_period_enabled('weekly'),
+        "monthly": _get_lb_period_enabled('monthly'),
+        "all":     _get_lb_period_enabled('all'),
     })
 
 
