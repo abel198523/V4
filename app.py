@@ -229,9 +229,5 @@ with app.app_context():
         db.session.rollback()
         logger.warning(f"Referral code generation failed: {e}")
 
-# Start independent per-room countdown timers
-try:
-    from game_engine import start_all_room_timers
-    start_all_room_timers()
-except Exception as e:
-    logger.error(f"Failed to start room timers: {e}")
+# Room timers are started by gunicorn's post_fork hook (gunicorn.conf.py)
+# so they run only in worker processes, not the master process.

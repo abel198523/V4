@@ -539,7 +539,18 @@
                 </div>
             </div>
 
-            <!-- Main body: left = master grid, right = ball + card -->
+            <!-- Player card 1 — mini strip at TOP (always visible during game) -->
+            <div class="gs-player-card-strip gs-top-card-strip">
+                <div class="gs-mini-card-wrap">
+                    <div id="bingo-board" class="gs-bingo-board-grid gs-mini-board"></div>
+                    <div class="gs-mini-card-info">
+                        <div id="my-card-label" class="gs-mini-lbl">ካርድ አልተመረጠም</div>
+                        <div id="near-bingo-bar" class="near-bingo-bar" style="display:none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main body: left = master grid, right = ball -->
             <div class="gs-body">
 
                 <!-- LEFT: BINGO headers + Master Grid -->
@@ -554,7 +565,7 @@
                     <div id="master-grid" class="master-grid gs-master-grid"></div>
                 </div>
 
-                <!-- RIGHT: Current ball + card -->
+                <!-- RIGHT: Current ball + recent balls + auto toggle -->
                 <div class="gs-right-panel">
 
                     <!-- Called ball history — TOP -->
@@ -578,22 +589,16 @@
                         <div id="auto-toggle" class="toggle-switch active"><div class="toggle-handle"></div></div>
                     </div>
 
-                    <!-- Both player cards side by side -->
-                    <div class="gs-cards-row">
-                        <!-- Player card 1 -->
-                        <div class="gs-card-wrap">
-                            <div id="bingo-board" class="gs-bingo-board-grid"></div>
-                            <div id="my-card-label" class="gs-cartela-lbl">ካርድ አልተመረጠም</div>
-                            <div id="near-bingo-bar" class="near-bingo-bar" style="display:none;"></div>
-                        </div>
+                </div>
+            </div>
 
-                        <!-- Player card 2 (hidden until purchased) -->
-                        <div class="gs-card-wrap" id="gs-card2-wrap" style="display:none;">
-                            <div id="bingo-board-2" class="gs-bingo-board-grid"></div>
-                            <div id="my-card-label-2" class="gs-cartela-lbl">ካርድ 2</div>
-                        </div>
+            <!-- Player card 2 — mini strip at BOTTOM (hidden until 2nd card purchased) -->
+            <div class="gs-player-card-strip gs-bottom-card-strip" id="gs-card2-wrap" style="display:none;">
+                <div class="gs-mini-card-wrap">
+                    <div id="bingo-board-2" class="gs-bingo-board-grid gs-mini-board"></div>
+                    <div class="gs-mini-card-info">
+                        <div id="my-card-label-2" class="gs-mini-lbl">ካርድ 2</div>
                     </div>
-
                 </div>
             </div>
 
@@ -605,7 +610,7 @@
 
             <!-- Bottom action buttons -->
             <div class="gs-bottom-bar">
-                <button class="gs-action-btn gs-leave-btn" onclick="navTo('selection')">Leave</button>
+                <button class="gs-action-btn gs-leave-btn" onclick="if(typeof handleGameOverReturn==='function'&&typeof currentRoom!=='undefined'&&currentRoom){handleGameOverReturn(currentRoom);}else{if(typeof navTo==='function')navTo('selection');}">Leave</button>
                 <button class="gs-action-btn gs-refresh-btn" onclick="if(typeof currentRoom!='undefined'&&currentRoom){startGameStatePoll(currentRoom);}">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refresh
                 </button>

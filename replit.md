@@ -51,6 +51,14 @@ export PATH="/home/runner/workspace/.pythonlibs/bin:$PATH" && gunicorn --bind 0.
 - **Admin panel**: `/admin` route for managing users, rooms, deposit/withdraw requests
 - **Real-time game**: Per-room countdown timers running as background threads
 
+## Gameplay Bug Fixes Applied
+
+- **Timer double-counting**: Removed `start_all_room_timers()` from `app.py`; timers now only start via gunicorn `post_fork` (worker processes only, not master)
+- **Timer display skipping**: Changed `_syncTimers` poll interval from 2000ms → 1000ms so countdown shows every second
+- **Auto-claim bingo**: Added `Number()` coercion in `_detectBingo` to avoid type mismatch between card data and called balls
+- **Game-over cleanup**: `handleGameOverReturn` now resets `_gameStarted` and `_gameStartCDActive` flags; Leave button calls full cleanup
+- **Card layout**: Player cards moved to compact mini-strips at top (card 1) and bottom (card 2) of the game screen
+
 ## Auth Flow
 
 1. User clicks "Login via Telegram" on landing page

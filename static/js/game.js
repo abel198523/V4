@@ -72,7 +72,7 @@ let _lastCardCount = {};  // stakeStr -> last known cards_count for taken-card r
 function startTimerSystem() {
     if (_timerPollId) clearInterval(_timerPollId);
     _syncTimers();
-    _timerPollId = setInterval(_syncTimers, 2000);
+    _timerPollId = setInterval(_syncTimers, 1000);
 }
 
 function stopTimerSystem() {
@@ -434,6 +434,8 @@ function calcNearBingo(cardData, calledBalls) {
 
 function handleGameOverReturn(stake) {
     stopGameStatePoll();
+    _gameStarted[stake] = false;
+    _gameStartCDActive = false;
     // Clear game board state for this room
     const state = getRoomState(stake);
     state.myGameCard = null;
@@ -2173,14 +2175,14 @@ const WINNER_DISPLAY_SECONDS = 8;
 
 function _detectBingo(cardData, calledBalls) {
     if (!cardData || !calledBalls) return false;
-    const called = new Set(calledBalls);
+    const called = new Set(calledBalls.map(Number));
     const letters = ['B', 'I', 'N', 'G', 'O'];
     const grid = [];
     for (let row = 0; row < 5; row++) {
         const r = [];
         for (const l of letters) {
             const val = cardData[l][row];
-            r.push(val === 'FREE' ? true : called.has(val));
+            r.push(val === 'FREE' ? true : called.has(Number(val)));
         }
         grid.push(r);
     }
@@ -2197,9 +2199,9 @@ async function checkMyCardForBingo(calledBalls) {
     if (state.bingoFlashed || state.autoClaimInProgress) return;
 
     // Check card 1
-    const hasBingo1 = state.myGameCard && _detectBingo(state.myGameCard, calledBalls);
+    const hasBingo1 = state.myGameCard && _detectBingo(state.myGameCard, calledBalls.map(Number));
     // Check card 2
-    const hasBingo2 = state.myGameCard2 && _detectBingo(state.myGameCard2, calledBalls);
+    const hasBingo2 = state.myGameCard2 && _detectBingo(state.myGameCard2, calledBalls.map(Number));
 
     if (!hasBingo1 && !hasBingo2) return;
 
