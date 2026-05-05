@@ -1072,6 +1072,26 @@
                 <div id="admin-settings-tab" class="admin-tab-content">
                     <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:16px;color:#f59e0b;">⚙️ Game Settings</h3>
 
+                    <!-- DANGER ZONE: Reset active game -->
+                    <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.35);border-radius:12px;padding:16px;margin-bottom:20px;">
+                        <div style="font-size:0.78rem;font-weight:800;color:#ef4444;letter-spacing:0.5px;margin-bottom:6px;">⚠️ DANGER ZONE — የሚሄደውን ጨዋታ ክሊር ያድርጉ</div>
+                        <p style="font-size:0.74rem;color:#9ca3af;margin-bottom:14px;line-height:1.5;">
+                            አሁን የሚሄደውን ጨዋታ ያቆማል፣ session ያስቀምጣል እና <strong style="color:#fbbf24;">ሁሉም ተጫዋቾቹ ክፍያ ተመላሽ ይደረጋል</strong>። ሊቀለበስ አይችልም!
+                        </p>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                            <select id="reset-game-stake" class="form-input" style="width:120px;font-weight:700;">
+                                {% for stake in [10, 20, 50, 100] %}
+                                <option value="{{ stake }}">{{ stake }} ETB</option>
+                                {% endfor %}
+                            </select>
+                            <button id="reset-game-btn"
+                                style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;border-radius:9px;padding:10px 20px;font-size:0.85rem;font-weight:800;cursor:pointer;letter-spacing:0.3px;">
+                                🗑️ ጨዋታ ክሊር አድርግ
+                            </button>
+                        </div>
+                        <div id="reset-game-status" style="font-size:0.78rem;margin-top:10px;min-height:18px;font-weight:600;"></div>
+                    </div>
+
                     <div style="background:#1e2435;border-radius:12px;padding:18px;margin-bottom:16px;">
                         <label style="display:block;font-size:0.8rem;color:#9ca3af;margin-bottom:6px;font-weight:600;">
                             MINIMUM CARDS TO START A GAME

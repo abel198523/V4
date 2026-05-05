@@ -667,6 +667,64 @@ def set_room_waiting(stake):
     logger.info(f"Room {stake} ETB set to WAITING (manual).")
 
 
+def reset_room_game(stake):
+    """
+    Admin-triggered full game reset for a room:
+    - Cancels the active DB session (marks 'cancelled')
+    - Refunds card cost to every player who bought a card this session
+    - Resets in-memory room_states back to waiting
+    Returns (refunded_count, refunded_total) for the response message.
+    """
+    refunded_count = 0
+    refunded_total = 0.0
+
+    try:
+        from app import app, db
+        from models import Room, GameSession, Transaction, User
+        with app.app_context():
+            db.session.remove()
+            room = Room.query.filter_by(card_price=float(stake)).first()
+            if room and room.active_session_id:
+                session_id = room.active_session_id
+                # Mark session cancelled
+                gs = GameSession.query.get(session_id)
+                if gs:
+                    gs.status = 'cancelled'
+                # Refund each card purchase
+                txns = Transaction.query.filter_by(
+                    room_id=room.id, session_id=session_id
+                ).all()
+                refunded_users = set()
+                for tx in txns:
+                    user = User.query.get(tx.user_id)
+                    if user:
+                        user.balance = round(float(user.balance or 0) + float(tx.amount), 2)
+                        refunded_users.add(user.id)
+                        refunded_total += float(tx.amount)
+                refunded_count = len(txns)
+                room.active_session_id = None
+                db.session.commit()
+                logger.info(
+                    f"Room {stake} ETB: GAME RESET by admin — "
+                    f"cancelled session {session_id}, refunded {refunded_count} cards "
+                    f"({refunded_total:.2f} ETB total)"
+                )
+    except Exception as e:
+        logger.error(f"reset_room_game error for room {stake}: {e}")
+
+    # Always reset in-memory state regardless of DB outcome
+    with _lock:
+        room_states[stake]['status'] = 'waiting'
+        room_states[stake]['launch_timer'] = 0
+        room_states[stake]['balls'] = []
+        room_states[stake]['winner'] = None
+        room_states[stake]['winner_card'] = None
+        room_states[stake]['prize'] = 0.0
+        room_states[stake]['winners'] = []
+
+    return refunded_count, round(refunded_total, 2)
+
+
 def get_all_room_status():
     with _lock:
         states_snapshot = {stake: dict(room_states[stake]) for stake in STAKES}

@@ -3042,6 +3042,36 @@ if (sendDailyReportBtn) {
     };
 }
 
+// ── Reset Active Game ─────────────────────────────────────────────────────────
+const resetGameBtn = document.getElementById('reset-game-btn');
+if (resetGameBtn) {
+    resetGameBtn.onclick = async () => {
+        const stakeEl  = document.getElementById('reset-game-stake');
+        const statusEl = document.getElementById('reset-game-status');
+        const stake    = stakeEl ? parseInt(stakeEl.value) : 10;
+        if (!confirm(`⚠️ ${stake} ETB ጨዋታን ክሊር ያድርጉ?\nሁሉም ካርዶች ለተጫዋቾቹ ይመለሳሉ።`)) return;
+        resetGameBtn.disabled  = true;
+        resetGameBtn.innerText = 'Clearing...';
+        if (statusEl) { statusEl.innerText = ''; statusEl.style.color = '#6b7280'; }
+        try {
+            const res  = await fetch(`/api/admin/reset-game/${stake}`, {
+                method: 'POST',
+                headers: _ah()
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (statusEl) { statusEl.innerText = data.message; statusEl.style.color = '#22c55e'; }
+            } else {
+                if (statusEl) { statusEl.innerText = '❌ ' + (data.error || 'Failed'); statusEl.style.color = '#ef4444'; }
+            }
+        } catch (e) {
+            if (statusEl) { statusEl.innerText = '❌ Network error'; statusEl.style.color = '#ef4444'; }
+        }
+        resetGameBtn.disabled  = false;
+        resetGameBtn.innerText = '🗑️ ጨዋታ ክሊር አድርግ';
+    };
+}
+
 // ── Streak Milestone Broadcast ────────────────────────────────────────────────
 async function loadStreakBcCount() {
     const ms = document.getElementById('streak-milestone-select')?.value || 7;

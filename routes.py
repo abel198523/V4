@@ -1137,6 +1137,25 @@ def room_set_waiting(stake):
     return jsonify({"success": True})
 
 
+@app.route("/api/admin/reset-game/<int:stake>", methods=["POST"])
+def admin_reset_game(stake):
+    if not _admin_ok():
+        return jsonify({"error": "Unauthorized"}), 403
+    from game_engine import reset_room_game, STAKES
+    if stake not in STAKES:
+        return jsonify({"error": "Invalid room"}), 400
+    refunded_count, refunded_total = reset_room_game(stake)
+    msg = (
+        f"✅ {stake} ETB ጨዋታ ክሊር ተደረገ። "
+        f"{refunded_count} ካርድ ({refunded_total:.2f} ETB) ለተጫዋቾቹ ተመልሷል።"
+        if refunded_count > 0
+        else f"✅ {stake} ETB ጨዋታ ክሊር ተደረገ። (ምንም ካርድ አልተሸጠም ነበር)"
+    )
+    return jsonify({"success": True, "message": msg,
+                    "refunded_count": refunded_count,
+                    "refunded_total": refunded_total})
+
+
 @app.route("/api/user/stats")
 @login_required
 def user_stats():
