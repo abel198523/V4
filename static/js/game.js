@@ -2767,6 +2767,8 @@ async function loadAdminSettings() {
     const countEl      = document.getElementById('settings-countdown');
     const feeEl        = document.getElementById('settings-house-fee');
     const refBonEl     = document.getElementById('settings-referral-bonus');
+    const regBonEl     = document.getElementById('settings-reg-bonus');
+    const regBonEnEl   = document.getElementById('settings-reg-bonus-enabled');
     const bonExpEl     = document.getElementById('settings-bonus-expiry-days');
     const wMinEl       = document.getElementById('settings-withdraw-min');
     const wMaxEl       = document.getElementById('settings-withdraw-max');
@@ -2797,8 +2799,10 @@ async function loadAdminSettings() {
         const data = await res.json();
         if (countEl)   countEl.value   = data.card_select_time;
         if (feeEl)     feeEl.value     = data.house_fee_pct;
-        if (refBonEl)  refBonEl.value  = data.referral_bonus;
-        if (bonExpEl)  bonExpEl.value  = data.bonus_expiry_days ?? 30;
+        if (refBonEl)    refBonEl.value    = data.referral_bonus;
+        if (regBonEl)    regBonEl.value    = data.registration_bonus ?? 0;
+        if (regBonEnEl)  regBonEnEl.checked = data.registration_bonus_enabled === true;
+        if (bonExpEl)    bonExpEl.value    = data.bonus_expiry_days ?? 30;
         if (wMinEl)    wMinEl.value    = data.withdraw_min;
         if (wMaxEl)    wMaxEl.value    = data.withdraw_max;
         if (strAutoEl) strAutoEl.value = data.streak_auto_msg      || '';
@@ -2907,6 +2911,8 @@ async function loadAdminSettings() {
                         card_select_time:          cntVal,
                         house_fee_pct:             feeVal,
                         referral_bonus:            refBonVal,
+                        registration_bonus:        parseFloat(regBonEl ? regBonEl.value : '0') || 0,
+                        registration_bonus_enabled: regBonEnEl ? regBonEnEl.checked : false,
                         bonus_expiry_days:         bonExpVal,
                         withdraw_min:              wMinVal,
                         withdraw_max:              wMaxVal,

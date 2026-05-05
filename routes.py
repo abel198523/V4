@@ -267,6 +267,7 @@ def tg_miniapp_auth():
             if referrer and referrer.id != user.id:
                 user.referred_by = ref_code
 
+        _apply_reg_bonus(user)
         db.session.commit()
 
     login_user(user, remember=True)
@@ -360,6 +361,7 @@ def signup():
                 db.session.add(user)
                 db.session.flush()
                 _apply_referral_bonus(user, form_ref)
+                _apply_reg_bonus(user)
                 db.session.commit()
                 login_user(user, remember=True)
                 return redirect(url_for('game_page'))
@@ -418,6 +420,7 @@ def do_signup():
     db.session.add(user)
     db.session.flush()
     _apply_referral_bonus(user, ref_code)
+    _apply_reg_bonus(user)
     db.session.commit()
     login_user(user, remember=True)
 
@@ -744,6 +747,35 @@ def _get_bonus_expiry_days():
         return 30
 
 
+def _get_reg_bonus():
+    from models import Setting
+    s = Setting.query.get('registration_bonus')
+    try:
+        return round(float(s.value), 2) if s else 0.0
+    except Exception:
+        return 0.0
+
+
+def _get_reg_bonus_enabled():
+    from models import Setting
+    s = Setting.query.get('registration_bonus_enabled')
+    return (s.value == '1') if s else False
+
+
+def _apply_reg_bonus(user):
+    """Credit registration bonus to a newly created user if the feature is enabled."""
+    if not _get_reg_bonus_enabled():
+        return
+    bonus = _get_reg_bonus()
+    if bonus <= 0:
+        return
+    from datetime import datetime, timezone, timedelta
+    expiry_days = _get_bonus_expiry_days()
+    new_exp = datetime.now(timezone.utc) + timedelta(days=expiry_days)
+    user.bonus_balance    = round(float(user.bonus_balance or 0) + bonus, 2)
+    user.bonus_expires_at = new_exp
+
+
 _STREAK_REWARDS = [2, 2, 2, 2, 2, 2, 10]  # Day 1–6: 2 ETB, Day 7: 10 ETB (cycles)
 
 
@@ -992,6 +1024,8 @@ def get_admin_settings():
         "house_fee_pct":               round(get_house_fee() * 100),
         "referral_bonus":              _get_referral_bonus(),
         "bonus_expiry_days":           _get_bonus_expiry_days(),
+        "registration_bonus":          _get_reg_bonus(),
+        "registration_bonus_enabled":  _get_reg_bonus_enabled(),
         "withdraw_min":                _get_withdraw_min(),
         "withdraw_max":                _get_withdraw_max(),
         "payment_methods":             _get_payment_methods_config(),
@@ -1032,6 +1066,32 @@ def update_admin_settings():
 
     _save('card_select_time', data.get('card_select_time'), 5, 120)
     _save('house_fee_pct',    data.get('house_fee_pct'),    0,  50)
+
+    # registration_bonus: float 0–500 ETB
+    rb2 = data.get('registration_bonus')
+    if rb2 is not None:
+        try:
+            rb2_f = round(float(rb2), 2)
+            if rb2_f < 0 or rb2_f > 500:
+                errors.append("registration_bonus must be 0–500 ETB")
+            else:
+                s = Setting.query.get('registration_bonus')
+                if s:
+                    s.value = str(rb2_f)
+                else:
+                    db.session.add(Setting(key='registration_bonus', value=str(rb2_f)))
+        except (ValueError, TypeError):
+            errors.append("registration_bonus must be a number")
+
+    # registration_bonus_enabled: bool
+    rbe = data.get('registration_bonus_enabled')
+    if rbe is not None:
+        flag = '1' if rbe else '0'
+        s = Setting.query.get('registration_bonus_enabled')
+        if s:
+            s.value = flag
+        else:
+            db.session.add(Setting(key='registration_bonus_enabled', value=flag))
 
     # referral_bonus: float, 0–100 ETB
     rb = data.get('referral_bonus')
@@ -2016,22 +2076,64 @@ def api_game_state(stake):
 @app.route("/api/bingo-claim/<int:stake>", methods=["POST"])
 @login_required
 def api_bingo_claim(stake):
-    from game_engine import room_states, STAKES
+    import time as _time
+    from game_engine import room_states, STAKES, _find_and_award_winner, _lock
     if stake not in STAKES:
         return jsonify({"error": "Room not found"}), 404
-    state = room_states.get(stake, {})
-    winners = state.get('winners', [])
-    if winners:
-        return jsonify({
-            "valid": True,
-            "winners": winners,
-            "winner": winners[0]['username'],
-            "winner_card": winners[0]['card_number'],
-            "winner_card_data": winners[0]['card_data'],
-            "balls": list(state.get('balls', [])),
-            "prize": winners[0]['prize'],
-        })
-    return jsonify({"valid": False, "message": "ዳቢ ሊጠናቀቅ ጥቂት ይጠብቁ..."})
+
+    # Retry loop: client may call claim before server has processed that ball.
+    # Wait up to 3 seconds for the game engine to set winners.
+    for attempt in range(6):
+        with _lock:
+            state = room_states.get(stake, {})
+            winners = state.get('winners', [])
+            balls   = list(state.get('balls', []))
+            status  = state.get('status', '')
+
+        if winners:
+            return jsonify({
+                "valid":            True,
+                "winners":          winners,
+                "winner":           winners[0]['username'],
+                "winner_card":      winners[0]['card_number'],
+                "winner_card_data": winners[0]['card_data'],
+                "balls":            balls,
+                "prize":            winners[0]['prize'],
+            })
+
+        # Game not playing — nothing to claim
+        if status != 'playing':
+            break
+
+        # On the first two attempts actively trigger the winner check
+        # (covers the race where client sees the ball before server writes winners)
+        if attempt < 2 and balls:
+            result = _find_and_award_winner(stake, set(balls))
+            if result:
+                from card_data import get_card_data as _gcd
+                winners_data = [
+                    {'username': u, 'card_number': cn, 'prize': ps, 'card_data': cd}
+                    for u, cn, ps, cd in result
+                ]
+                with _lock:
+                    if not room_states.get(stake, {}).get('winners'):
+                        room_states[stake]['winners'] = winners_data
+                        room_states[stake]['winner']      = result[0][0]
+                        room_states[stake]['winner_card']  = result[0][1]
+                        room_states[stake]['prize']        = result[0][2]
+                return jsonify({
+                    "valid":            True,
+                    "winners":          winners_data,
+                    "winner":           winners_data[0]['username'],
+                    "winner_card":      winners_data[0]['card_number'],
+                    "winner_card_data": winners_data[0]['card_data'],
+                    "balls":            balls,
+                    "prize":            winners_data[0]['prize'],
+                })
+
+        _time.sleep(0.5)
+
+    return jsonify({"valid": False, "message": "ቢንጎ ተቀባይነት አላገኘም — ዳቢ ሊጠናቀቅ ጥቂት ይጠብቁ"})
 
 
 @app.route("/api/buy-card-by-stake/<int:stake>/<int:card_number>", methods=["POST"])

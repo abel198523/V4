@@ -1258,6 +1258,28 @@
                     </div>
 
                     <div style="background:#1e2435;border-radius:12px;padding:18px;margin-bottom:16px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <label style="font-size:0.8rem;color:#9ca3af;font-weight:600;">
+                                🎁 REGISTRATION BONUS
+                            </label>
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="settings-reg-bonus-enabled"
+                                    style="width:16px;height:16px;accent-color:#22c55e;">
+                                <span style="font-size:0.75rem;color:#94a3b8;font-weight:600;">Active</span>
+                            </label>
+                        </div>
+                        <p style="font-size:0.75rem;color:#6b7280;margin-bottom:12px;">
+                            አዲስ ተጠቃሚ ሲመዘገብ ወዲያው የሚሰጥ bonus። Active ሲሆን ለሁሉም አዲስ ምዝገባ ይሰጣል። (0–500 ETB)
+                        </p>
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <input type="number" id="settings-reg-bonus" min="0" max="500" step="0.5"
+                                class="form-input" style="width:100px;text-align:center;font-size:1.2rem;font-weight:700;"
+                                placeholder="0">
+                            <span style="color:#9ca3af;font-size:0.85rem;">ETB on signup</span>
+                        </div>
+                    </div>
+
+                    <div style="background:#1e2435;border-radius:12px;padding:18px;margin-bottom:16px;">
                         <label style="display:block;font-size:0.8rem;color:#9ca3af;margin-bottom:6px;font-weight:600;">
                             ⏳ BONUS EXPIRY (DAYS)
                         </label>
