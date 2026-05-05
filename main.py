@@ -1,6 +1,5 @@
 import os
 import threading
-import time
 from app import app
 from routes import *
 from bot import bot, BOT_TOKEN
@@ -9,39 +8,19 @@ from bot import bot, BOT_TOKEN
 def run_bot():
     if not BOT_TOKEN:
         return
-
-    # Determine webhook URL from environment
-    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
-    app_url = (
-        os.environ.get('APP_URL') or
-        os.environ.get('RENDER_EXTERNAL_URL') or
-        (f"https://{railway_domain}" if railway_domain else None)
-    )
-    replit_domain = os.environ.get('REPLIT_DEV_DOMAIN') or (
-        os.environ.get('REPLIT_DOMAINS', '').split(',')[0]
-        if os.environ.get('REPLIT_DOMAINS') else None
-    )
-    if replit_domain:
-        app_url = f"https://{replit_domain}"
-
-    if app_url:
-        webhook_url = f"{app_url.rstrip('/')}/webhook/{BOT_TOKEN}"
-        print(f"[Bot] Setting Telegram webhook to: {webhook_url}")
+    print("[Bot] Removing any existing webhook and starting polling mode...")
+    try:
+        bot.remove_webhook()
+    except Exception as e:
+        print(f"[Bot] Could not remove webhook: {e}")
+    while True:
         try:
-            bot.remove_webhook()
-            time.sleep(1)
-            bot.set_webhook(url=webhook_url)
-            print("[Bot] Webhook set successfully.")
+            print("[Bot] Polling started.")
+            bot.infinity_polling(timeout=30, long_polling_timeout=20)
         except Exception as e:
-            print(f"[Bot] Failed to set webhook: {e}")
-    else:
-        # Local fallback: use long polling
-        print("[Bot] No public URL found — starting in polling mode...")
-        try:
-            bot.remove_webhook()
-            bot.infinity_polling()
-        except Exception as e:
-            print(f"[Bot] Polling error: {e}")
+            print(f"[Bot] Polling error, restarting in 5s: {e}")
+            import time
+            time.sleep(5)
 
 
 if BOT_TOKEN:
