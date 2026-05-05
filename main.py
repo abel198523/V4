@@ -10,45 +10,37 @@ def run_bot():
     if not BOT_TOKEN:
         return
 
-    if os.environ.get('RENDER'):
-        # Render deployment: use webhook via RENDER_EXTERNAL_URL
-        render_url = os.environ.get('RENDER_EXTERNAL_URL')
-        if render_url:
-            webhook_url = f"{render_url}/webhook/{BOT_TOKEN}"
-            print(f"[Render] Setting Telegram webhook to: {webhook_url}")
-            try:
-                bot.remove_webhook()
-                time.sleep(1)
-                bot.set_webhook(url=webhook_url)
-                print("[Render] Webhook set successfully.")
-            except Exception as e:
-                print(f"[Render] Failed to set webhook: {e}")
-        else:
-            print("[Render] RENDER_EXTERNAL_URL not found. Bot webhook not set.")
+    # Determine webhook URL from environment
+    app_url = (
+        os.environ.get('APP_URL') or
+        os.environ.get('RENDER_EXTERNAL_URL') or
+        os.environ.get('RAILWAY_PUBLIC_DOMAIN') and f"https://{os.environ.get('RAILWAY_PUBLIC_DOMAIN')}"
+    )
+    replit_domain = os.environ.get('REPLIT_DEV_DOMAIN') or (
+        os.environ.get('REPLIT_DOMAINS', '').split(',')[0]
+        if os.environ.get('REPLIT_DOMAINS') else None
+    )
+    if replit_domain:
+        app_url = f"https://{replit_domain}"
 
-    elif os.environ.get('REPLIT_DEV_DOMAIN') or os.environ.get('REPLIT_DOMAINS'):
-        # Replit deployment: use webhook via Replit domain
-        domain = os.environ.get('REPLIT_DEV_DOMAIN') or (
-            os.environ.get('REPLIT_DOMAINS', '').split(',')[0]
-        )
-        webhook_url = f"https://{domain}/webhook/{BOT_TOKEN}"
-        print(f"[Replit] Setting Telegram webhook to: {webhook_url}")
+    if app_url:
+        webhook_url = f"{app_url.rstrip('/')}/webhook/{BOT_TOKEN}"
+        print(f"[Bot] Setting Telegram webhook to: {webhook_url}")
         try:
             bot.remove_webhook()
             time.sleep(1)
             bot.set_webhook(url=webhook_url)
-            print("[Replit] Webhook set successfully.")
+            print("[Bot] Webhook set successfully.")
         except Exception as e:
-            print(f"[Replit] Failed to set webhook: {e}")
-
+            print(f"[Bot] Failed to set webhook: {e}")
     else:
-        # Local / other: use long polling
-        print("[Local] Starting Telegram Bot in polling mode...")
+        # Local fallback: use long polling
+        print("[Bot] No public URL found — starting in polling mode...")
         try:
             bot.remove_webhook()
             bot.infinity_polling()
         except Exception as e:
-            print(f"[Local] Bot polling error: {e}")
+            print(f"[Bot] Polling error: {e}")
 
 
 if BOT_TOKEN:
