@@ -1,0 +1,8 @@
+[phases.setup]
+aptPkgs = ["python3", "python3-pip", "python3-dev", "libpq-dev", "gcc"]
+
+[phases.install]
+cmds = ["pip3 install -r requirements.txt"]
+
+[start]
+cmd = "gunicorn main:app --config gunicorn.conf.py"
