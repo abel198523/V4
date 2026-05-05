@@ -951,6 +951,7 @@ body {
     display: none;
     flex-direction: column;
     overflow: hidden;
+    padding-top: 0;      /* override the shared 70px — position:fixed already places us below header */
 }
 
 .selection-screen.active {
