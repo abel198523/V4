@@ -3011,17 +3011,17 @@ body.game-mode .bottom-nav { display: none !important; }
 
 /* ── Big golden ball circle ──────────────────────────────────── */
 .gs-big-circle {
-    width: 68px;
-    height: 68px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     background: radial-gradient(circle at 38% 32%, #fde68a 0%, #f59e0b 42%, #d97706 82%);
     box-shadow:
-        0 0 0 4px rgba(245,158,11,0.22),
-        0 4px 20px rgba(245,158,11,0.45);
+        0 0 0 3px rgba(245,158,11,0.22),
+        0 3px 14px rgba(245,158,11,0.45);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 900;
     color: #1a0900;
     margin: 0 auto;
@@ -3060,14 +3060,14 @@ body.game-mode .bottom-nav { display: none !important; }
 .gs-card-wrap {
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 10px;
-    padding: 5px;
+    border-radius: 8px;
+    padding: 3px;
     flex-shrink: 0;
 }
 .gs-bingo-board-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 2px;
+    gap: 1px;
     width: 100%;
 }
 
@@ -3075,12 +3075,12 @@ body.game-mode .bottom-nav { display: none !important; }
 #game-screen .bingo-cell {
     background: #1a1635;
     border: 1px solid rgba(255,255,255,0.09);
-    border-radius: 4px;
+    border-radius: 3px;
     aspect-ratio: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 700;
     color: #c0bfe0;
 }

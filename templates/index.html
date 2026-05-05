@@ -435,9 +435,6 @@
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                     Refresh
                 </button>
-                <button class="sel-refresh-btn" onclick="window.showRoomDebugPanel()" style="background:rgba(14,165,233,0.2);border-color:#0ea5e9;color:#7dd3fc;" title="Room Engine Debug">
-                    🔍 Debug
-                </button>
                 <button class="mute-btn" onclick="if(typeof toggleMute==='function'){toggleMute();}" aria-label="Mute sound">
                     <svg class="mute-icon-on" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                     <svg class="mute-icon-off" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
@@ -594,74 +591,6 @@
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refresh
                 </button>
                 <button class="gs-action-btn gs-auto-btn" onclick="var t=document.getElementById('auto-toggle');if(t)t.click()">Automatic</button>
-                <button class="gs-action-btn" id="gs-dbg-toggle-btn"
-                    style="background:rgba(99,102,241,0.18);border-color:rgba(99,102,241,0.35);color:#a5b4fc;font-size:0.62rem;padding:5px 8px;"
-                    onclick="if(typeof toggleDebugOverlay==='function')toggleDebugOverlay()">🐛 DBG</button>
-            </div>
-
-            <!-- DEBUG OVERLAY -->
-            <div id="gs-debug-overlay" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;
-                background:rgba(0,0,0,0.88);z-index:9000;overflow-y:auto;padding:12px;
-                font-family:monospace;font-size:11px;color:#e2e8f0;box-sizing:border-box;">
-
-                <!-- Header -->
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;border-bottom:1px solid rgba(99,102,241,0.4);padding-bottom:8px;">
-                    <span style="font-size:13px;font-weight:800;color:#a5b4fc;">🐛 NOVA BINGO — DEBUG OVERLAY</span>
-                    <div style="display:flex;gap:6px;">
-                        <button onclick="if(typeof dbgReset==='function')dbgReset()"
-                            style="background:#1e1b4b;border:1px solid #4338ca;color:#a5b4fc;padding:3px 10px;border-radius:5px;cursor:pointer;font-size:10px;">↺ Reset</button>
-                        <button onclick="if(typeof toggleDebugOverlay==='function')toggleDebugOverlay()"
-                            style="background:#1e293b;border:1px solid #475569;color:#94a3b8;padding:3px 10px;border-radius:5px;cursor:pointer;font-size:10px;">✕ ዝጋ</button>
-                    </div>
-                </div>
-
-                <!-- POLL STATUS row -->
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-                    <div class="dbg-card" style="background:#0f172a;border:1px solid rgba(99,102,241,0.25);border-radius:8px;padding:10px;">
-                        <div style="font-size:9px;color:#6366f1;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">📡 POLL ENGINE</div>
-                        <div>Count: <span id="dbg-poll-count" style="color:#34d399;font-weight:700;">0</span></div>
-                        <div>In-flight: <span id="dbg-in-flight" style="color:#fbbf24;font-weight:700;">No</span></div>
-                        <div>Stale discards: <span id="dbg-stale-count" style="color:#f87171;font-weight:700;">0</span></div>
-                        <div>Max balls seen: <span id="dbg-max-balls" style="color:#a5b4fc;font-weight:700;">0</span></div>
-                    </div>
-                    <div class="dbg-card" style="background:#0f172a;border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px;">
-                        <div style="font-size:9px;color:#10b981;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">⚡ LATENCY (ms)</div>
-                        <div>Last: <span id="dbg-lat-last" style="color:#34d399;font-weight:700;">—</span> ms</div>
-                        <div>Avg: <span id="dbg-lat-avg" style="color:#34d399;font-weight:700;">—</span> ms</div>
-                        <div>Min: <span id="dbg-lat-min" style="color:#34d399;font-weight:700;">—</span> ms</div>
-                        <div>Max: <span id="dbg-lat-max" style="color:#f87171;font-weight:700;">—</span> ms</div>
-                    </div>
-                </div>
-
-                <!-- GAME STATE row -->
-                <div style="background:#0f172a;border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px;margin-bottom:10px;">
-                    <div style="font-size:9px;color:#f59e0b;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">🎲 GAME STATE</div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">
-                        <div>Status: <span id="dbg-status" style="color:#34d399;font-weight:700;">—</span></div>
-                        <div>Room: <span id="dbg-room" style="color:#fbbf24;font-weight:700;">—</span> ETB</div>
-                        <div>Balls: <span id="dbg-balls" style="color:#a5b4fc;font-weight:700;">—</span>/75</div>
-                        <div>DOM cells: <span id="dbg-dom-cells" style="color:#34d399;font-weight:700;">—</span>/75</div>
-                        <div>My cards: <span id="dbg-my-cards" style="color:#fbbf24;font-weight:700;">—</span></div>
-                        <div>Last poll: <span id="dbg-last-time" style="color:#94a3b8;font-weight:700;">—</span></div>
-                    </div>
-                </div>
-
-                <!-- LATENCY HISTORY sparkline -->
-                <div style="background:#0f172a;border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:10px;margin-bottom:10px;">
-                    <div style="font-size:9px;color:#818cf8;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">📈 LATENCY HISTORY (last 20 polls)</div>
-                    <div id="dbg-sparkline" style="display:flex;align-items:flex-end;gap:2px;height:40px;"></div>
-                    <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;color:#475569;">
-                        <span>older ←</span><span>→ newer</span>
-                    </div>
-                </div>
-
-                <!-- LAST SERVER RESPONSE -->
-                <div style="background:#0f172a;border:1px solid rgba(148,163,184,0.15);border-radius:8px;padding:10px;">
-                    <div style="font-size:9px;color:#64748b;font-weight:800;letter-spacing:0.5px;margin-bottom:6px;">📦 LAST SERVER RESPONSE</div>
-                    <pre id="dbg-last-payload"
-                        style="margin:0;color:#94a3b8;font-size:9.5px;white-space:pre-wrap;word-break:break-all;max-height:120px;overflow-y:auto;"></pre>
-                </div>
-
             </div>
 
         </div>
