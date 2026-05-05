@@ -1774,28 +1774,67 @@ function updateUserData(data) {
 }
 
 // ---- Game State Polling (runs while a room is PLAYING) ----
-let _gameStatePollInterval = null;
+let _gameStatePollTimer  = null;   // setTimeout handle (NOT setInterval)
+let _pollInFlight        = false;  // true while a fetch is pending
+let _pollMaxBallsSeen    = 0;      // highest ball count received — rejects stale out-of-order responses
 
 function startGameStatePoll(stake) {
     stopGameStatePoll();
     const rs = getRoomState(stake);
     rs.lastBallCount = 0;
-    rs.winnerShown = false;
-    _gameStatePollInterval = setInterval(() => pollGameState(stake), 1000);
+    rs.winnerShown   = false;
+    _pollInFlight     = false;
+    _pollMaxBallsSeen = 0;
+    _scheduleNextPoll(stake);
+}
+
+function _scheduleNextPoll(stake) {
+    _gameStatePollTimer = setTimeout(() => pollGameState(stake), 1000);
 }
 
 function stopGameStatePoll() {
-    if (_gameStatePollInterval) {
-        clearInterval(_gameStatePollInterval);
-        _gameStatePollInterval = null;
+    if (_gameStatePollTimer) {
+        clearTimeout(_gameStatePollTimer);
+        _gameStatePollTimer = null;
     }
+    _pollInFlight = false;
 }
 
 async function pollGameState(stake) {
+    // Guard: never run two concurrent polls — prevents out-of-order responses
+    if (_pollInFlight) {
+        console.debug('[MG] poll skipped — previous still in flight');
+        _scheduleNextPoll(stake);
+        return;
+    }
+    _pollInFlight = true;
+    const t0 = performance.now();
+
     try {
         const res = await fetch(`/api/game-state/${stake}`);
-        if (!res.ok) return;
+        if (!res.ok) {
+            console.debug(`[MG] poll HTTP ${res.status}`);
+            _pollInFlight = false;
+            _scheduleNextPoll(stake);
+            return;
+        }
         const data = await res.json();
+        const latencyMs   = Math.round(performance.now() - t0);
+        const ballCount   = Array.isArray(data.balls) ? data.balls.length : 0;
+
+        // Out-of-order guard: discard any response that claims fewer balls than
+        // we have already rendered (can happen when network latency > poll interval)
+        if (data.status === 'playing' && ballCount < _pollMaxBallsSeen) {
+            console.debug(`[MG] stale response discarded: got ${ballCount} balls, already showed ${_pollMaxBallsSeen} (latency ${latencyMs}ms)`);
+            _pollInFlight = false;
+            _scheduleNextPoll(stake);
+            return;
+        }
+        if (data.status === 'playing') {
+            _pollMaxBallsSeen = Math.max(_pollMaxBallsSeen, ballCount);
+        }
+
+        console.debug(`[MG] poll ok — status=${data.status} balls=${ballCount} latency=${latencyMs}ms`);
 
         const rs = getRoomState(stake);
 
@@ -1815,11 +1854,15 @@ async function pollGameState(stake) {
                 if (modal) modal.classList.remove('active');
                 handleGameOverReturn(stake);
             }, WINNER_DISPLAY_SECONDS * 1000);
+            // No reschedule — game over
+            _pollInFlight = false;
             return;
         }
 
         if (data.status !== 'playing') {
+            console.debug('[MG] poll: status not playing — stopping poll');
             stopGameStatePoll();
+            _pollInFlight = false;
             return;
         }
 
@@ -1827,11 +1870,11 @@ async function pollGameState(stake) {
         updateMasterGrid(data.balls);
 
         // Update rest of game UI only when new balls arrive
-        if (data.balls && data.balls.length !== rs.lastBallCount) {
-            rs.lastBallCount = data.balls.length;
+        if (ballCount !== rs.lastBallCount) {
+            rs.lastBallCount = ballCount;
             updateGameUI(data.balls);
-            // Flash latest ball + always play ball-call sound
-            const latest = data.balls[data.balls.length - 1];
+            // Flash latest ball + play ball-call sound
+            const latest = data.balls[ballCount - 1];
             if (latest) {
                 const letter = getBallLetter(latest);
                 const ab = document.getElementById('active-ball');
@@ -1844,7 +1887,12 @@ async function pollGameState(stake) {
                 checkMyCardForBingo(data.balls);
             }
         }
-    } catch (e) { /* silent */ }
+    } catch (e) {
+        console.debug('[MG] poll error:', e.message);
+    }
+
+    _pollInFlight = false;
+    _scheduleNextPoll(stake);
 }
 
 const WINNER_DISPLAY_SECONDS = 8;

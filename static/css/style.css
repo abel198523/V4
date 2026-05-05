@@ -1896,6 +1896,7 @@ header {
     color: #0c111d;
     box-shadow: 0 0 12px #f59e0b;
     animation: pulseLast 1s infinite alternate;
+    will-change: transform;
 }
 
 @keyframes pulseLast {
@@ -2961,6 +2962,7 @@ body.game-mode .bottom-nav { display: none !important; }
     border-color: #fbbf24;
     box-shadow: 0 0 8px rgba(245,158,11,0.65);
     animation: pulseLast 1s infinite alternate;
+    will-change: transform;
 }
 
 /* ── RIGHT panel ────────────────────────────────────────────── */
