@@ -2264,7 +2264,7 @@ function _lbRender() {
 
         // Prize badge for top-3 on "played" sort
         const lbPrize = (l.lb_prize || 0);
-        const prizeBadge = (_lbPeriod === 'weekly' && _lbSortKey === 'played' && i < 3 && lbPrize > 0)
+        const prizeBadge = (_lbSortKey === 'played' && i < 3 && lbPrize > 0)
             ? `<div class="lb-prize-badge">🎁 ${lbPrize.toFixed(0)} ETB ሽልማት</div>`
             : '';
 
@@ -2622,6 +2622,9 @@ async function loadAdminSettings() {
     const lbPeriodWeeklyEl  = document.getElementById('settings-lb-period-weekly');
     const lbPeriodMonthlyEl = document.getElementById('settings-lb-period-monthly');
     const lbPeriodAllEl     = document.getElementById('settings-lb-period-all');
+    const lbPrizeDailyEl    = document.getElementById('settings-lb-prize-daily');
+    const lbPrizeWeeklyEl   = document.getElementById('settings-lb-prize-weekly');
+    const lbPrizeMonthlyEl  = document.getElementById('settings-lb-prize-monthly');
 
     if (statusEl) { statusEl.innerText = 'Loading...'; statusEl.style.color = '#6b7280'; }
 
@@ -2644,6 +2647,9 @@ async function loadAdminSettings() {
         if (lbPeriodWeeklyEl)  lbPeriodWeeklyEl.checked  = data.lb_period_weekly_enabled  !== false;
         if (lbPeriodMonthlyEl) lbPeriodMonthlyEl.checked = data.lb_period_monthly_enabled !== false;
         if (lbPeriodAllEl)     lbPeriodAllEl.checked     = data.lb_period_all_enabled     !== false;
+        if (lbPrizeDailyEl)    lbPrizeDailyEl.checked    = data.lb_prize_daily_enabled    === true;
+        if (lbPrizeWeeklyEl)   lbPrizeWeeklyEl.checked   = data.lb_prize_weekly_enabled   === true;
+        if (lbPrizeMonthlyEl)  lbPrizeMonthlyEl.checked  = data.lb_prize_monthly_enabled  === true;
 
         // Render payment method cards
         const pmListEl = document.getElementById('admin-payment-methods-list');
@@ -2745,6 +2751,9 @@ async function loadAdminSettings() {
                         lb_period_weekly_enabled:  lbPeriodWeeklyEl  ? lbPeriodWeeklyEl.checked  : true,
                         lb_period_monthly_enabled: lbPeriodMonthlyEl ? lbPeriodMonthlyEl.checked : true,
                         lb_period_all_enabled:     lbPeriodAllEl     ? lbPeriodAllEl.checked     : true,
+                        lb_prize_daily_enabled:    lbPrizeDailyEl    ? lbPrizeDailyEl.checked    : false,
+                        lb_prize_weekly_enabled:   lbPrizeWeeklyEl   ? lbPrizeWeeklyEl.checked   : false,
+                        lb_prize_monthly_enabled:  lbPrizeMonthlyEl  ? lbPrizeMonthlyEl.checked  : false,
                     })
                 });
                 const data = await res.json();

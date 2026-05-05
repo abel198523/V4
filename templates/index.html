@@ -1272,9 +1272,9 @@
                             🏆 LEADERBOARD PRIZE — ብዙ የተጫወተ (Top 3)
                         </label>
                         <p style="font-size:0.74rem;color:#6b7280;margin-bottom:14px;line-height:1.5;">
-                            🎮 ጨዋታ ደረጃ ላይ 1ኛ፣ 2ኛ፣ 3ኛ ለሆኑ ተጫዋቾቹ የሚሰጥ ሽልማት። በ Leaderboard ላይ ስሙ ጋር ይታያል።
+                            🎮 ጨዋታ ደረጃ ላይ 1ኛ፣ 2ኛ፣ 3ኛ ለሆኑ ተጫዋቾቹ የሚሰጥ ሽልማት። ከዚህ በታች ለየትኛው ጊዜ ሽልማቱ እንደሚሰራ ይምረጡ።
                         </p>
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
                             <div>
                                 <label style="font-size:0.68rem;color:#f59e0b;font-weight:800;display:block;margin-bottom:6px;">🥇 1ኛ ደረጃ</label>
                                 <div style="display:flex;align-items:center;gap:6px;">
@@ -1301,6 +1301,27 @@
                                         placeholder="100">
                                     <span style="font-size:0.72rem;color:#9ca3af;flex-shrink:0;">ETB</span>
                                 </div>
+                            </div>
+                        </div>
+                        <!-- Per-period prize toggles -->
+                        <div style="border-top:1px solid rgba(245,158,11,0.2);padding-top:12px;">
+                            <div style="font-size:0.68rem;color:#f59e0b;font-weight:800;margin-bottom:8px;letter-spacing:0.4px;">ሽልማቱ ለየትኛው ጊዜ ይሰራ?</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                                <label style="display:flex;align-items:center;justify-content:space-between;background:#141927;border-radius:8px;padding:9px 12px;cursor:pointer;border:1px solid rgba(245,158,11,0.15);">
+                                    <span style="font-size:0.78rem;font-weight:700;color:#e2e8f0;">📅 ዛሬ</span>
+                                    <input type="checkbox" id="settings-lb-prize-daily"
+                                        style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer;">
+                                </label>
+                                <label style="display:flex;align-items:center;justify-content:space-between;background:#141927;border-radius:8px;padding:9px 12px;cursor:pointer;border:1px solid rgba(245,158,11,0.15);">
+                                    <span style="font-size:0.78rem;font-weight:700;color:#e2e8f0;">📆 ሳምንት</span>
+                                    <input type="checkbox" id="settings-lb-prize-weekly"
+                                        style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer;">
+                                </label>
+                                <label style="display:flex;align-items:center;justify-content:space-between;background:#141927;border-radius:8px;padding:9px 12px;cursor:pointer;border:1px solid rgba(245,158,11,0.15);">
+                                    <span style="font-size:0.78rem;font-weight:700;color:#e2e8f0;">🗓️ ወር</span>
+                                    <input type="checkbox" id="settings-lb-prize-monthly"
+                                        style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer;">
+                                </label>
                             </div>
                         </div>
                     </div>

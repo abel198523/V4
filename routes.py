@@ -949,6 +949,14 @@ def _get_lb_period_enabled(period):
     return s.value == '1'
 
 
+def _get_lb_prize_enabled(period):
+    """Return True if prizes are active for this leaderboard period (default: False)."""
+    s = Setting.query.get(f'lb_prize_{period}_enabled')
+    if s is None:
+        return False
+    return s.value == '1'
+
+
 @app.route("/api/admin/settings", methods=["GET"])
 def get_admin_settings():
     if not _admin_ok():
@@ -972,6 +980,9 @@ def get_admin_settings():
         "lb_period_weekly_enabled":   _get_lb_period_enabled('weekly'),
         "lb_period_monthly_enabled":  _get_lb_period_enabled('monthly'),
         "lb_period_all_enabled":      _get_lb_period_enabled('all'),
+        "lb_prize_daily_enabled":     _get_lb_prize_enabled('daily'),
+        "lb_prize_weekly_enabled":    _get_lb_prize_enabled('weekly'),
+        "lb_prize_monthly_enabled":   _get_lb_prize_enabled('monthly'),
     })
 
 
@@ -1088,6 +1099,18 @@ def update_admin_settings():
             else:
                 db.session.add(Setting(key=key, value=flag))
 
+    # lb prize on/off per period: daily | weekly | monthly
+    for period in ('daily', 'weekly', 'monthly'):
+        key = f'lb_prize_{period}_enabled'
+        val = data.get(key)
+        if val is not None:
+            flag = '1' if val else '0'
+            s = Setting.query.get(key)
+            if s:
+                s.value = flag
+            else:
+                db.session.add(Setting(key=key, value=flag))
+
     # cross-validate min < max
     wmin = data.get('withdraw_min')
     wmax = data.get('withdraw_max')
@@ -1140,6 +1163,9 @@ def update_admin_settings():
         "lb_period_weekly_enabled":   _get_lb_period_enabled('weekly'),
         "lb_period_monthly_enabled":  _get_lb_period_enabled('monthly'),
         "lb_period_all_enabled":      _get_lb_period_enabled('all'),
+        "lb_prize_daily_enabled":     _get_lb_prize_enabled('daily'),
+        "lb_prize_weekly_enabled":    _get_lb_prize_enabled('weekly'),
+        "lb_prize_monthly_enabled":   _get_lb_prize_enabled('monthly'),
     })
 
 
@@ -1360,8 +1386,8 @@ def leaderboard():
 
     leaders = sorted(user_stats.values(), key=key_fn)[:20]
 
-    # Attach leaderboard prize only for weekly + most-played top-3
-    if period == 'weekly' and sort == 'played':
+    # Attach leaderboard prize for daily/weekly/monthly when prize is enabled and sort=played
+    if sort == 'played' and period in ('daily', 'weekly', 'monthly') and _get_lb_prize_enabled(period):
         prizes = _get_lb_prizes()
         for i, entry in enumerate(leaders):
             rank = i + 1
