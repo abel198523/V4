@@ -2238,6 +2238,12 @@ function _lbRender() {
             highlightLbl = `${l.wins} ድሎች`;
         }
 
+        // Prize badge for top-3 on "played" sort
+        const lbPrize = (l.lb_prize || 0);
+        const prizeBadge = (_lbSortKey === 'played' && i < 3 && lbPrize > 0)
+            ? `<div class="lb-prize-badge">🎁 ${lbPrize.toFixed(0)} ETB ሽልማት</div>`
+            : '';
+
         return `
         <div class="lb-row ${rRowCls}">
             <div class="lb-rank ${rCls}">${rankIcon}</div>
@@ -2249,6 +2255,7 @@ function _lbRender() {
                     <span class="lb-wins-badge" style="background:rgba(34,197,94,0.12);color:#4ade80;">🏅 ${l.wins}</span>
                     <span class="lb-wr-badge ${wrCls}">📈 ${wr}%</span>
                 </div>
+                ${prizeBadge}
             </div>
             <div class="lb-right">
                 <div class="lb-prize-amount">${highlightVal}</div>
@@ -2584,6 +2591,9 @@ async function loadAdminSettings() {
     const wMaxEl       = document.getElementById('settings-withdraw-max');
     const strAutoEl    = document.getElementById('settings-streak-auto-msg');
     const strMsEl      = document.getElementById('settings-streak-milestone-msg');
+    const lbP1El       = document.getElementById('settings-lb-prize-1');
+    const lbP2El       = document.getElementById('settings-lb-prize-2');
+    const lbP3El       = document.getElementById('settings-lb-prize-3');
 
     if (statusEl) { statusEl.innerText = 'Loading...'; statusEl.style.color = '#6b7280'; }
 
@@ -2599,6 +2609,9 @@ async function loadAdminSettings() {
         if (wMaxEl)    wMaxEl.value    = data.withdraw_max;
         if (strAutoEl) strAutoEl.value = data.streak_auto_msg      || '';
         if (strMsEl)   strMsEl.value   = data.streak_milestone_msg || '';
+        if (lbP1El)    lbP1El.value    = data.lb_prize_1 ?? 500;
+        if (lbP2El)    lbP2El.value    = data.lb_prize_2 ?? 300;
+        if (lbP3El)    lbP3El.value    = data.lb_prize_3 ?? 100;
 
         // Render payment method cards
         const pmListEl = document.getElementById('admin-payment-methods-list');
@@ -2693,6 +2706,9 @@ async function loadAdminSettings() {
                         payment_methods:      pmPayload,
                         streak_auto_msg:      strAutoEl ? strAutoEl.value.trim() : '',
                         streak_milestone_msg: strMsEl   ? strMsEl.value.trim()   : '',
+                        lb_prize_1:           parseFloat(lbP1El ? lbP1El.value : 500) || 0,
+                        lb_prize_2:           parseFloat(lbP2El ? lbP2El.value : 300) || 0,
+                        lb_prize_3:           parseFloat(lbP3El ? lbP3El.value : 100) || 0,
                     })
                 });
                 const data = await res.json();

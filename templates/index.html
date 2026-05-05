@@ -239,6 +239,19 @@
         .lb-prize-amount { font-weight: 900; font-size: 1rem; color: #22c55e; }
         .lb-prize-label  { color: #64748b; font-size: 0.7rem; }
         .lb-empty { text-align: center; color: #64748b; padding: 40px 0; font-size: 0.9rem; line-height: 1.6; }
+        /* Prize badge shown under player name for top-3 on "played" sort */
+        .lb-prize-badge {
+            display: inline-block;
+            margin-top: 5px;
+            font-size: 0.68rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, rgba(245,158,11,0.22), rgba(251,191,36,0.1));
+            border: 1px solid rgba(245,158,11,0.4);
+            color: #fbbf24;
+            border-radius: 8px;
+            padding: 2px 8px;
+            letter-spacing: 0.2px;
+        }
     </style>
 </head>
 <body>
@@ -1218,6 +1231,45 @@
                                 class="form-input" style="width:120px;text-align:center;font-size:1.2rem;font-weight:700;"
                                 placeholder="10000">
                             <span style="color:#9ca3af;font-size:0.85rem;">ETB maximum</span>
+                        </div>
+                    </div>
+
+                    <!-- Leaderboard Prizes (Most Played Top-3) -->
+                    <div style="background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(251,191,36,0.04));border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:18px;margin-bottom:16px;">
+                        <label style="display:block;font-size:0.8rem;color:#f59e0b;margin-bottom:4px;font-weight:800;">
+                            🏆 LEADERBOARD PRIZE — ብዙ የተጫወተ (Top 3)
+                        </label>
+                        <p style="font-size:0.74rem;color:#6b7280;margin-bottom:14px;line-height:1.5;">
+                            🎮 ጨዋታ ደረጃ ላይ 1ኛ፣ 2ኛ፣ 3ኛ ለሆኑ ተጫዋቾቹ የሚሰጥ ሽልማት። በ Leaderboard ላይ ስሙ ጋር ይታያል።
+                        </p>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+                            <div>
+                                <label style="font-size:0.68rem;color:#f59e0b;font-weight:800;display:block;margin-bottom:6px;">🥇 1ኛ ደረጃ</label>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <input type="number" id="settings-lb-prize-1" min="0" step="10"
+                                        class="form-input" style="text-align:center;font-size:1.1rem;font-weight:800;color:#f59e0b;"
+                                        placeholder="500">
+                                    <span style="font-size:0.72rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.68rem;color:#94a3b8;font-weight:800;display:block;margin-bottom:6px;">🥈 2ኛ ደረጃ</label>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <input type="number" id="settings-lb-prize-2" min="0" step="10"
+                                        class="form-input" style="text-align:center;font-size:1.1rem;font-weight:800;color:#94a3b8;"
+                                        placeholder="300">
+                                    <span style="font-size:0.72rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.68rem;color:#b45309;font-weight:800;display:block;margin-bottom:6px;">🥉 3ኛ ደረጃ</label>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <input type="number" id="settings-lb-prize-3" min="0" step="10"
+                                        class="form-input" style="text-align:center;font-size:1.1rem;font-weight:800;color:#cd7c3a;"
+                                        placeholder="100">
+                                    <span style="font-size:0.72rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

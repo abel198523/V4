@@ -932,11 +932,21 @@ def _get_streak_milestone_msg():
     return s.value if s else ""
 
 
+def _get_lb_prizes():
+    defaults = {1: 500.0, 2: 300.0, 3: 100.0}
+    result = {}
+    for rank, default in defaults.items():
+        s = Setting.query.get(f'lb_prize_{rank}')
+        result[rank] = round(float(s.value), 2) if s else default
+    return result
+
+
 @app.route("/api/admin/settings", methods=["GET"])
 def get_admin_settings():
     if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     from game_engine import get_card_select_time, get_house_fee
+    prizes = _get_lb_prizes()
     return jsonify({
         "card_select_time":     get_card_select_time(),
         "house_fee_pct":        round(get_house_fee() * 100),
@@ -947,6 +957,9 @@ def get_admin_settings():
         "payment_methods":      _get_payment_methods_config(),
         "streak_auto_msg":      _get_streak_auto_msg(),
         "streak_milestone_msg": _get_streak_milestone_msg(),
+        "lb_prize_1":           prizes[1],
+        "lb_prize_2":           prizes[2],
+        "lb_prize_3":           prizes[3],
     })
 
 
@@ -1033,6 +1046,24 @@ def update_admin_settings():
             else:
                 db.session.add(Setting(key=msg_key, value=val_str))
 
+    # lb_prize_1 / lb_prize_2 / lb_prize_3: float ETB >= 0
+    for rank in (1, 2, 3):
+        pval = data.get(f'lb_prize_{rank}')
+        if pval is not None:
+            try:
+                pval_f = round(float(pval), 2)
+                if pval_f < 0:
+                    errors.append(f"lb_prize_{rank} must be >= 0")
+                else:
+                    key = f'lb_prize_{rank}'
+                    s = Setting.query.get(key)
+                    if s:
+                        s.value = str(pval_f)
+                    else:
+                        db.session.add(Setting(key=key, value=str(pval_f)))
+            except (ValueError, TypeError):
+                errors.append(f"lb_prize_{rank} must be a number")
+
     # cross-validate min < max
     wmin = data.get('withdraw_min')
     wmax = data.get('withdraw_max')
@@ -1068,6 +1099,7 @@ def update_admin_settings():
 
     db.session.commit()
     from game_engine import get_card_select_time, get_house_fee
+    prizes = _get_lb_prizes()
     return jsonify({
         "success":          True,
         "card_select_time": get_card_select_time(),
@@ -1077,6 +1109,9 @@ def update_admin_settings():
         "withdraw_min":      _get_withdraw_min(),
         "withdraw_max":      _get_withdraw_max(),
         "payment_methods":   _get_payment_methods_config(),
+        "lb_prize_1":        prizes[1],
+        "lb_prize_2":        prizes[2],
+        "lb_prize_3":        prizes[3],
     })
 
 
@@ -1284,6 +1319,17 @@ def leaderboard():
         key_fn = lambda x: (-x['total_prize'],   -x['wins'])
 
     leaders = sorted(user_stats.values(), key=key_fn)[:20]
+
+    # Attach leaderboard prize for top-3 when sorting by most-played
+    if sort == 'played':
+        prizes = _get_lb_prizes()
+        for i, entry in enumerate(leaders):
+            rank = i + 1
+            entry['lb_prize'] = prizes.get(rank, 0.0) if rank <= 3 else 0.0
+    else:
+        for entry in leaders:
+            entry['lb_prize'] = 0.0
+
     return jsonify(leaders)
 
 
