@@ -6,8 +6,6 @@ from bot import bot, BOT_TOKEN
 
 
 def run_bot():
-    if not BOT_TOKEN:
-        return
     import time
     print("[Bot] Removing any existing webhook and starting polling mode...")
     try:
@@ -30,11 +28,8 @@ def run_bot():
                 time.sleep(5)
 
 
-if BOT_TOKEN:
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-else:
-    print("TELEGRAM_BOT_TOKEN not set. Bot functionality disabled.")
+bot_thread = threading.Thread(target=run_bot, daemon=True)
+bot_thread.start()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
