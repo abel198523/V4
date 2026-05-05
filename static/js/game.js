@@ -1773,6 +1773,105 @@ function updateUserData(data) {
     if (profileId) profileId.innerText = `ID: ${data.player_id || '--'}`;
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// DEBUG OVERLAY — real-time poll diagnostics
+// ══════════════════════════════════════════════════════════════════════
+let _dbgPollCount  = 0;
+let _dbgStaleCount = 0;
+let _dbgLatencies  = [];          // ring buffer of last 20 latencies (ms)
+let _dbgLastData   = null;        // last server response
+
+function toggleDebugOverlay() {
+    const ov = document.getElementById('gs-debug-overlay');
+    if (!ov) return;
+    const isHidden = ov.style.display === 'none' || ov.style.display === '';
+    ov.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) _dbgRefresh();  // refresh immediately on open
+}
+
+function dbgReset() {
+    _dbgPollCount  = 0;
+    _dbgStaleCount = 0;
+    _dbgLatencies  = [];
+    _dbgLastData   = null;
+    _dbgRefresh();
+}
+
+function _dbgEl(id) { return document.getElementById(id); }
+
+function _dbgRefresh() {
+    const ov = document.getElementById('gs-debug-overlay');
+    if (!ov || ov.style.display === 'none') return;  // skip if closed
+
+    // Poll engine
+    const el = (id, v) => { const e = _dbgEl(id); if (e) e.textContent = v; };
+    el('dbg-poll-count',  _dbgPollCount);
+    el('dbg-in-flight',   _pollInFlight  ? '⚡ Yes' : 'No');
+    el('dbg-stale-count', _dbgStaleCount);
+    el('dbg-max-balls',   _pollMaxBallsSeen);
+
+    const inf = _dbgEl('dbg-in-flight');
+    if (inf) inf.style.color = _pollInFlight ? '#fbbf24' : '#34d399';
+    const sc = _dbgEl('dbg-stale-count');
+    if (sc) sc.style.color = _dbgStaleCount > 0 ? '#f87171' : '#34d399';
+
+    // Latency stats
+    if (_dbgLatencies.length > 0) {
+        const last = _dbgLatencies[_dbgLatencies.length - 1];
+        const avg  = Math.round(_dbgLatencies.reduce((a, b) => a + b, 0) / _dbgLatencies.length);
+        const min  = Math.min(..._dbgLatencies);
+        const max  = Math.max(..._dbgLatencies);
+        el('dbg-lat-last', last);
+        el('dbg-lat-avg',  avg);
+        el('dbg-lat-min',  min);
+        el('dbg-lat-max',  max);
+        const latEl = _dbgEl('dbg-lat-last');
+        if (latEl) latEl.style.color = last > 800 ? '#f87171' : last > 400 ? '#fbbf24' : '#34d399';
+        const avgEl = _dbgEl('dbg-lat-avg');
+        if (avgEl) avgEl.style.color  = avg  > 800 ? '#f87171' : avg  > 400 ? '#fbbf24' : '#34d399';
+    }
+
+    // Game state
+    if (_dbgLastData) {
+        const d = _dbgLastData;
+        const ballCount = Array.isArray(d.balls) ? d.balls.length : 0;
+        el('dbg-status', d.status || '—');
+        el('dbg-room',   currentRoom || '—');
+        el('dbg-balls',  ballCount);
+        const stEl = _dbgEl('dbg-status');
+        if (stEl) stEl.style.color = d.status === 'playing' ? '#34d399' : '#fbbf24';
+
+        const mg = document.getElementById('master-grid');
+        el('dbg-dom-cells', mg ? mg.children.length : '?');
+        const domEl = _dbgEl('dbg-dom-cells');
+        if (domEl) domEl.style.color = (mg && mg.children.length === 75) ? '#34d399' : '#f87171';
+
+        const rs = getRoomState(currentRoom);
+        const cardCount = (rs.myGameCard ? 1 : 0) + (rs.myGameCard2 ? 1 : 0);
+        el('dbg-my-cards', cardCount);
+
+        // Last server payload (trimmed)
+        const payloadEl = _dbgEl('dbg-last-payload');
+        if (payloadEl) {
+            const preview = { status: d.status, balls: d.balls, winners: d.winners, prize: d.prize };
+            payloadEl.textContent = JSON.stringify(preview, null, 2);
+        }
+    }
+
+    el('dbg-last-time', new Date().toLocaleTimeString());
+
+    // Sparkline
+    const spark = _dbgEl('dbg-sparkline');
+    if (spark && _dbgLatencies.length > 0) {
+        const maxLat = Math.max(..._dbgLatencies, 1);
+        spark.innerHTML = _dbgLatencies.map(lat => {
+            const h  = Math.max(4, Math.round((lat / maxLat) * 38));
+            const col = lat > 800 ? '#f87171' : lat > 400 ? '#fbbf24' : '#34d399';
+            return `<div title="${lat}ms" style="flex:1;height:${h}px;background:${col};border-radius:2px 2px 0 0;min-width:6px;max-width:20px;"></div>`;
+        }).join('');
+    }
+}
+
 // ---- Game State Polling (runs while a room is PLAYING) ----
 let _gameStatePollTimer  = null;   // setTimeout handle (NOT setInterval)
 let _pollInFlight        = false;  // true while a fetch is pending
@@ -1815,6 +1914,7 @@ async function pollGameState(stake) {
         if (!res.ok) {
             console.debug(`[MG] poll HTTP ${res.status}`);
             _pollInFlight = false;
+            _dbgRefresh();
             _scheduleNextPoll(stake);
             return;
         }
@@ -1822,11 +1922,19 @@ async function pollGameState(stake) {
         const latencyMs   = Math.round(performance.now() - t0);
         const ballCount   = Array.isArray(data.balls) ? data.balls.length : 0;
 
+        // Track latency (ring buffer: last 20)
+        _dbgPollCount++;
+        _dbgLatencies.push(latencyMs);
+        if (_dbgLatencies.length > 20) _dbgLatencies.shift();
+        _dbgLastData = data;
+
         // Out-of-order guard: discard any response that claims fewer balls than
         // we have already rendered (can happen when network latency > poll interval)
         if (data.status === 'playing' && ballCount < _pollMaxBallsSeen) {
+            _dbgStaleCount++;
             console.debug(`[MG] stale response discarded: got ${ballCount} balls, already showed ${_pollMaxBallsSeen} (latency ${latencyMs}ms)`);
             _pollInFlight = false;
+            _dbgRefresh();
             _scheduleNextPoll(stake);
             return;
         }
@@ -1892,6 +2000,7 @@ async function pollGameState(stake) {
     }
 
     _pollInFlight = false;
+    _dbgRefresh();
     _scheduleNextPoll(stake);
 }
 
