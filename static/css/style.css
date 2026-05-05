@@ -3024,6 +3024,10 @@ body.game-mode .bottom-nav { display: none !important; }
     overflow: hidden;
     min-height: 0;
 }
+/* When right panel is the cards panel, fix its width */
+.gs-right-panel.gs-cards-panel {
+    flex: none;
+}
 
 /* Active ball top row */
 .gs-call-top-row {
@@ -3262,43 +3266,100 @@ body.game-mode .bottom-nav { display: none !important; }
 .gs-refresh-btn { background: #f97316; color: #fff; }
 .gs-auto-btn    { background: #78570a; color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
 
-/* ── Mini player card strips (top & bottom of game screen) ────── */
-.gs-player-card-strip {
-    flex-shrink: 0;
+/* ── Compact ball strip (between stats bar and body) ──────────── */
+.gs-ball-strip {
     display: flex;
     align-items: center;
-    padding: 3px 8px;
-    background: rgba(255,255,255,0.035);
-    border-bottom: 1px solid rgba(255,255,255,0.07);
-}
-.gs-bottom-card-strip {
-    border-bottom: none;
-    border-top: 1px solid rgba(255,255,255,0.07);
-}
-.gs-mini-card-wrap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.gs-mini-board {
-    width: 88px !important;
+    gap: 6px;
+    padding: 5px 8px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
     flex-shrink: 0;
+    min-height: 58px;
 }
-.gs-mini-board .bingo-cell {
-    font-size: 6px !important;
-    aspect-ratio: 1;
+.gs-ball-strip .gs-recent-balls-row {
+    flex: 1;
+    min-width: 0;
+    min-height: unset;
+    align-content: center;
 }
-.gs-mini-board .card-header-cell {
-    font-size: 9px !important;
-}
-.gs-mini-card-info {
+.gs-ball-strip-center {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
 }
-.gs-mini-lbl {
-    font-size: 0.6rem;
-    color: #94a3b8;
-    font-weight: 600;
-    white-space: nowrap;
+.gs-ball-strip .gs-big-circle {
+    width: 38px;
+    height: 38px;
+    font-size: 0.85rem;
+}
+.gs-ball-strip #active-ball span {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+}
+.gs-ball-strip .gs-auto-toggle-row {
+    flex-direction: column;
+    gap: 3px;
+    padding: 4px 6px;
+    flex-shrink: 0;
+    min-width: 54px;
+}
+.gs-ball-strip .gs-auto-lbl {
+    font-size: 9px;
+    text-align: center;
+}
+
+/* ── Right panel — player cards stacked vertically ─────────── */
+.gs-cards-panel {
+    flex-shrink: 0;
+    width: 38%;
+    min-width: 120px;
+    max-width: 150px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 4px 3px 4px 0;
+    gap: 0;
+}
+.gs-panel-card-slot {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+.gs-panel-card-lbl {
+    font-size: 8px;
+    font-weight: 800;
+    text-align: center;
+    padding: 2px 0;
+    letter-spacing: 0.6px;
+    flex-shrink: 0;
+}
+.gs-panel-card1-lbl { color: #60a5fa; }
+.gs-panel-card2-lbl { color: #a78bfa; }
+.gs-panel-board {
+    flex: 1;
+    min-height: 0;
+    width: 100% !important;
+    grid-template-rows: repeat(6, 1fr) !important;
+}
+.gs-panel-board .bingo-cell {
+    aspect-ratio: unset !important;
+    font-size: 7px !important;
+}
+.gs-panel-board .card-header-cell {
+    font-size: 9px !important;
+}
+.gs-card-panel-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+    margin: 3px 0;
+    flex-shrink: 0;
+}
+.gs-panel-card2-slot {
+    flex: 1;
+    min-height: 0;
 }

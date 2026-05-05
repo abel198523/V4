@@ -539,18 +539,24 @@
                 </div>
             </div>
 
-            <!-- Player card 1 — mini strip at TOP (always visible during game) -->
-            <div class="gs-player-card-strip gs-top-card-strip">
-                <div class="gs-mini-card-wrap">
-                    <div id="bingo-board" class="gs-bingo-board-grid gs-mini-board"></div>
-                    <div class="gs-mini-card-info">
-                        <div id="my-card-label" class="gs-mini-lbl">ካርድ አልተመረጠም</div>
-                        <div id="near-bingo-bar" class="near-bingo-bar" style="display:none;"></div>
-                    </div>
+            <!-- Compact ball strip: recent balls | big ball | auto toggle -->
+            <div class="gs-ball-strip">
+                <div id="recent-balls" class="gs-recent-balls-row"></div>
+                <div class="gs-ball-strip-center">
+                    <div id="active-ball" class="gs-active-chip"><span>--</span></div>
+                    <div class="gs-big-circle" id="gs-big-ball">--</div>
+                    <button class="mute-btn mute-btn-game gs-mute-btn" onclick="if(typeof toggleMute==='function'){toggleMute();}">
+                        <svg class="mute-icon-on" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                        <svg class="mute-icon-off" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                    </button>
+                </div>
+                <div class="gs-auto-toggle-row">
+                    <span class="gs-auto-lbl">Auto</span>
+                    <div id="auto-toggle" class="toggle-switch active"><div class="toggle-handle"></div></div>
                 </div>
             </div>
 
-            <!-- Main body: left = master grid, right = ball -->
+            <!-- Main body: left = master grid, right = player cards stacked -->
             <div class="gs-body">
 
                 <!-- LEFT: BINGO headers + Master Grid -->
@@ -565,40 +571,25 @@
                     <div id="master-grid" class="master-grid gs-master-grid"></div>
                 </div>
 
-                <!-- RIGHT: Current ball + recent balls + auto toggle -->
-                <div class="gs-right-panel">
+                <!-- RIGHT: Player cards stacked (Card 1 top, Card 2 bottom) -->
+                <div class="gs-right-panel gs-cards-panel">
 
-                    <!-- Called ball history — TOP -->
-                    <div id="recent-balls" class="gs-recent-balls-row"></div>
-
-                    <!-- Active ball chip + mute -->
-                    <div class="gs-call-top-row">
-                        <div id="active-ball" class="gs-active-chip"><span>--</span></div>
-                        <button class="mute-btn mute-btn-game gs-mute-btn" onclick="if(typeof toggleMute==='function'){toggleMute();}">
-                            <svg class="mute-icon-on" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-                            <svg class="mute-icon-off" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
-                        </button>
+                    <!-- Card 1 — always visible -->
+                    <div class="gs-panel-card-slot">
+                        <div class="gs-panel-card-lbl gs-panel-card1-lbl">ካርድ 1</div>
+                        <div id="bingo-board" class="gs-bingo-board-grid gs-panel-board"></div>
+                        <div id="my-card-label" class="gs-cartela-lbl">ካርድ አልተመረጠም</div>
+                        <div id="near-bingo-bar" class="near-bingo-bar" style="display:none;"></div>
                     </div>
 
-                    <!-- Big golden ball circle -->
-                    <div class="gs-big-circle" id="gs-big-ball">--</div>
-
-                    <!-- Automatic toggle row -->
-                    <div class="gs-auto-toggle-row">
-                        <span class="gs-auto-lbl">Automatic</span>
-                        <div id="auto-toggle" class="toggle-switch active"><div class="toggle-handle"></div></div>
+                    <!-- Card 2 — hidden until 2nd card purchased -->
+                    <div id="gs-card2-wrap" class="gs-panel-card-slot gs-panel-card2-slot" style="display:none;">
+                        <div class="gs-card-panel-divider"></div>
+                        <div class="gs-panel-card-lbl gs-panel-card2-lbl">ካርድ 2</div>
+                        <div id="bingo-board-2" class="gs-bingo-board-grid gs-panel-board"></div>
+                        <div id="my-card-label-2" class="gs-cartela-lbl">ካርድ 2</div>
                     </div>
 
-                </div>
-            </div>
-
-            <!-- Player card 2 — mini strip at BOTTOM (hidden until 2nd card purchased) -->
-            <div class="gs-player-card-strip gs-bottom-card-strip" id="gs-card2-wrap" style="display:none;">
-                <div class="gs-mini-card-wrap">
-                    <div id="bingo-board-2" class="gs-bingo-board-grid gs-mini-board"></div>
-                    <div class="gs-mini-card-info">
-                        <div id="my-card-label-2" class="gs-mini-lbl">ካርድ 2</div>
-                    </div>
                 </div>
             </div>
 
