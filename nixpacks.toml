@@ -1,5 +1,0 @@
-[phases.install]
-cmds = ["python3 -m pip install -r requirements.txt"]
-
-[start]
-cmd = "gunicorn main:app --config gunicorn.conf.py"
