@@ -28,9 +28,9 @@ static/          — CSS, JS, images
 
 ## Running the App
 
-The app is started via gunicorn:
+The app is started via gunicorn (PATH must include `.pythonlibs/bin`):
 ```
-python -m gunicorn --bind 0.0.0.0:5000 --reuse-port --reload --config gunicorn.conf.py main:app
+export PATH="/home/runner/workspace/.pythonlibs/bin:$PATH" && gunicorn --bind 0.0.0.0:5000 --reuse-port --reload --config gunicorn.conf.py main:app
 ```
 
 ## Environment Variables / Secrets
