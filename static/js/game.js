@@ -453,6 +453,9 @@ function handleGameOverReturn(stake) {
     // Hide card2 wrap
     const c2wrap = document.getElementById('gs-card2-wrap');
     if (c2wrap) c2wrap.style.display = 'none';
+    // Clear inline preview containers
+    _clearPreviewSlot(1);
+    _clearPreviewSlot(2);
 
     resetMasterGrid();
     ['bingo-board', 'bingo-board-2', 'recent-balls'].forEach(id => {
@@ -540,6 +543,7 @@ function createAvailableCards() {
     const state = getRoomState(currentRoom);
     const takenCards = state.takenCards;
     const purchasedCard = state.purchasedCard;
+    const purchasedCard2 = state.purchasedCard2;
     const availableCount = 100 - takenCards.length;
     const takenCount = takenCards.length;
     
@@ -553,9 +557,7 @@ function createAvailableCards() {
         const card = document.createElement('div');
         card.className = 'card-item';
 
-        if (i === purchasedCard) {
-            // Highlight the player's own card distinctly — green star badge,
-            // stays visible even after the grid re-renders from a live refresh.
+        if (i === purchasedCard || i === purchasedCard2) {
             card.classList.add('taken', 'my-card');
         } else if (takenCards.includes(i)) {
             card.classList.add('taken');
@@ -565,10 +567,173 @@ function createAvailableCards() {
         
         card.onclick = () => {
             if (card.classList.contains('taken')) return;
-            showCardPreview(i);
+            autoBuyCard(i);
         };
         cardsGrid.appendChild(card);
     }
+}
+
+// Auto-buy a card on tap — no confirm button needed.
+// Shows mini preview in the appropriate slot container, then buys immediately.
+async function autoBuyCard(num) {
+    const state = getRoomState(currentRoom);
+
+    // Already have 2 cards → no more allowed
+    if (state.purchasedCard && state.purchasedCard2) {
+        showToast('❌ 2 ካርድ ተይዘዋል — ከ2 ካርድ በላይ አይቻልም');
+        return;
+    }
+
+    await fetchAndSyncBalance();
+    const roomPrice = getRoomPrice();
+    if (userBalance < roomPrice) {
+        showCustomAlert(
+            "ባላንስ የሎትም",
+            `ይቅርታ፣ ካርድ ለመግዛት ${roomPrice} ETB ያስፈልጋል። ያሎት ባላንስ ${userBalance.toFixed(2)} ETB ነው።`,
+            "low_balance"
+        );
+        return;
+    }
+
+    const slot = state.purchasedCard ? 2 : 1;
+    const cardData = getCardById(num);
+
+    // Show mini preview immediately in the container
+    _showMiniPreview(num, cardData, slot);
+    showToast(`⏳ ካርድ #${num} እየተገዛ...`);
+
+    try {
+        const res = await fetch(
+            `/api/buy-card-by-stake/${currentRoom}/${num}`,
+            { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include' }
+        );
+        if (res.status === 401 || res.redirected) {
+            showToast('❌ ክፍለ ጊዜ አልፏል። እባክዎ ዳግም ይግቡ።');
+            _clearPreviewSlot(slot);
+            setTimeout(() => { window.location.href = '/login'; }, 1500);
+            return;
+        }
+        const rawText = await res.text();
+        let data;
+        try { data = JSON.parse(rawText); } catch(e) {
+            showToast('❌ ግንኙነት ስህተት');
+            _clearPreviewSlot(slot);
+            return;
+        }
+        if (!res.ok && !data.success) {
+            showToast(`❌ ${data.message || 'ስህተት ተፈጥሯል'}`);
+            _clearPreviewSlot(slot);
+            return;
+        }
+        if (data.success) {
+            state.currentSelectedCard = num;
+            state.currentCardData = cardData;
+            if (!state.myGameCard) {
+                state.myGameCard = cardData;
+                state.purchasedCard = num;
+            } else {
+                state.myGameCard2 = cardData;
+                state.purchasedCard2 = num;
+                const w2 = document.getElementById('gs-card2-wrap');
+                if (w2) w2.style.display = '';
+                renderMyGameCard();
+            }
+
+            // Update balance displays
+            if (typeof data.new_balance === 'number') {
+                userBalance = data.new_balance;
+                if (typeof data.deposit_balance === 'number') userDepositBalance = data.deposit_balance;
+                if (typeof data.bonus_balance   === 'number') userBonusBalance   = data.bonus_balance;
+                const dep   = userDepositBalance;
+                const bonus = userBonusBalance;
+                const total = userBalance;
+                const rounded = Math.round(total);
+                const balEls = {
+                    'sel-balance':          total.toFixed(2),
+                    'wallet-balance-value': total.toFixed(2),
+                    'walletBalance':        total.toFixed(2),
+                    'profile-balance':      total.toFixed(2),
+                    'sel-main-wallet':      rounded,
+                    'sel-play-wallet':      rounded,
+                    'wallet-deposit-value':   dep.toFixed(2),
+                    'wallet-bonus-value':     bonus.toFixed(2),
+                    'withdraw-balance-value': dep.toFixed(2),
+                    'withdraw-bonus-display': bonus.toFixed(2),
+                };
+                Object.entries(balEls).forEach(([id, val]) => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerText = val;
+                });
+            }
+
+            if (!state.takenCards.includes(num)) state.takenCards.push(num);
+            createAvailableCards();
+
+            const myBoardLabel = document.getElementById('sel-my-board');
+            if (myBoardLabel) myBoardLabel.innerText = `#${num}`;
+
+            showToast(`✅ ካርድ #${num} ተገዝቷል!`);
+            setTimeout(() => window.showRoomDebugPanel(), 1500);
+        } else {
+            showToast(`❌ ${data.message || 'ካርዱ ሊገዛ አልተቻለም'}`);
+            _clearPreviewSlot(slot);
+        }
+    } catch (e) {
+        showToast('❌ ግንኙነት ተሳስቷል። እባክዎ ዳግም ሞክሩ።');
+        _clearPreviewSlot(slot);
+    }
+}
+
+// Build a compact mini card grid into a preview container slot
+function _showMiniPreview(num, cardData, slot) {
+    const contentEl = document.getElementById(`sel-preview-content-${slot}`);
+    if (!contentEl) return;
+    contentEl.innerHTML = '';
+
+    const numLabel = document.createElement('div');
+    numLabel.style.cssText = 'font-size:0.68rem;font-weight:900;color:#a78bfa;margin-bottom:3px;flex-shrink:0;';
+    numLabel.innerText = `#${num}`;
+    contentEl.appendChild(numLabel);
+
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;';
+
+    const letters = ['B','I','N','G','O'];
+    const colors  = { B:'#3b82f6', I:'#8b5cf6', N:'#22c55e', G:'#f59e0b', O:'#ef4444' };
+
+    // BINGO column headers
+    letters.forEach(l => {
+        const h = document.createElement('div');
+        h.style.cssText = `background:${colors[l]};color:#fff;font-size:0.55rem;font-weight:900;text-align:center;border-radius:3px;padding:2px 0;`;
+        h.innerText = l;
+        grid.appendChild(h);
+    });
+
+    // Data cells
+    const cd = JSON.parse(JSON.stringify(cardData));
+    cd['N'][2] = 'FREE';
+    for (let row = 0; row < 5; row++) {
+        letters.forEach(l => {
+            const val = cd[l][row];
+            const cell = document.createElement('div');
+            if (val === 'FREE') {
+                cell.style.cssText = 'background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.35);border-radius:3px;font-size:0.5rem;font-weight:900;color:#fbbf24;text-align:center;padding:2px 0;';
+                cell.innerText = '★';
+            } else {
+                cell.style.cssText = 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:3px;font-size:0.5rem;font-weight:700;color:#cbd5e1;text-align:center;padding:2px 0;';
+                cell.innerText = val;
+            }
+            grid.appendChild(cell);
+        });
+    }
+
+    contentEl.appendChild(grid);
+}
+
+function _clearPreviewSlot(slot) {
+    const contentEl = document.getElementById(`sel-preview-content-${slot}`);
+    if (!contentEl) return;
+    contentEl.innerHTML = '<div class="sel-preview-empty">ቁጥር ይምረጡ</div>';
 }
 
 function _showDebugPanel(info) {

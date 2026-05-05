@@ -494,6 +494,22 @@
 
             <!-- Cards grid: 8 columns, numbers 1-100 -->
             <div id="cards-grid" class="cards-grid"></div>
+
+            <!-- 2 card preview containers at bottom -->
+            <div class="sel-preview-row">
+                <div class="sel-preview-slot">
+                    <div class="sel-preview-slot-label">ካርድ 1</div>
+                    <div class="sel-preview-content" id="sel-preview-content-1">
+                        <div class="sel-preview-empty">ቁጥር ይምረጡ</div>
+                    </div>
+                </div>
+                <div class="sel-preview-slot">
+                    <div class="sel-preview-slot-label">ካርድ 2</div>
+                    <div class="sel-preview-content" id="sel-preview-content-2">
+                        <div class="sel-preview-empty">ቁጥር ይምረጡ</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- GAME SCREEN -->
@@ -562,17 +578,20 @@
                         <div id="auto-toggle" class="toggle-switch active"><div class="toggle-handle"></div></div>
                     </div>
 
-                    <!-- Player card 1 -->
-                    <div class="gs-card-wrap">
-                        <div id="bingo-board" class="gs-bingo-board-grid"></div>
-                        <div id="my-card-label" class="gs-cartela-lbl">ካርድ አልተመረጠም</div>
-                        <div id="near-bingo-bar" class="near-bingo-bar" style="display:none;"></div>
-                    </div>
+                    <!-- Both player cards side by side -->
+                    <div class="gs-cards-row">
+                        <!-- Player card 1 -->
+                        <div class="gs-card-wrap">
+                            <div id="bingo-board" class="gs-bingo-board-grid"></div>
+                            <div id="my-card-label" class="gs-cartela-lbl">ካርድ አልተመረጠም</div>
+                            <div id="near-bingo-bar" class="near-bingo-bar" style="display:none;"></div>
+                        </div>
 
-                    <!-- Player card 2 (hidden until purchased) -->
-                    <div class="gs-card-wrap" id="gs-card2-wrap" style="display:none;">
-                        <div id="bingo-board-2" class="gs-bingo-board-grid"></div>
-                        <div id="my-card-label-2" class="gs-cartela-lbl">ካርድ 2</div>
+                        <!-- Player card 2 (hidden until purchased) -->
+                        <div class="gs-card-wrap" id="gs-card2-wrap" style="display:none;">
+                            <div id="bingo-board-2" class="gs-bingo-board-grid"></div>
+                            <div id="my-card-label-2" class="gs-cartela-lbl">ካርድ 2</div>
+                        </div>
                     </div>
 
                 </div>
