@@ -6,12 +6,13 @@ from telebot import types
 
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 if not BOT_TOKEN:
     raise EnvironmentError(
-        "TELEGRAM_BOT_TOKEN environment variable is not set. "
+        "TELEGRAM_BOT_TOKEN environment variable is not set or is empty. "
         "Set it before starting the application."
     )
+logger.info(f"TELEGRAM_BOT_TOKEN loaded — length={len(BOT_TOKEN)}, starts_with={BOT_TOKEN[:6]}***")
 
 BOT_USERNAME = None
 
