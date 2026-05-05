@@ -2615,16 +2615,22 @@ async function loadAdminSettings() {
     const wMaxEl       = document.getElementById('settings-withdraw-max');
     const strAutoEl    = document.getElementById('settings-streak-auto-msg');
     const strMsEl      = document.getElementById('settings-streak-milestone-msg');
-    const lbP1El       = document.getElementById('settings-lb-prize-1');
-    const lbP2El       = document.getElementById('settings-lb-prize-2');
-    const lbP3El       = document.getElementById('settings-lb-prize-3');
-    const lbPeriodDailyEl   = document.getElementById('settings-lb-period-daily');
-    const lbPeriodWeeklyEl  = document.getElementById('settings-lb-period-weekly');
-    const lbPeriodMonthlyEl = document.getElementById('settings-lb-period-monthly');
-    const lbPeriodAllEl     = document.getElementById('settings-lb-period-all');
-    const lbPrizeDailyEl    = document.getElementById('settings-lb-prize-daily');
-    const lbPrizeWeeklyEl   = document.getElementById('settings-lb-prize-weekly');
-    const lbPrizeMonthlyEl  = document.getElementById('settings-lb-prize-monthly');
+    const lbPeriodDailyEl    = document.getElementById('settings-lb-period-daily');
+    const lbPeriodWeeklyEl   = document.getElementById('settings-lb-period-weekly');
+    const lbPeriodMonthlyEl  = document.getElementById('settings-lb-period-monthly');
+    const lbPeriodAllEl      = document.getElementById('settings-lb-period-all');
+    const lbPrizeDailyEl     = document.getElementById('settings-lb-prize-daily');
+    const lbPrizeWeeklyEl    = document.getElementById('settings-lb-prize-weekly');
+    const lbPrizeMonthlyEl   = document.getElementById('settings-lb-prize-monthly');
+    const lbPrizeDaily1El    = document.getElementById('settings-lb-prize-daily-1');
+    const lbPrizeDaily2El    = document.getElementById('settings-lb-prize-daily-2');
+    const lbPrizeDaily3El    = document.getElementById('settings-lb-prize-daily-3');
+    const lbPrizeWeekly1El   = document.getElementById('settings-lb-prize-weekly-1');
+    const lbPrizeWeekly2El   = document.getElementById('settings-lb-prize-weekly-2');
+    const lbPrizeWeekly3El   = document.getElementById('settings-lb-prize-weekly-3');
+    const lbPrizeMonthly1El  = document.getElementById('settings-lb-prize-monthly-1');
+    const lbPrizeMonthly2El  = document.getElementById('settings-lb-prize-monthly-2');
+    const lbPrizeMonthly3El  = document.getElementById('settings-lb-prize-monthly-3');
 
     if (statusEl) { statusEl.innerText = 'Loading...'; statusEl.style.color = '#6b7280'; }
 
@@ -2640,9 +2646,6 @@ async function loadAdminSettings() {
         if (wMaxEl)    wMaxEl.value    = data.withdraw_max;
         if (strAutoEl) strAutoEl.value = data.streak_auto_msg      || '';
         if (strMsEl)   strMsEl.value   = data.streak_milestone_msg || '';
-        if (lbP1El)    lbP1El.value    = data.lb_prize_1 ?? 500;
-        if (lbP2El)    lbP2El.value    = data.lb_prize_2 ?? 300;
-        if (lbP3El)    lbP3El.value    = data.lb_prize_3 ?? 100;
         if (lbPeriodDailyEl)   lbPeriodDailyEl.checked   = data.lb_period_daily_enabled   !== false;
         if (lbPeriodWeeklyEl)  lbPeriodWeeklyEl.checked  = data.lb_period_weekly_enabled  !== false;
         if (lbPeriodMonthlyEl) lbPeriodMonthlyEl.checked = data.lb_period_monthly_enabled !== false;
@@ -2650,6 +2653,15 @@ async function loadAdminSettings() {
         if (lbPrizeDailyEl)    lbPrizeDailyEl.checked    = data.lb_prize_daily_enabled    === true;
         if (lbPrizeWeeklyEl)   lbPrizeWeeklyEl.checked   = data.lb_prize_weekly_enabled   === true;
         if (lbPrizeMonthlyEl)  lbPrizeMonthlyEl.checked  = data.lb_prize_monthly_enabled  === true;
+        if (lbPrizeDaily1El)   lbPrizeDaily1El.value     = data.lb_prize_daily_1   ?? 100;
+        if (lbPrizeDaily2El)   lbPrizeDaily2El.value     = data.lb_prize_daily_2   ?? 50;
+        if (lbPrizeDaily3El)   lbPrizeDaily3El.value     = data.lb_prize_daily_3   ?? 20;
+        if (lbPrizeWeekly1El)  lbPrizeWeekly1El.value    = data.lb_prize_weekly_1  ?? 500;
+        if (lbPrizeWeekly2El)  lbPrizeWeekly2El.value    = data.lb_prize_weekly_2  ?? 300;
+        if (lbPrizeWeekly3El)  lbPrizeWeekly3El.value    = data.lb_prize_weekly_3  ?? 100;
+        if (lbPrizeMonthly1El) lbPrizeMonthly1El.value   = data.lb_prize_monthly_1 ?? 1000;
+        if (lbPrizeMonthly2El) lbPrizeMonthly2El.value   = data.lb_prize_monthly_2 ?? 500;
+        if (lbPrizeMonthly3El) lbPrizeMonthly3El.value   = data.lb_prize_monthly_3 ?? 200;
 
         // Render payment method cards
         const pmListEl = document.getElementById('admin-payment-methods-list');
@@ -2744,9 +2756,6 @@ async function loadAdminSettings() {
                         payment_methods:           pmPayload,
                         streak_auto_msg:           strAutoEl ? strAutoEl.value.trim() : '',
                         streak_milestone_msg:      strMsEl   ? strMsEl.value.trim()   : '',
-                        lb_prize_1:                parseFloat(lbP1El ? lbP1El.value : 500) || 0,
-                        lb_prize_2:                parseFloat(lbP2El ? lbP2El.value : 300) || 0,
-                        lb_prize_3:                parseFloat(lbP3El ? lbP3El.value : 100) || 0,
                         lb_period_daily_enabled:   lbPeriodDailyEl   ? lbPeriodDailyEl.checked   : true,
                         lb_period_weekly_enabled:  lbPeriodWeeklyEl  ? lbPeriodWeeklyEl.checked  : true,
                         lb_period_monthly_enabled: lbPeriodMonthlyEl ? lbPeriodMonthlyEl.checked : true,
@@ -2754,6 +2763,15 @@ async function loadAdminSettings() {
                         lb_prize_daily_enabled:    lbPrizeDailyEl    ? lbPrizeDailyEl.checked    : false,
                         lb_prize_weekly_enabled:   lbPrizeWeeklyEl   ? lbPrizeWeeklyEl.checked   : false,
                         lb_prize_monthly_enabled:  lbPrizeMonthlyEl  ? lbPrizeMonthlyEl.checked  : false,
+                        lb_prize_daily_1:    parseFloat(lbPrizeDaily1El   ? lbPrizeDaily1El.value   : 100)  || 0,
+                        lb_prize_daily_2:    parseFloat(lbPrizeDaily2El   ? lbPrizeDaily2El.value   : 50)   || 0,
+                        lb_prize_daily_3:    parseFloat(lbPrizeDaily3El   ? lbPrizeDaily3El.value   : 20)   || 0,
+                        lb_prize_weekly_1:   parseFloat(lbPrizeWeekly1El  ? lbPrizeWeekly1El.value  : 500)  || 0,
+                        lb_prize_weekly_2:   parseFloat(lbPrizeWeekly2El  ? lbPrizeWeekly2El.value  : 300)  || 0,
+                        lb_prize_weekly_3:   parseFloat(lbPrizeWeekly3El  ? lbPrizeWeekly3El.value  : 100)  || 0,
+                        lb_prize_monthly_1:  parseFloat(lbPrizeMonthly1El ? lbPrizeMonthly1El.value : 1000) || 0,
+                        lb_prize_monthly_2:  parseFloat(lbPrizeMonthly2El ? lbPrizeMonthly2El.value : 500)  || 0,
+                        lb_prize_monthly_3:  parseFloat(lbPrizeMonthly3El ? lbPrizeMonthly3El.value : 200)  || 0,
                     })
                 });
                 const data = await res.json();

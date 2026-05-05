@@ -933,10 +933,30 @@ def _get_streak_milestone_msg():
 
 
 def _get_lb_prizes():
+    """Legacy fallback — kept for backward compatibility."""
     defaults = {1: 500.0, 2: 300.0, 3: 100.0}
     result = {}
     for rank, default in defaults.items():
         s = Setting.query.get(f'lb_prize_{rank}')
+        result[rank] = round(float(s.value), 2) if s else default
+    return result
+
+
+_LB_PRIZE_DEFAULTS = {
+    'daily':   {1: 100.0, 2:  50.0, 3:  20.0},
+    'weekly':  {1: 500.0, 2: 300.0, 3: 100.0},
+    'monthly': {1: 1000.0, 2: 500.0, 3: 200.0},
+}
+
+def _get_lb_prizes_for_period(period):
+    """Return {1: ETB, 2: ETB, 3: ETB} for a specific period."""
+    defaults = _LB_PRIZE_DEFAULTS.get(period, {1: 500.0, 2: 300.0, 3: 100.0})
+    result = {}
+    for rank, default in defaults.items():
+        s = Setting.query.get(f'lb_prize_{period}_{rank}')
+        # Fall back to old shared setting if no period-specific one saved yet
+        if s is None:
+            s = Setting.query.get(f'lb_prize_{rank}')
         result[rank] = round(float(s.value), 2) if s else default
     return result
 
@@ -962,27 +982,29 @@ def get_admin_settings():
     if not _admin_ok():
         return jsonify({"error": "Unauthorized"}), 403
     from game_engine import get_card_select_time, get_house_fee
-    prizes = _get_lb_prizes()
+    dp = _get_lb_prizes_for_period('daily')
+    wp = _get_lb_prizes_for_period('weekly')
+    mp = _get_lb_prizes_for_period('monthly')
     return jsonify({
-        "card_select_time":           get_card_select_time(),
-        "house_fee_pct":              round(get_house_fee() * 100),
-        "referral_bonus":             _get_referral_bonus(),
-        "bonus_expiry_days":          _get_bonus_expiry_days(),
-        "withdraw_min":               _get_withdraw_min(),
-        "withdraw_max":               _get_withdraw_max(),
-        "payment_methods":            _get_payment_methods_config(),
-        "streak_auto_msg":            _get_streak_auto_msg(),
-        "streak_milestone_msg":       _get_streak_milestone_msg(),
-        "lb_prize_1":                 prizes[1],
-        "lb_prize_2":                 prizes[2],
-        "lb_prize_3":                 prizes[3],
-        "lb_period_daily_enabled":    _get_lb_period_enabled('daily'),
-        "lb_period_weekly_enabled":   _get_lb_period_enabled('weekly'),
-        "lb_period_monthly_enabled":  _get_lb_period_enabled('monthly'),
-        "lb_period_all_enabled":      _get_lb_period_enabled('all'),
-        "lb_prize_daily_enabled":     _get_lb_prize_enabled('daily'),
-        "lb_prize_weekly_enabled":    _get_lb_prize_enabled('weekly'),
-        "lb_prize_monthly_enabled":   _get_lb_prize_enabled('monthly'),
+        "card_select_time":            get_card_select_time(),
+        "house_fee_pct":               round(get_house_fee() * 100),
+        "referral_bonus":              _get_referral_bonus(),
+        "bonus_expiry_days":           _get_bonus_expiry_days(),
+        "withdraw_min":                _get_withdraw_min(),
+        "withdraw_max":                _get_withdraw_max(),
+        "payment_methods":             _get_payment_methods_config(),
+        "streak_auto_msg":             _get_streak_auto_msg(),
+        "streak_milestone_msg":        _get_streak_milestone_msg(),
+        "lb_period_daily_enabled":     _get_lb_period_enabled('daily'),
+        "lb_period_weekly_enabled":    _get_lb_period_enabled('weekly'),
+        "lb_period_monthly_enabled":   _get_lb_period_enabled('monthly'),
+        "lb_period_all_enabled":       _get_lb_period_enabled('all'),
+        "lb_prize_daily_enabled":      _get_lb_prize_enabled('daily'),
+        "lb_prize_weekly_enabled":     _get_lb_prize_enabled('weekly'),
+        "lb_prize_monthly_enabled":    _get_lb_prize_enabled('monthly'),
+        "lb_prize_daily_1":            dp[1], "lb_prize_daily_2":   dp[2], "lb_prize_daily_3":   dp[3],
+        "lb_prize_weekly_1":           wp[1], "lb_prize_weekly_2":  wp[2], "lb_prize_weekly_3":  wp[3],
+        "lb_prize_monthly_1":          mp[1], "lb_prize_monthly_2": mp[2], "lb_prize_monthly_3": mp[3],
     })
 
 
@@ -1069,23 +1091,24 @@ def update_admin_settings():
             else:
                 db.session.add(Setting(key=msg_key, value=val_str))
 
-    # lb_prize_1 / lb_prize_2 / lb_prize_3: float ETB >= 0
-    for rank in (1, 2, 3):
-        pval = data.get(f'lb_prize_{rank}')
-        if pval is not None:
-            try:
-                pval_f = round(float(pval), 2)
-                if pval_f < 0:
-                    errors.append(f"lb_prize_{rank} must be >= 0")
-                else:
-                    key = f'lb_prize_{rank}'
-                    s = Setting.query.get(key)
-                    if s:
-                        s.value = str(pval_f)
+    # lb_prize_{period}_{rank}: per-period prize amounts
+    for period in ('daily', 'weekly', 'monthly'):
+        for rank in (1, 2, 3):
+            pval = data.get(f'lb_prize_{period}_{rank}')
+            if pval is not None:
+                try:
+                    pval_f = round(float(pval), 2)
+                    if pval_f < 0:
+                        errors.append(f"lb_prize_{period}_{rank} must be >= 0")
                     else:
-                        db.session.add(Setting(key=key, value=str(pval_f)))
-            except (ValueError, TypeError):
-                errors.append(f"lb_prize_{rank} must be a number")
+                        key = f'lb_prize_{period}_{rank}'
+                        s = Setting.query.get(key)
+                        if s:
+                            s.value = str(pval_f)
+                        else:
+                            db.session.add(Setting(key=key, value=str(pval_f)))
+                except (ValueError, TypeError):
+                    errors.append(f"lb_prize_{period}_{rank} must be a number")
 
     # lb period enable/disable: daily | weekly | monthly | all
     for period in ('daily', 'weekly', 'monthly', 'all'):
@@ -1146,7 +1169,6 @@ def update_admin_settings():
 
     db.session.commit()
     from game_engine import get_card_select_time, get_house_fee
-    prizes = _get_lb_prizes()
     return jsonify({
         "success":                    True,
         "card_select_time":           get_card_select_time(),
@@ -1156,16 +1178,22 @@ def update_admin_settings():
         "withdraw_min":               _get_withdraw_min(),
         "withdraw_max":               _get_withdraw_max(),
         "payment_methods":            _get_payment_methods_config(),
-        "lb_prize_1":                 prizes[1],
-        "lb_prize_2":                 prizes[2],
-        "lb_prize_3":                 prizes[3],
-        "lb_period_daily_enabled":    _get_lb_period_enabled('daily'),
-        "lb_period_weekly_enabled":   _get_lb_period_enabled('weekly'),
-        "lb_period_monthly_enabled":  _get_lb_period_enabled('monthly'),
-        "lb_period_all_enabled":      _get_lb_period_enabled('all'),
-        "lb_prize_daily_enabled":     _get_lb_prize_enabled('daily'),
-        "lb_prize_weekly_enabled":    _get_lb_prize_enabled('weekly'),
-        "lb_prize_monthly_enabled":   _get_lb_prize_enabled('monthly'),
+        "lb_period_daily_enabled":     _get_lb_period_enabled('daily'),
+        "lb_period_weekly_enabled":    _get_lb_period_enabled('weekly'),
+        "lb_period_monthly_enabled":   _get_lb_period_enabled('monthly'),
+        "lb_period_all_enabled":       _get_lb_period_enabled('all'),
+        "lb_prize_daily_enabled":      _get_lb_prize_enabled('daily'),
+        "lb_prize_weekly_enabled":     _get_lb_prize_enabled('weekly'),
+        "lb_prize_monthly_enabled":    _get_lb_prize_enabled('monthly'),
+        "lb_prize_daily_1":            _get_lb_prizes_for_period('daily')[1],
+        "lb_prize_daily_2":            _get_lb_prizes_for_period('daily')[2],
+        "lb_prize_daily_3":            _get_lb_prizes_for_period('daily')[3],
+        "lb_prize_weekly_1":           _get_lb_prizes_for_period('weekly')[1],
+        "lb_prize_weekly_2":           _get_lb_prizes_for_period('weekly')[2],
+        "lb_prize_weekly_3":           _get_lb_prizes_for_period('weekly')[3],
+        "lb_prize_monthly_1":          _get_lb_prizes_for_period('monthly')[1],
+        "lb_prize_monthly_2":          _get_lb_prizes_for_period('monthly')[2],
+        "lb_prize_monthly_3":          _get_lb_prizes_for_period('monthly')[3],
     })
 
 
@@ -1388,7 +1416,7 @@ def leaderboard():
 
     # Attach leaderboard prize for daily/weekly/monthly when prize is enabled and sort=played
     if sort == 'played' and period in ('daily', 'weekly', 'monthly') and _get_lb_prize_enabled(period):
-        prizes = _get_lb_prizes()
+        prizes = _get_lb_prizes_for_period(period)
         for i, entry in enumerate(leaders):
             rank = i + 1
             entry['lb_prize'] = prizes.get(rank, 0.0) if rank <= 3 else 0.0

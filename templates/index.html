@@ -1272,56 +1272,126 @@
                             🏆 LEADERBOARD PRIZE — ብዙ የተጫወተ (Top 3)
                         </label>
                         <p style="font-size:0.74rem;color:#6b7280;margin-bottom:14px;line-height:1.5;">
-                            🎮 ጨዋታ ደረጃ ላይ 1ኛ፣ 2ኛ፣ 3ኛ ለሆኑ ተጫዋቾቹ የሚሰጥ ሽልማት። ከዚህ በታች ለየትኛው ጊዜ ሽልማቱ እንደሚሰራ ይምረጡ።
+                            🎮 ጨዋታ ደረጃ ላይ 1ኛ፣ 2ኛ፣ 3ኛ ለሆኑ ተጫዋቾቹ የሚሰጥ ሽልማት። ለዛሬ፣ ሳምንት፣ ወር የየግላቸው ሽልማት ያስተካክሉ።
                         </p>
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
-                            <div>
-                                <label style="font-size:0.68rem;color:#f59e0b;font-weight:800;display:block;margin-bottom:6px;">🥇 1ኛ ደረጃ</label>
-                                <div style="display:flex;align-items:center;gap:6px;">
-                                    <input type="number" id="settings-lb-prize-1" min="0" step="10"
-                                        class="form-input" style="text-align:center;font-size:1.1rem;font-weight:800;color:#f59e0b;"
-                                        placeholder="500">
-                                    <span style="font-size:0.72rem;color:#9ca3af;flex-shrink:0;">ETB</span>
-                                </div>
+                        <!-- Daily prize block -->
+                        <div style="background:#141927;border-radius:10px;border:1px solid rgba(245,158,11,0.18);padding:12px;margin-bottom:10px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                                <span style="font-size:0.82rem;font-weight:800;color:#f59e0b;">📅 ዛሬ (Daily)</span>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                    <input type="checkbox" id="settings-lb-prize-daily"
+                                        style="width:15px;height:15px;accent-color:#f59e0b;cursor:pointer;">
+                                    <span style="font-size:0.72rem;color:#94a3b8;font-weight:600;">ሽልማት አለ</span>
+                                </label>
                             </div>
-                            <div>
-                                <label style="font-size:0.68rem;color:#94a3b8;font-weight:800;display:block;margin-bottom:6px;">🥈 2ኛ ደረጃ</label>
-                                <div style="display:flex;align-items:center;gap:6px;">
-                                    <input type="number" id="settings-lb-prize-2" min="0" step="10"
-                                        class="form-input" style="text-align:center;font-size:1.1rem;font-weight:800;color:#94a3b8;"
-                                        placeholder="300">
-                                    <span style="font-size:0.72rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                                <div>
+                                    <label style="font-size:0.65rem;color:#f59e0b;font-weight:800;display:block;margin-bottom:4px;">🥇 1ኛ</label>
+                                    <div style="display:flex;align-items:center;gap:4px;">
+                                        <input type="number" id="settings-lb-prize-daily-1" min="0" step="10"
+                                            class="form-input" style="text-align:center;font-size:0.95rem;font-weight:800;color:#f59e0b;padding:6px 4px;"
+                                            placeholder="100">
+                                        <span style="font-size:0.65rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label style="font-size:0.68rem;color:#b45309;font-weight:800;display:block;margin-bottom:6px;">🥉 3ኛ ደረጃ</label>
-                                <div style="display:flex;align-items:center;gap:6px;">
-                                    <input type="number" id="settings-lb-prize-3" min="0" step="10"
-                                        class="form-input" style="text-align:center;font-size:1.1rem;font-weight:800;color:#cd7c3a;"
-                                        placeholder="100">
-                                    <span style="font-size:0.72rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                <div>
+                                    <label style="font-size:0.65rem;color:#94a3b8;font-weight:800;display:block;margin-bottom:4px;">🥈 2ኛ</label>
+                                    <div style="display:flex;align-items:center;gap:4px;">
+                                        <input type="number" id="settings-lb-prize-daily-2" min="0" step="10"
+                                            class="form-input" style="text-align:center;font-size:0.95rem;font-weight:800;color:#94a3b8;padding:6px 4px;"
+                                            placeholder="50">
+                                        <span style="font-size:0.65rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="font-size:0.65rem;color:#cd7c3a;font-weight:800;display:block;margin-bottom:4px;">🥉 3ኛ</label>
+                                    <div style="display:flex;align-items:center;gap:4px;">
+                                        <input type="number" id="settings-lb-prize-daily-3" min="0" step="10"
+                                            class="form-input" style="text-align:center;font-size:0.95rem;font-weight:800;color:#cd7c3a;padding:6px 4px;"
+                                            placeholder="20">
+                                        <span style="font-size:0.65rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- Per-period prize toggles -->
-                        <div style="border-top:1px solid rgba(245,158,11,0.2);padding-top:12px;">
-                            <div style="font-size:0.68rem;color:#f59e0b;font-weight:800;margin-bottom:8px;letter-spacing:0.4px;">ሽልማቱ ለየትኛው ጊዜ ይሰራ?</div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-                                <label style="display:flex;align-items:center;justify-content:space-between;background:#141927;border-radius:8px;padding:9px 12px;cursor:pointer;border:1px solid rgba(245,158,11,0.15);">
-                                    <span style="font-size:0.78rem;font-weight:700;color:#e2e8f0;">📅 ዛሬ</span>
-                                    <input type="checkbox" id="settings-lb-prize-daily"
-                                        style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer;">
-                                </label>
-                                <label style="display:flex;align-items:center;justify-content:space-between;background:#141927;border-radius:8px;padding:9px 12px;cursor:pointer;border:1px solid rgba(245,158,11,0.15);">
-                                    <span style="font-size:0.78rem;font-weight:700;color:#e2e8f0;">📆 ሳምንት</span>
+                        <!-- Weekly prize block -->
+                        <div style="background:#141927;border-radius:10px;border:1px solid rgba(245,158,11,0.18);padding:12px;margin-bottom:10px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                                <span style="font-size:0.82rem;font-weight:800;color:#f59e0b;">📆 ሳምንት (Weekly)</span>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
                                     <input type="checkbox" id="settings-lb-prize-weekly"
-                                        style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer;">
+                                        style="width:15px;height:15px;accent-color:#f59e0b;cursor:pointer;">
+                                    <span style="font-size:0.72rem;color:#94a3b8;font-weight:600;">ሽልማት አለ</span>
                                 </label>
-                                <label style="display:flex;align-items:center;justify-content:space-between;background:#141927;border-radius:8px;padding:9px 12px;cursor:pointer;border:1px solid rgba(245,158,11,0.15);">
-                                    <span style="font-size:0.78rem;font-weight:700;color:#e2e8f0;">🗓️ ወር</span>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                                <div>
+                                    <label style="font-size:0.65rem;color:#f59e0b;font-weight:800;display:block;margin-bottom:4px;">🥇 1ኛ</label>
+                                    <div style="display:flex;align-items:center;gap:4px;">
+                                        <input type="number" id="settings-lb-prize-weekly-1" min="0" step="10"
+                                            class="form-input" style="text-align:center;font-size:0.95rem;font-weight:800;color:#f59e0b;padding:6px 4px;"
+                                            placeholder="500">
+                                        <span style="font-size:0.65rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="font-size:0.65rem;color:#94a3b8;font-weight:800;display:block;margin-bottom:4px;">🥈 2ኛ</label>
+                                    <div style="display:flex;align-items:center;gap:4px;">
+                                        <input type="number" id="settings-lb-prize-weekly-2" min="0" step="10"
+                                            class="form-input" style="text-align:center;font-size:0.95rem;font-weight:800;color:#94a3b8;padding:6px 4px;"
+                                            placeholder="300">
+                                        <span style="font-size:0.65rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="font-size:0.65rem;color:#cd7c3a;font-weight:800;display:block;margin-bottom:4px;">🥉 3ኛ</label>
+                                    <div style="display:flex;align-items:center;gap:4px;">
+                                        <input type="number" id="settings-lb-prize-weekly-3" min="0" step="10"
+                                            class="form-input" style="text-align:center;font-size:0.95rem;font-weight:800;color:#cd7c3a;padding:6px 4px;"
+                                            placeholder="100">
+                                        <span style="font-size:0.65rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Monthly prize block -->
+                        <div style="background:#141927;border-radius:10px;border:1px solid rgba(245,158,11,0.18);padding:12px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                                <span style="font-size:0.82rem;font-weight:800;color:#f59e0b;">🗓️ ወር (Monthly)</span>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
                                     <input type="checkbox" id="settings-lb-prize-monthly"
-                                        style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer;">
+                                        style="width:15px;height:15px;accent-color:#f59e0b;cursor:pointer;">
+                                    <span style="font-size:0.72rem;color:#94a3b8;font-weight:600;">ሽልማት አለ</span>
                                 </label>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                                <div>
+                                    <label style="font-size:0.65rem;color:#f59e0b;font-weight:800;display:block;margin-bottom:4px;">🥇 1ኛ</label>
+                                    <div style="display:flex;align-items:center;gap:4px;">
+                                        <input type="number" id="settings-lb-prize-monthly-1" min="0" step="10"
+                                            class="form-input" style="text-align:center;font-size:0.95rem;font-weight:800;color:#f59e0b;padding:6px 4px;"
+                                            placeholder="1000">
+                                        <span style="font-size:0.65rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="font-size:0.65rem;color:#94a3b8;font-weight:800;display:block;margin-bottom:4px;">🥈 2ኛ</label>
+                                    <div style="display:flex;align-items:center;gap:4px;">
+                                        <input type="number" id="settings-lb-prize-monthly-2" min="0" step="10"
+                                            class="form-input" style="text-align:center;font-size:0.95rem;font-weight:800;color:#94a3b8;padding:6px 4px;"
+                                            placeholder="500">
+                                        <span style="font-size:0.65rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="font-size:0.65rem;color:#cd7c3a;font-weight:800;display:block;margin-bottom:4px;">🥉 3ኛ</label>
+                                    <div style="display:flex;align-items:center;gap:4px;">
+                                        <input type="number" id="settings-lb-prize-monthly-3" min="0" step="10"
+                                            class="form-input" style="text-align:center;font-size:0.95rem;font-weight:800;color:#cd7c3a;padding:6px 4px;"
+                                            placeholder="200">
+                                        <span style="font-size:0.65rem;color:#9ca3af;flex-shrink:0;">ETB</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
