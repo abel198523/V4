@@ -30,13 +30,9 @@ def run_bot():
                 time.sleep(5)
 
 
-_on_railway = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PUBLIC_DOMAIN"))
-
-if BOT_TOKEN and _on_railway:
+if BOT_TOKEN:
     bot_thread = threading.Thread(target=run_bot, daemon=True)
     bot_thread.start()
-elif BOT_TOKEN:
-    print("TELEGRAM_BOT_TOKEN set but polling only runs on Railway deployment.")
 else:
     print("TELEGRAM_BOT_TOKEN not set. Bot functionality disabled.")
 

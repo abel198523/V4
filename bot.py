@@ -12,19 +12,32 @@ BOT_USERNAME = None
 bot = None
 
 def _get_web_url():
-    replit_domain = os.environ.get('REPLIT_DEV_DOMAIN') or (
-        os.environ.get('REPLIT_DOMAINS', '').split(',')[0]
-        if os.environ.get('REPLIT_DOMAINS') else None
-    )
+    # Explicit override always wins
+    app_url = os.environ.get('APP_URL')
+    if app_url:
+        return app_url.rstrip('/')
+
+    # Replit: prefer the deployed domain (REPLIT_DOMAINS) over dev-tunnel
+    replit_domains = os.environ.get('REPLIT_DOMAINS', '')
+    if replit_domains:
+        first = replit_domains.split(',')[0].strip()
+        if first:
+            return f"https://{first}"
+
+    replit_dev = os.environ.get('REPLIT_DEV_DOMAIN')
+    if replit_dev:
+        return f"https://{replit_dev}"
+
+    # Other platforms
     render_url = os.environ.get('RENDER_EXTERNAL_URL')
-    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
     if render_url:
         return render_url
-    elif railway_domain:
+
+    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+    if railway_domain:
         return f"https://{railway_domain}"
-    elif replit_domain:
-        return f"https://{replit_domain}"
-    return os.environ.get('APP_URL', 'http://localhost:5000')
+
+    return 'http://localhost:5000'
 
 
 def _get_or_create_user_and_token(tg_id, first_name, last_name, username, phone_number=None, ref_code=None):
