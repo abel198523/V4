@@ -8,11 +8,6 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 
-# Debug: show all env var names that contain "BOT" or "TELEGRAM"
-_debug_keys = [k for k in os.environ.keys() if "BOT" in k or "TELEGRAM" in k]
-logger.info(f"[DEBUG] Env vars with BOT/TELEGRAM: {_debug_keys}")
-logger.info(f"[DEBUG] TELEGRAM_BOT_TOKEN length={len(BOT_TOKEN)}, empty={not bool(BOT_TOKEN)}")
-
 if not BOT_TOKEN:
     raise EnvironmentError(
         "TELEGRAM_BOT_TOKEN environment variable is not set or is empty. "
