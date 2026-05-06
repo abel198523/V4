@@ -145,16 +145,27 @@ def _find_and_award_winner(stake, called_set):
 
             session_id = room.active_session_id
 
-            # ── IDEMPOTENCY GUARD ─────────────────────────────────────────────
-            # If the session is already marked completed (e.g. this function was
-            # called twice due to a retry after an exception), bail out immediately
-            # so we never double-credit a winner's balance.
-            game_session = GameSession.query.get(session_id)
+            # ── ATOMIC IDEMPOTENCY GUARD ──────────────────────────────────────
+            # Lock the game_session row with SELECT FOR UPDATE so that only ONE
+            # concurrent caller (game loop OR claim route) can ever proceed past
+            # this point for a given session.  The second caller blocks here
+            # until the first commits, then reads status='completed' and exits.
+            # This prevents both double-awarding and the "valid: False" race where
+            # the game loop and claim route each see status='active', one commits
+            # first clearing active_session_id, and the other rolls back leaving
+            # room_states['winners'] never set.
+            game_session = (
+                db.session.query(GameSession)
+                .with_for_update()
+                .filter_by(id=session_id)
+                .first()
+            )
             if not game_session or game_session.status == 'completed':
                 logger.warning(
                     f"Room {stake} ETB: _find_and_award_winner called on already-completed "
                     f"session {session_id} — skipping to prevent double-credit."
                 )
+                db.session.rollback()
                 return None
 
             transactions = Transaction.query.filter_by(
@@ -163,6 +174,7 @@ def _find_and_award_winner(stake, called_set):
             ).all()
 
             if not transactions:
+                db.session.rollback()
                 return None
 
             total_prize = len(transactions) * float(stake) * (1 - get_house_fee())
@@ -172,13 +184,12 @@ def _find_and_award_winner(stake, called_set):
             for tx in transactions:
                 card_data = get_card_data(tx.card_number)
                 if check_bingo(card_data, called_set):
-                    # Use with_for_update() so concurrent DB connections cannot read
-                    # a stale balance and produce an incorrect credit.
                     user = db.session.query(User).with_for_update().filter_by(id=tx.user_id).first()
                     if user:
                         winning_pairs.append((user, tx.card_number, get_card_data(tx.card_number)))
 
             if not winning_pairs:
+                db.session.rollback()
                 return None
 
             # Split prize equally among all winners

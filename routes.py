@@ -2082,8 +2082,10 @@ def api_bingo_claim(stake):
         return jsonify({"error": "Room not found"}), 404
 
     # Retry loop: client may call claim before server has processed that ball.
-    # Wait up to 3 seconds for the game engine to set winners.
-    for attempt in range(6):
+    # Wait up to 8 seconds (16 × 0.5s) — long enough to cover any DB latency
+    # on the game loop's _find_and_award_winner call and still fit inside the
+    # 8-second winner-display window before room_states['winners'] is cleared.
+    for attempt in range(16):
         with _lock:
             state = room_states.get(stake, {})
             winners = state.get('winners', [])
@@ -2105,9 +2107,11 @@ def api_bingo_claim(stake):
         if status != 'playing':
             break
 
-        # On the first two attempts actively trigger the winner check
-        # (covers the race where client sees the ball before server writes winners)
-        if attempt < 2 and balls:
+        # On the first four attempts (first ~2 s) actively trigger the winner
+        # check so the claim succeeds even if the game loop is slow.
+        # The atomic SELECT FOR UPDATE inside _find_and_award_winner guarantees
+        # only one concurrent caller (game loop or claim) can award the prize.
+        if attempt < 4 and balls:
             result = _find_and_award_winner(stake, set(balls))
             if result:
                 from card_data import get_card_data as _gcd
