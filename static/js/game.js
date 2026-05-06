@@ -264,11 +264,16 @@ let globalPrizes = {};
 // ================================================================
 
 let _timerPollId = null;
-let _prevRoomStatus = {}; // stakeStr -> { status }
-let _gameStarted = {};    // stake -> bool, prevent duplicate startGame calls
+let _prevRoomStatus = {}; // stakeStr -> { status }  (kept for lobby badge updates)
 let _gameStartCDActive = false; // prevent overlapping 3-2-1 overlays
 let _lastLaunchTick = -1; // last launch_timer value we played a tick for
 let _lastCardCount = {};  // stakeStr -> last known cards_count for taken-card refresh
+
+// ── Game Flow State Machine ───────────────────────────────────────────────────
+// 'selecting' : on selection screen, waiting for game to start
+// 'playing'   : on game screen, balls being called
+// 'gameover'  : winner found, modal showing — waiting to return to selection
+let _gfPhase = 'selecting';
 
 function startTimerSystem() {
     if (_timerPollId) clearInterval(_timerPollId);
@@ -361,43 +366,8 @@ async function _syncTimers() {
                 return !!(s && s.classList.contains('active'));
             };
 
-            // ① playing → waiting: game ended → return to selection screen.
-            // Guard: only fire if the user is still on the GAME screen or the
-            // winner modal is visible.  If handleGameOverReturn already ran
-            // (e.g. claim succeeded and its 8-s timeout fired), the user will
-            // already be on the selection screen — calling it again would wipe
-            // any cards they bought for the new round.
-            if (prev.status === 'playing' && info.status !== 'playing' && currentRoom == stake) {
-                _gameStarted[stake] = false;
-                const _winModal   = document.getElementById('winner-modal');
-                const _gameScreen = document.getElementById('game-screen');
-                const _winActive  = _winModal   && _winModal.classList.contains('active');
-                const _onGame     = _gameScreen  && _gameScreen.classList.contains('active');
-                if (_winActive || _onGame) {
-                    handleGameOverReturn(stake);
-                }
-                // else: already on selection screen — no-op to preserve new round's card state
-            }
-
-            // ② non-playing → playing: game just started
-            //    Only navigate if user has purchased a card AND is on the selection screen.
-            //    This prevents false-triggering when user joins a room that is already playing
-            //    (mid-game join) without having bought a card.
-            if (prev.status !== 'playing' && info.status === 'playing' && currentRoom == stake) {
-                _gameStarted[stake] = true;   // acknowledge the transition regardless
-                if (_rs.purchasedCard && _onSel()) {
-                    startGame();
-                }
-            }
-
-            // ③ Safety net: game is playing, user has a card, but still on selection screen.
-            //    Catches: card bought while game was already playing, or rapid status flip
-            //    that ② missed because _gameStarted was already true from a previous cycle.
-            if (info.status === 'playing' && currentRoom == stake &&
-                _rs.purchasedCard && _onSel()) {
-                _gameStarted[stake] = true;
-                startGame();
-            }
+            // ── Game-flow state machine tick (screen transitions) ────────
+            if (currentRoom == stake) _gameFlowTick(info, stake);
 
             // ── Live game screen stats ────────────────────────────────────
             if (info.status === 'playing' && currentRoom == stake) {
@@ -424,6 +394,110 @@ async function _syncTimers() {
         if (!listsMatch) createStakeList();
 
     } catch (e) { console.error('[Status] _syncTimers error:', e); }
+}
+
+// ── Game Flow State Machine ────────────────────────────────────────────────────
+// Called every second from _syncTimers for the current room.
+// ALL screen-transition decisions live here — nowhere else.
+function _gameFlowTick(info, stake) {
+    const rs = getRoomState(stake);
+
+    if (_gfPhase === 'selecting') {
+        // selecting → playing: server just started, user has a card, still on selection screen
+        if (info.status === 'playing' && rs.purchasedCard) {
+            const sel = document.getElementById('selection-screen');
+            if (sel && sel.classList.contains('active')) {
+                _enterGameScreen(stake);
+            }
+        }
+
+    } else if (_gfPhase === 'playing') {
+        // playing → selecting: server ended the game (no winner caught by poll, e.g. no-card round)
+        if (info.status !== 'playing') {
+            _returnToSelection(stake);
+        }
+    }
+    // 'gameover': winner modal is showing; _returnToSelection() will be called by its own setTimeout
+}
+
+// Navigate to game screen and start ball polling.
+// Phase guard ensures this runs AT MOST ONCE per game.
+function _enterGameScreen(stake) {
+    if (_gfPhase === 'playing') return;
+    _gfPhase = 'playing';
+
+    const state = getRoomState(stake);
+    state.bingoFlashed        = false;
+    state.autoClaimInProgress = false;
+    state.winnerShown         = false;
+    state.lastBallCount       = 0;
+
+    navTo('game');
+    _ensureDebugBtn();
+
+    const w2 = document.getElementById('gs-card2-wrap');
+    if (w2) w2.style.display = state.myGameCard2 ? '' : 'none';
+    renderMyGameCard();
+
+    const myBoardEl = document.getElementById('sel-my-board-game');
+    if (myBoardEl) myBoardEl.innerText = state.purchasedCard ? `#${state.purchasedCard}` : '--';
+
+    initMasterGrid();
+    updateGameUI([]);
+    startGameStatePoll(stake);
+}
+
+// Return to selection screen and reset all game state.
+// Phase guard ensures this runs AT MOST ONCE per round-end.
+function _returnToSelection(stake) {
+    if (_gfPhase === 'selecting') return;
+    _gfPhase = 'selecting';
+
+    stopGameStatePoll();
+
+    const state = getRoomState(stake);
+    state.myGameCard          = null;
+    state.myGameCard2         = null;
+    state.currentSelectedCard = null;
+    state.currentCardData     = null;
+    state.purchasedCard       = null;
+    state.purchasedCard2      = null;
+    state.bingoFlashed        = false;
+    state.lastHistory         = [];
+    state.autoClaimInProgress = false;
+    state.winnerShown         = false;
+    state.lastBallCount       = 0;
+
+    const nbBar = document.getElementById('near-bingo-bar');
+    if (nbBar) { nbBar.style.display = 'none'; nbBar.className = 'near-bingo-bar'; }
+    const c2wrap = document.getElementById('gs-card2-wrap');
+    if (c2wrap) c2wrap.style.display = 'none';
+    _clearPreviewSlot(1);
+    _clearPreviewSlot(2);
+
+    resetMasterGrid();
+    ['bingo-board', 'bingo-board-2', 'recent-balls'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+    });
+    const ab = document.getElementById('active-ball');
+    if (ab) ab.innerHTML = '<span>--</span>';
+    const cc = document.getElementById('call-count');
+    if (cc) cc.innerText = '0';
+    const pt = document.getElementById('progress-text');
+    if (pt) pt.innerText = '0/75';
+    const pb = document.getElementById('progress-bar');
+    if (pb) pb.style.width = '0%';
+
+    state.takenCards = [];
+    createAvailableCards();
+
+    const screens = ['game-screen', 'profile-screen', 'wallet-screen', 'deposit-screen', 'withdraw-screen'];
+    screens.forEach(s => { const el = document.getElementById(s); if (el) el.classList.remove('active'); });
+    const selScreen = document.getElementById('selection-screen');
+    if (selScreen) selScreen.classList.add('active');
+
+    setTimeout(() => fetchTakenCards(stake), 1500);
 }
 
 let _lastAlertMsg = '';
@@ -639,64 +713,9 @@ function calcNearBingo(cardData, calledBalls) {
     return min;
 }
 
-function handleGameOverReturn(stake) {
-    stopGameStatePoll();
-    _gameStarted[stake] = false;
-    _gameStartCDActive = false;
-    // Clear game board state for this room
-    const state = getRoomState(stake);
-    state.myGameCard = null;
-    state.myGameCard2 = null;
-    state.currentSelectedCard = null;
-    state.currentCardData = null;
-    state.purchasedCard = null;
-    state.purchasedCard2 = null;
-    state.bingoFlashed = false;
-    state.lastHistory = [];
-    state.autoClaimInProgress = false;
-    state.winnerShown = false;
-    state.lastBallCount = 0;
-    // Reset near-bingo bar
-    const nbBar = document.getElementById('near-bingo-bar');
-    if (nbBar) { nbBar.style.display = 'none'; nbBar.className = 'near-bingo-bar'; }
-    // Hide card2 wrap
-    const c2wrap = document.getElementById('gs-card2-wrap');
-    if (c2wrap) c2wrap.style.display = 'none';
-    // Clear inline preview containers
-    _clearPreviewSlot(1);
-    _clearPreviewSlot(2);
-
-    resetMasterGrid();
-    ['bingo-board', 'bingo-board-2', 'recent-balls'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = '';
-    });
-    const ab = document.getElementById('active-ball');
-    if (ab) ab.innerHTML = '<span>--</span>';
-    const cc = document.getElementById('call-count');
-    if (cc) cc.innerText = '0';
-    const pt = document.getElementById('progress-text');
-    if (pt) pt.innerText = '0/75';
-    const pb = document.getElementById('progress-bar');
-    if (pb) pb.style.width = '0%';
-
-    // Clear taken cards so old session's cards don't show as taken in new session
-    state.takenCards = [];
-    createAvailableCards();
-
-    // Return to selection screen (countdown already restarted)
-    const screens = ['game-screen', 'profile-screen', 'wallet-screen', 'deposit-screen', 'withdraw-screen'];
-    screens.forEach(s => {
-        const el = document.getElementById(s);
-        if (el) el.classList.remove('active');
-    });
-    const selScreen = document.getElementById('selection-screen');
-    if (selScreen) selScreen.classList.add('active');
-
-    // Fetch fresh taken cards for the new session after a short delay
-    // (server needs a moment to reset active_session_id)
-    setTimeout(() => fetchTakenCards(stake), 1500);
-}
+// handleGameOverReturn is replaced by _returnToSelection (phase-guarded state machine).
+// This stub is kept only so any stray callers don't throw ReferenceError.
+function handleGameOverReturn(stake) { _returnToSelection(stake); }
 
 function updateRoomStats(stats, prizes) {
     // Count, prize pool, and timer are all handled live by _syncTimers.
@@ -1930,15 +1949,12 @@ async function createStakeList() {
 
 window.joinStake = (amount) => {
     currentRoom = amount;
-    // Reset prev-status for this stake so _syncTimers sees the current state as
-    // "fresh" on its next tick — fixes the race where _prevRoomStatus already
-    // holds 'playing' (set before the player joined) and the transition never fires.
+    // Reset game flow phase — entering selection screen fresh
+    _gfPhase = 'selecting';
+    // Reset prev-status cache so _syncTimers sees fresh state on next tick
     delete _prevRoomStatus[String(amount)];
-    // Reset the card-count tracker so the very first _syncTimers tick after
-    // joining always triggers a taken-cards refresh, even if the count is the
-    // same as whatever was cached from a previous visit to this room.
+    // Reset card-count tracker so first tick always triggers taken-cards refresh
     delete _lastCardCount[String(amount)];
-    _gameStarted[amount] = false;
     // Reset taken cards immediately when entering a room so stale data is cleared
     getRoomState(amount).takenCards = [];
     createAvailableCards();
@@ -2320,10 +2336,11 @@ async function pollGameState(stake) {
 
         const rs = getRoomState(stake);
 
-        // ── Auto-claim: winner announced by server (check FIRST, before status gate) ──
+        // ── Winner announced by server ────────────────────────────────────
         const hasWinner = (data.winners && data.winners.length > 0) || data.winner;
-        if (hasWinner && !rs.winnerShown) {
+        if (hasWinner && !rs.winnerShown && _gfPhase === 'playing') {
             rs.winnerShown = true;
+            _gfPhase = 'gameover';
             stopGameStatePoll();
             const winners = (data.winners && data.winners.length > 0)
                 ? data.winners
@@ -2334,9 +2351,8 @@ async function pollGameState(stake) {
             setTimeout(() => {
                 const modal = document.getElementById('winner-modal');
                 if (modal) modal.classList.remove('active');
-                handleGameOverReturn(stake);
+                _returnToSelection(stake);
             }, WINNER_DISPLAY_SECONDS * 1000);
-            // No reschedule — game over
             _pollInFlight = false;
             return;
         }
@@ -2464,6 +2480,7 @@ async function checkMyCardForBingo(calledBalls) {
         }
 
         if (body.valid) {
+            _gfPhase = 'gameover';
             stopGameStatePoll();
             if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
             showToast('🏆 ቢንጎ! አሸንፈዋል! ሽልማት ወደ ባላንስዎ ተጨምሯል።');
@@ -2492,19 +2509,19 @@ async function checkMyCardForBingo(calledBalls) {
             setTimeout(() => {
                 const wm = document.getElementById('winner-modal');
                 if (wm) wm.classList.remove('active');
-                handleGameOverReturn(currentRoom);
+                _returnToSelection(currentRoom);
             }, WINNER_DISPLAY_SECONDS * 1000);
         } else {
-            // valid=false — reset lock and auto-retry after 1.5 s without
-            // waiting for the next ball, in case the game loop needs a moment
-            // to commit the winner and set room_states['winners'].
+            // valid=false — reset lock and auto-retry after 1.5 s
             state.bingoFlashed = false;
             showToast(`⚠️ ቢንጎ: ${body.message || 'ክሌም ተቀባይነት አላገኘም — ዳግም እየሞከርን...'}`);
             _showBingoDebug();
             setTimeout(() => {
-                const rs2 = getRoomState(currentRoom);
-                if (rs2 && !rs2.winnerShown) {
-                    checkMyCardForBingo(_dbgLastBalls || []);
+                if (_gfPhase === 'playing') {
+                    const rs2 = getRoomState(currentRoom);
+                    if (rs2 && !rs2.winnerShown) {
+                        checkMyCardForBingo(_dbgLastBalls || []);
+                    }
                 }
             }, 1500);
         }
@@ -2536,31 +2553,9 @@ function _ensureDebugBtn() {
     document.body.appendChild(btn);
 }
 
-function startGame() {
-    navTo('game');
-    _ensureDebugBtn();
-    const state = getRoomState(currentRoom);
-    if (state.purchasedCard && !state.myGameCard) {
-        state.myGameCard = state.currentCardData;
-    }
-    // Restore card2 wrap visibility
-    const w2 = document.getElementById('gs-card2-wrap');
-    if (w2) w2.style.display = state.myGameCard2 ? '' : 'none';
-    state.bingoFlashed = false;
-    state.autoClaimInProgress = false;
-    state.winnerShown = false;
-    state.lastBallCount = 0;
-    renderMyGameCard();
-    // Show player's card number in game header
-    const myBoardEl = document.getElementById('sel-my-board-game');
-    if (myBoardEl) myBoardEl.innerText = state.purchasedCard ? `#${state.purchasedCard}` : '--';
-    // Build master grid fresh (clean slate before polling starts)
-    initMasterGrid();
-    // Reset rest of game board UI
-    updateGameUI([]);
-    // Start polling for balls
-    if (currentRoom) startGameStatePoll(currentRoom);
-}
+// startGame() is replaced by _enterGameScreen() (phase-guarded state machine).
+// Stub kept so any legacy callers don't throw ReferenceError.
+function startGame() { if (currentRoom) _enterGameScreen(currentRoom); }
 
 function navTo(screenId) {
     const screens = ['stake-screen', 'profile-screen', 'wallet-screen', 'game-screen', 'selection-screen', 'admin-screen', 'deposit-screen', 'withdraw-screen', 'leaderboard-screen'];
