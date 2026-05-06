@@ -90,6 +90,149 @@ function createBingoNumbers() {
 let currentRoom = null;
 let roomStates = {};
 
+// ── Bingo Debug State ─────────────────────────────────────────────────────
+let _dbgLastBalls        = null;
+let _dbgLastClaimReq     = null;   // { card, ts }
+let _dbgLastClaimRes     = null;   // { status, ok, body, ts }
+let _dbgClaimLog         = [];     // ring buffer of last 10 events
+
+function _dbgPush(msg) {
+    const ts = new Date().toLocaleTimeString();
+    _dbgClaimLog.push(`[${ts}] ${msg}`);
+    if (_dbgClaimLog.length > 30) _dbgClaimLog.shift();
+    console.log('[BINGO-DBG]', msg);
+}
+
+function _showBingoDebug() {
+    const state   = getRoomState(currentRoom);
+    const wsNames = ['CONNECTING','OPEN','CLOSING','CLOSED'];
+    const wsState = wsNames[socket.readyState] || '?';
+    const balls   = _dbgLastBalls || [];
+    const bingo1  = state.myGameCard  ? _detectBingo(state.myGameCard,  balls.map(Number)) : null;
+    const bingo2  = state.myGameCard2 ? _detectBingo(state.myGameCard2, balls.map(Number)) : null;
+
+    const row = (label, value, ok) => {
+        const color = ok === true ? '#4ade80' : ok === false ? '#f87171' : '#e5e7eb';
+        return `<tr><td style="color:#9ca3af;padding:3px 8px 3px 0;font-size:12px">${label}</td>
+                    <td style="color:${color};font-size:12px;word-break:break-all">${value}</td></tr>`;
+    };
+
+    const html = `
+<div id="bingo-debug-overlay" style="
+    position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    overflow-y:auto;padding:12px 8px 80px;font-family:monospace">
+  <div style="width:100%;max-width:480px;background:#111827;border-radius:12px;
+              border:1px solid #374151;padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="color:#f59e0b;font-weight:bold;font-size:15px">🔍 Bingo Debug</span>
+      <button onclick="document.getElementById('bingo-debug-overlay').remove()"
+              style="background:#374151;color:#fff;border:none;border-radius:6px;
+                     padding:4px 10px;cursor:pointer;font-size:13px">✕ Close</button>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
+      ${row('currentRoom',   currentRoom ?? 'null',  currentRoom != null)}
+      ${row('WS status',     wsState,                wsState === 'OPEN')}
+      ${row('purchasedCard', state.purchasedCard ?? 'null',  state.purchasedCard != null)}
+      ${row('purchasedCard2',state.purchasedCard2 ?? 'null', state.purchasedCard2 != null)}
+      ${row('myGameCard',    state.myGameCard  ? '✓ present' : 'null', state.myGameCard  != null)}
+      ${row('myGameCard2',   state.myGameCard2 ? '✓ present' : 'null', state.myGameCard2 != null)}
+      ${row('bingoFlashed',        String(state.bingoFlashed),        !state.bingoFlashed)}
+      ${row('autoClaimInProgress', String(state.autoClaimInProgress), !state.autoClaimInProgress)}
+      ${row('balls count',   balls.length, balls.length > 0)}
+      ${row('last 5 balls',  balls.slice(-5).join(', ') || '—', null)}
+      ${row('detectBingo card1', bingo1 === null ? 'no card data' : String(bingo1), bingo1)}
+      ${row('detectBingo card2', bingo2 === null ? 'no card data' : String(bingo2), bingo2)}
+    </table>
+
+    ${_dbgLastClaimRes ? `
+    <div style="background:#1f2937;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="color:#9ca3af;font-size:11px;margin-bottom:4px">Last Claim API Response (${_dbgLastClaimRes.ts})</div>
+      <div style="color:${_dbgLastClaimRes.ok ? '#4ade80' : '#f87171'};font-size:12px">
+        HTTP ${_dbgLastClaimRes.status} — card ${_dbgLastClaimReq?.card}
+      </div>
+      <pre style="color:#e5e7eb;font-size:11px;margin:6px 0 0;white-space:pre-wrap;
+                  word-break:break-all;max-height:120px;overflow-y:auto">${JSON.stringify(_dbgLastClaimRes.body, null, 2)}</pre>
+    </div>` : '<div style="color:#6b7280;font-size:12px;margin-bottom:10px">No claim attempt yet this session.</div>'}
+
+    <div style="background:#1f2937;border-radius:8px;padding:10px;margin-bottom:12px;
+                max-height:160px;overflow-y:auto">
+      <div style="color:#9ca3af;font-size:11px;margin-bottom:4px">Event Log</div>
+      ${_dbgClaimLog.length ? _dbgClaimLog.slice().reverse().map(l =>
+        `<div style="color:#d1d5db;font-size:11px;border-bottom:1px solid #374151;padding:2px 0">${l}</div>`
+      ).join('') : '<div style="color:#6b7280;font-size:11px">No events yet.</div>'}
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="_forceBingoClaim()" style="
+          flex:1;background:#dc2626;color:#fff;border:none;border-radius:8px;
+          padding:10px;font-size:13px;font-weight:bold;cursor:pointer">
+        🚨 Force Claim
+      </button>
+      <button onclick="_resetBingoLock()" style="
+          flex:1;background:#d97706;color:#fff;border:none;border-radius:8px;
+          padding:10px;font-size:13px;font-weight:bold;cursor:pointer">
+        🔓 Reset Lock
+      </button>
+      <button onclick="_wsReconnect();_dbgPush('Manual WS reconnect');_showBingoDebug()" style="
+          flex:1;background:#2563eb;color:#fff;border:none;border-radius:8px;
+          padding:10px;font-size:13px;font-weight:bold;cursor:pointer">
+        🔄 Reconnect WS
+      </button>
+    </div>
+  </div>
+</div>`;
+
+    const existing = document.getElementById('bingo-debug-overlay');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function _resetBingoLock() {
+    const state = getRoomState(currentRoom);
+    state.bingoFlashed       = false;
+    state.autoClaimInProgress = false;
+    _dbgPush('Lock reset manually');
+    _showBingoDebug();
+    showToast('🔓 Bingo lock reset — ዳግም ሞክሩ');
+}
+
+async function _forceBingoClaim() {
+    const state = getRoomState(currentRoom);
+    const card  = state.purchasedCard || state.purchasedCard2;
+    _dbgPush(`Force claim — room=${currentRoom} card=${card}`);
+
+    // Reset locks so the claim can go through
+    state.bingoFlashed       = false;
+    state.autoClaimInProgress = true;
+
+    try {
+        const res  = await fetch(`/api/bingo-claim/${currentRoom}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ card_number: card })
+        });
+        const body = await res.json().catch(() => ({}));
+        _dbgLastClaimReq = { card, ts: new Date().toLocaleTimeString() };
+        _dbgLastClaimRes = { status: res.status, ok: res.ok, body, ts: new Date().toLocaleTimeString() };
+        _dbgPush(`Force claim response: HTTP ${res.status} valid=${body.valid} msg=${body.message || '—'}`);
+        _showBingoDebug();
+        if (body.valid) {
+            document.getElementById('bingo-debug-overlay')?.remove();
+            showToast('🏆 Force claim: አሸንፈዋል!');
+        } else {
+            showToast(`Force claim: ${body.message || 'ውጤት የለም'}`);
+        }
+    } catch (e) {
+        _dbgPush(`Force claim ERROR: ${e.message}`);
+        _showBingoDebug();
+    } finally {
+        state.autoClaimInProgress = false;
+    }
+}
+
 function getRoomState(roomId) {
     if (!roomStates[roomId]) {
         roomStates[roomId] = {
@@ -2253,30 +2396,46 @@ function _detectBingo(cardData, calledBalls) {
 }
 
 async function checkMyCardForBingo(calledBalls) {
+    _dbgLastBalls = calledBalls;
     const state = getRoomState(currentRoom);
-    if (state.bingoFlashed || state.autoClaimInProgress) return;
 
-    // Check card 1
-    const hasBingo1 = state.myGameCard && _detectBingo(state.myGameCard, calledBalls.map(Number));
-    // Check card 2
-    const hasBingo2 = state.myGameCard2 && _detectBingo(state.myGameCard2, calledBalls.map(Number));
-
-    if (!hasBingo1 && !hasBingo2) return;
-
-    // Use whichever card won (prefer card1 if both somehow win simultaneously)
-    const winningCard = hasBingo1 ? state.purchasedCard : state.purchasedCard2;
-    if (!winningCard) {
-        showToast('⚠️ ካርድ ቁጥር አልተሰጠም — ከሰርጥ ተቋርጦ ካርድ አልተመለሰም። ገጹን ዳግም ይጫኑ።');
+    // ── Gate 1: lock check ────────────────────────────────────────────────
+    if (state.bingoFlashed || state.autoClaimInProgress) {
+        _dbgPush(`Skipped — bingoFlashed=${state.bingoFlashed} autoClaimInProgress=${state.autoClaimInProgress}`);
         return;
     }
 
-    // Lock immediately to prevent duplicate claims
-    state.bingoFlashed = true;
-    state.autoClaimInProgress = true;
+    // ── Gate 2: card data check ───────────────────────────────────────────
+    if (!state.myGameCard && !state.myGameCard2) {
+        _dbgPush(`Skipped — myGameCard=null myGameCard2=null (state not restored)`);
+        return;
+    }
 
+    // ── Gate 3: bingo detection ───────────────────────────────────────────
+    const balls   = calledBalls.map(Number);
+    const hasBingo1 = state.myGameCard  && _detectBingo(state.myGameCard,  balls);
+    const hasBingo2 = state.myGameCard2 && _detectBingo(state.myGameCard2, balls);
+    _dbgPush(`detectBingo card1=${hasBingo1} card2=${hasBingo2} balls=${balls.length} room=${currentRoom}`);
+
+    if (!hasBingo1 && !hasBingo2) return;
+
+    // ── Gate 4: card number present ───────────────────────────────────────
+    const winningCard = hasBingo1 ? state.purchasedCard : state.purchasedCard2;
+    if (!winningCard) {
+        _dbgPush(`BINGO detected but purchasedCard=null — state not restored`);
+        showToast('⚠️ ካርድ ቁጥር አልተሰጠም — Debug ይክፈቱ');
+        _showBingoDebug();
+        return;
+    }
+
+    // ── Claim ─────────────────────────────────────────────────────────────
+    state.bingoFlashed       = true;
+    state.autoClaimInProgress = true;
+    _dbgPush(`Claiming — room=${currentRoom} card=${winningCard}`);
     showToast('🎉 ቢንጎ ተገኝቷል! ክሌም እየተደረገ ነው...');
 
     try {
+        _dbgLastClaimReq = { card: winningCard, ts: new Date().toLocaleTimeString() };
         const res = await fetch(`/api/bingo-claim/${currentRoom}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2284,32 +2443,30 @@ async function checkMyCardForBingo(calledBalls) {
             body: JSON.stringify({ card_number: winningCard })
         });
 
+        const body = await res.json().catch(() => ({}));
+        _dbgLastClaimRes = { status: res.status, ok: res.ok, body, ts: new Date().toLocaleTimeString() };
+        _dbgPush(`API response: HTTP ${res.status} valid=${body.valid} msg=${body.message || '—'}`);
+
         if (!res.ok) {
-            // Non-200 — game may have already been won by someone else
-            const errData = await res.json().catch(() => ({}));
-            showToast(`ቢንጎ: ${errData.message || 'ክሌም አልተቻለም'}`);
+            showToast(`⚠️ ቢንጎ ክሌም: ${body.message || `HTTP ${res.status}`}`);
+            _showBingoDebug();
             state.autoClaimInProgress = false;
             return;
         }
 
-        const data = await res.json();
-
-        if (data.valid) {
-            // Stop ball-calling immediately — game is won
+        if (body.valid) {
             stopGameStatePoll();
-
             if (typeof playWinnerFanfare === 'function') playWinnerFanfare();
             showToast('🏆 ቢንጎ! አሸንፈዋል! ሽልማት ወደ ባላንስዎ ተጨምሯል።');
 
-            const modalBalls = data.balls || calledBalls;
-            const winners = (data.winners && data.winners.length > 0)
-                ? data.winners
-                : [{ username: data.winner || window.CURRENT_USERNAME || 'You',
-                     card_number: data.winner_card || state.purchasedCard,
-                     card_data: data.winner_card_data || state.myGameCard,
-                     prize: data.prize || 0 }];
+            const modalBalls = body.balls || calledBalls;
+            const winners = (body.winners && body.winners.length > 0)
+                ? body.winners
+                : [{ username: body.winner || window.CURRENT_USERNAME || 'You',
+                     card_number: body.winner_card || winningCard,
+                     card_data: body.winner_card_data || state.myGameCard,
+                     prize: body.prize || 0 }];
 
-            // Highlight winning cells on the physical card UI
             const myWin = winners.find(w => w.username === (window.CURRENT_USERNAME || '')) || winners[0];
             const winInfo = identifyWinPattern(myWin.card_data, modalBalls);
             if (winInfo.cells && winInfo.cells.length) {
@@ -2322,29 +2479,47 @@ async function checkMyCardForBingo(calledBalls) {
                     }
                 });
             }
-
-            showWinnerModal(winners, modalBalls, data.prize || 0, true);
-
-            // Return to lobby after showing the win
+            showWinnerModal(winners, modalBalls, body.prize || 0, true);
             setTimeout(() => {
                 const wm = document.getElementById('winner-modal');
                 if (wm) wm.classList.remove('active');
                 handleGameOverReturn(currentRoom);
             }, WINNER_DISPLAY_SECONDS * 1000);
         } else {
-            showToast(`ቢንጎ: ${data.message || 'ክሌም ተቀባይነት አላገኘም'}`);
+            showToast(`⚠️ ቢንጎ: ${body.message || 'ክሌም ተቀባይነት አላገኘም'}`);
+            _showBingoDebug();
         }
     } catch (e) {
-        showToast('⚠️ ቢንጎ ክሌም ግንኙነት ተሳስቷል — ዳግም ሞክሩ');
-        // Reset flag so the next ball poll can retry
+        _dbgPush(`Claim network error: ${e.message}`);
+        showToast('⚠️ ቢንጎ ክሌም ግንኙነት ተሳስቷል');
+        _showBingoDebug();
         state.bingoFlashed = false;
     } finally {
         state.autoClaimInProgress = false;
     }
 }
 
+function _ensureDebugBtn() {
+    if (document.getElementById('bingo-dbg-btn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'bingo-dbg-btn';
+    btn.textContent = '🔍';
+    btn.title = 'Bingo Debug';
+    Object.assign(btn.style, {
+        position: 'fixed', bottom: '80px', right: '12px', zIndex: '9999',
+        width: '42px', height: '42px', borderRadius: '50%',
+        background: '#dc2626', color: '#fff', border: '2px solid #fff',
+        fontSize: '18px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        lineHeight: '1'
+    });
+    btn.onclick = () => _showBingoDebug();
+    document.body.appendChild(btn);
+}
+
 function startGame() {
     navTo('game');
+    _ensureDebugBtn();
     const state = getRoomState(currentRoom);
     if (state.purchasedCard && !state.myGameCard) {
         state.myGameCard = state.currentCardData;
