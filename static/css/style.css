@@ -2897,60 +2897,29 @@ header {
 body.game-mode .top-header,
 body.game-mode .bottom-nav { display: none !important; }
 
-/* ── Stats Bar ─────────────────────────────────────────────── */
-.gs-stats-bar {
-    display: flex;
-    background: linear-gradient(90deg, #2d2468 0%, #1e1852 100%);
-    padding: 5px 6px;
-    flex-shrink: 0;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-}
-.gs-stat-box {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3px 2px;
-    border-right: 1px solid rgba(255,255,255,0.1);
-}
-.gs-stat-lbl {
-    font-size: 8.5px;
-    color: rgba(255,255,255,0.5);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    line-height: 1.2;
-    text-align: center;
-}
-.gs-stat-val {
-    font-size: 13px;
-    font-weight: 900;
-    color: #ffffff;
-    line-height: 1.3;
-    text-align: center;
-}
-.gs-stat-val.gs-small { font-size: 9px; letter-spacing: 0.3px; }
-.gs-stat-val.gs-amber { color: #f59e0b; }
-
 /* ── Body layout ────────────────────────────────────────────── */
 .gs-body {
     flex: 1;
     display: flex;
     overflow: hidden;
-    padding: 4px;
-    gap: 5px;
+    padding: 6px;
+    gap: 6px;
+    min-height: 0;
 }
 
 /* ── LEFT panel: master grid ────────────────────────────────── */
 .gs-left-panel {
-    width: 44%;
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
     overflow: hidden;
     flex-shrink: 0;
     min-height: 0;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    padding: 6px;
 }
 
 /* BINGO column headers */
@@ -2964,9 +2933,9 @@ body.game-mode .bottom-nav { display: none !important; }
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 26px;
-    border-radius: 5px;
-    font-size: 13px;
+    height: 24px;
+    border-radius: 6px;
+    font-size: 12px;
     font-weight: 900;
     color: white;
     letter-spacing: 0.5px;
@@ -2977,7 +2946,7 @@ body.game-mode .bottom-nav { display: none !important; }
 .gs-col-hdr.gs-g { background: #f59e0b; }
 .gs-col-hdr.gs-o { background: #ef4444; }
 
-/* Master grid overrides for the new game screen */
+/* Master grid */
 .gs-master-grid {
     flex: 1;
     min-height: 0;
@@ -2988,34 +2957,35 @@ body.game-mode .bottom-nav { display: none !important; }
     overflow: hidden;
 }
 #game-screen .master-cell {
-    background: #1a1635;
-    border: 1px solid rgba(255,255,255,0.07);
-    color: #9090b8;
+    background: #12102a;
+    border: 1px solid rgba(255,255,255,0.06);
+    color: #7878a8;
     font-size: 9px;
     font-weight: 700;
-    border-radius: 3px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 0;
     min-width: 0;
+    transition: background 0.15s, color 0.15s;
 }
 #game-screen .master-cell.called {
-    background: #ef4444;
+    background: #dc2626;
     color: #fff;
     border-color: #f87171;
-    box-shadow: 0 0 4px rgba(239,68,68,0.5);
+    box-shadow: 0 0 5px rgba(220,38,38,0.45);
 }
 #game-screen .master-cell.last-called {
     background: #f59e0b;
     color: #0d0800;
     border-color: #fbbf24;
-    box-shadow: 0 0 8px rgba(245,158,11,0.65);
+    box-shadow: 0 0 10px rgba(245,158,11,0.7);
     animation: pulseLast 1s infinite alternate;
     will-change: transform;
 }
 
-/* ── RIGHT panel ────────────────────────────────────────────── */
+/* ── RIGHT panel — vertical stack ───────────────────────────── */
 .gs-right-panel {
     flex: 1;
     display: flex;
@@ -3024,60 +2994,103 @@ body.game-mode .bottom-nav { display: none !important; }
     overflow: hidden;
     min-height: 0;
 }
-/* When right panel is the cards panel, fix its width */
 .gs-right-panel.gs-cards-panel {
     flex: none;
+    width: 42%;
+    min-width: 130px;
+    max-width: 160px;
+    padding: 0;
+    gap: 5px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-/* Active ball top row */
-.gs-call-top-row {
+/* ── Stats pill ─────────────────────────────────────────────── */
+.gs-stats-bar {
+    display: flex;
+    background: linear-gradient(135deg, #2d2468 0%, #1a1245 100%);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 5px 4px;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.gs-stat-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 1px;
+    border-right: 1px solid rgba(255,255,255,0.08);
+}
+.gs-stat-lbl {
+    font-size: 7.5px;
+    color: rgba(255,255,255,0.45);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    line-height: 1.2;
+    text-align: center;
+}
+.gs-stat-val {
+    font-size: 12px;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1.3;
+    text-align: center;
+}
+.gs-stat-val.gs-small { font-size: 8px; letter-spacing: 0.2px; }
+.gs-stat-val.gs-amber { color: #f59e0b; }
+
+/* ── Ball zone ──────────────────────────────────────────────── */
+.gs-ball-zone {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 6px 5px 5px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.gs-ball-zone-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    flex-shrink: 0;
+    width: 100%;
+    gap: 3px;
 }
 
-/* Active ball small chip (styled by JS inline background) */
+/* Active ball chip */
 #game-screen #active-ball {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 }
 #game-screen #active-ball span {
-    padding: 4px 12px;
+    padding: 3px 7px;
     border-radius: 20px;
-    font-size: 0.82rem;
+    font-size: 0.72rem;
     font-weight: 900;
     color: white;
 }
 
-/* Mute button */
-.gs-mute-btn {
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 8px;
-    padding: 6px 8px;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-}
-
-/* ── Big golden ball circle ──────────────────────────────────── */
+/* Big golden ball */
 .gs-big-circle {
-    width: 52px;
-    height: 52px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    background: radial-gradient(circle at 38% 32%, #fde68a 0%, #f59e0b 42%, #d97706 82%);
-    box-shadow:
-        0 0 0 3px rgba(245,158,11,0.22),
-        0 3px 14px rgba(245,158,11,0.45);
+    background: radial-gradient(circle at 35% 30%, #fde68a 0%, #f59e0b 45%, #d97706 85%);
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.2), 0 3px 12px rgba(245,158,11,0.45);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 900;
     color: #1a0900;
-    margin: 0 auto;
     flex-shrink: 0;
     letter-spacing: -0.5px;
     transition: transform 0.15s ease;
@@ -3086,126 +3099,125 @@ body.game-mode .bottom-nav { display: none !important; }
     animation: ball-flash 0.6s ease-out !important;
 }
 
-/* ── Automatic toggle row ───────────────────────────────────── */
-.gs-auto-toggle-row {
+/* Controls: mute + auto toggle stacked */
+.gs-ball-zone-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+/* Mute button */
+.gs-mute-btn {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 5px 6px;
+    color: white;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+}
+
+/* Auto toggle */
+.gs-auto-toggle-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
     background: rgba(255,255,255,0.05);
     border-radius: 8px;
-    padding: 4px 10px;
+    padding: 3px 5px;
     flex-shrink: 0;
 }
 .gs-auto-lbl {
-    font-size: 11px;
+    font-size: 8px;
     font-weight: 700;
-    color: #e2e8f0;
-    flex: 1;
+    color: rgba(255,255,255,0.6);
+    text-align: center;
 }
-/* Green toggle when active (override default blue) */
 #game-screen .toggle-switch.active { background: #22c55e; }
-#game-screen .toggle-handle {
-    transition: left 0.2s ease;
-}
+#game-screen .toggle-handle { transition: left 0.2s ease; }
 #game-screen .toggle-switch.active .toggle-handle { left: 26px; }
 
-/* ── Player Bingo Cards — stacked top/bottom, fill available space ── */
-.gs-cards-row {
+/* Recent balls row */
+.gs-recent-balls-row {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-}
-
-.gs-cards-row .gs-card-wrap {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.gs-cards-row .gs-bingo-board-grid {
-    flex: 1;
-    min-height: 0;
-    grid-template-rows: repeat(6, 1fr);
-}
-
-.gs-cards-row #bingo-board .bingo-cell,
-.gs-cards-row #bingo-board-2 .bingo-cell {
-    aspect-ratio: unset;
-}
-
-/* ── Player Bingo Card ──────────────────────────────────────── */
-.gs-card-wrap {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 8px;
-    padding: 3px;
+    justify-content: center;
+    gap: 3px;
+    flex-wrap: wrap;
     flex-shrink: 0;
+    width: 100%;
+}
+.gs-recent-balls-row .hist-ball {
+    width: 19px;
+    height: 19px;
+    font-size: 7px;
 }
 
-/* Card 2 bingo board header colors */
-#game-screen #bingo-board-2 .card-header-cell:nth-child(1) { background: #3b82f6; }
-#game-screen #bingo-board-2 .card-header-cell:nth-child(2) { background: #8b5cf6; }
-#game-screen #bingo-board-2 .card-header-cell:nth-child(3) { background: #22c55e; }
-#game-screen #bingo-board-2 .card-header-cell:nth-child(4) { background: #f59e0b; }
-#game-screen #bingo-board-2 .card-header-cell:nth-child(5) { background: #ef4444; }
+/* ── Bingo board grid ───────────────────────────────────────── */
 .gs-bingo-board-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 1px;
+    gap: 2px;
     width: 100%;
 }
 
-/* Bingo cells in new game screen */
+/* Bingo cells */
 #game-screen .bingo-cell {
-    background: #1a1635;
-    border: 1px solid rgba(255,255,255,0.09);
-    border-radius: 3px;
+    background: #12102a;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px;
     aspect-ratio: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 8px;
     font-weight: 700;
-    color: #c0bfe0;
+    color: #b0b0d8;
+    transition: background 0.12s, color 0.12s;
 }
 
-/* Column header cells (B I N G O) — colored circles */
+/* Column header cells (B I N G O) */
 #game-screen .bingo-cell.card-header-cell {
     border-radius: 50%;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 900;
     color: white;
     border: none;
 }
-#game-screen #bingo-board .card-header-cell:nth-child(1) { background: #3b82f6; }
-#game-screen #bingo-board .card-header-cell:nth-child(2) { background: #8b5cf6; }
-#game-screen #bingo-board .card-header-cell:nth-child(3) { background: #22c55e; }
-#game-screen #bingo-board .card-header-cell:nth-child(4) { background: #f59e0b; }
-#game-screen #bingo-board .card-header-cell:nth-child(5) { background: #ef4444; }
+#game-screen #bingo-board .card-header-cell:nth-child(1)  { background: #3b82f6; }
+#game-screen #bingo-board .card-header-cell:nth-child(2)  { background: #8b5cf6; }
+#game-screen #bingo-board .card-header-cell:nth-child(3)  { background: #22c55e; }
+#game-screen #bingo-board .card-header-cell:nth-child(4)  { background: #f59e0b; }
+#game-screen #bingo-board .card-header-cell:nth-child(5)  { background: #ef4444; }
+#game-screen #bingo-board-2 .card-header-cell:nth-child(1){ background: #3b82f6; }
+#game-screen #bingo-board-2 .card-header-cell:nth-child(2){ background: #8b5cf6; }
+#game-screen #bingo-board-2 .card-header-cell:nth-child(3){ background: #22c55e; }
+#game-screen #bingo-board-2 .card-header-cell:nth-child(4){ background: #f59e0b; }
+#game-screen #bingo-board-2 .card-header-cell:nth-child(5){ background: #ef4444; }
 
 /* Called cell */
 #game-screen .bingo-cell.called {
-    background: #22c55e;
-    color: white;
+    background: #16a34a;
+    color: #fff;
     border-color: #4ade80;
-    box-shadow: 0 0 5px rgba(34,197,94,0.4);
+    box-shadow: 0 0 6px rgba(34,197,94,0.4);
 }
 
-/* Free spot — show star, hide "FREE" text */
+/* Free spot */
 #game-screen .bingo-cell.free-spot {
-    background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(34,197,94,0.1));
+    background: linear-gradient(135deg, rgba(34,197,94,0.25), rgba(34,197,94,0.1));
     border-color: rgba(34,197,94,0.4);
     font-size: 0 !important;
 }
 #game-screen .bingo-cell.free-spot::after {
     content: '✦';
-    font-size: 1.15rem;
+    font-size: 1rem;
     color: #22c55e;
-    text-shadow: 0 0 8px rgba(34,197,94,0.55);
+    text-shadow: 0 0 8px rgba(34,197,94,0.6);
 }
 
 /* Newly called flash */
@@ -3213,133 +3225,23 @@ body.game-mode .bottom-nav { display: none !important; }
     animation: cell-pop 0.5s ease-out;
 }
 
-/* Cartela / card number label */
-.gs-cartela-lbl {
-    text-align: center;
-    font-size: 10px;
-    font-weight: 700;
-    color: #d4a96a;
-    background: rgba(120,75,15,0.22);
-    border-radius: 5px;
-    padding: 2px 6px;
-    margin-top: 4px;
-}
-
-/* ── Recent balls row ───────────────────────────────────────── */
-.gs-recent-balls-row {
-    display: flex;
-    justify-content: flex-start;
-    gap: 3px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-    min-height: 24px;
-}
-.gs-recent-balls-row .hist-ball {
-    width: 22px;
-    height: 22px;
-    font-size: 8px;
-}
-
-/* ── Bottom action buttons ──────────────────────────────────── */
-.gs-bottom-bar {
-    display: flex;
-    gap: 8px;
-    padding: 8px 10px;
-    flex-shrink: 0;
-    background: #0c0a1e;
-    border-top: 1px solid rgba(255,255,255,0.07);
-}
-.gs-action-btn {
-    flex: 1;
-    padding: 13px 6px;
-    border: none;
-    border-radius: 10px;
-    font-size: 0.83rem;
-    font-weight: 800;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    letter-spacing: 0.2px;
-}
-.gs-leave-btn   { background: #ef4444; color: #fff; }
-.gs-refresh-btn { background: #f97316; color: #fff; }
-.gs-auto-btn    { background: #78570a; color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
-
-/* ── Compact ball strip (between stats bar and body) ──────────── */
-.gs-ball-strip {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 8px;
-    background: rgba(255,255,255,0.03);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    flex-shrink: 0;
-    min-height: 58px;
-}
-.gs-ball-strip .gs-recent-balls-row {
-    flex: 1;
-    min-width: 0;
-    min-height: unset;
-    align-content: center;
-}
-.gs-ball-strip-center {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    flex-shrink: 0;
-}
-.gs-ball-strip .gs-big-circle {
-    width: 38px;
-    height: 38px;
-    font-size: 0.85rem;
-}
-.gs-ball-strip #active-ball span {
-    font-size: 0.7rem;
-    padding: 2px 8px;
-}
-.gs-ball-strip .gs-auto-toggle-row {
-    flex-direction: column;
-    gap: 3px;
-    padding: 4px 6px;
-    flex-shrink: 0;
-    min-width: 54px;
-}
-.gs-ball-strip .gs-auto-lbl {
-    font-size: 9px;
-    text-align: center;
-}
-
-/* ── Right panel — player cards stacked vertically ─────────── */
-.gs-cards-panel {
-    flex-shrink: 0;
-    width: 38%;
-    min-width: 120px;
-    max-width: 150px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: 4px 3px 4px 0;
-    gap: 0;
-}
+/* ── Player card slots ───────────────────────────────────────── */
 .gs-panel-card-slot {
-    display: flex;
-    flex-direction: column;
     flex: 1;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 12px;
+    padding: 5px;
+    gap: 3px;
 }
-.gs-panel-card-lbl {
-    font-size: 8px;
-    font-weight: 800;
-    text-align: center;
-    padding: 2px 0;
-    letter-spacing: 0.6px;
-    flex-shrink: 0;
+.gs-panel-card2-slot {
+    flex: 1;
+    min-height: 0;
 }
-.gs-panel-card1-lbl { color: #60a5fa; }
-.gs-panel-card2-lbl { color: #a78bfa; }
 .gs-panel-board {
     flex: 1;
     min-height: 0;
@@ -3351,15 +3253,56 @@ body.game-mode .bottom-nav { display: none !important; }
     font-size: 7px !important;
 }
 .gs-panel-board .card-header-cell {
-    font-size: 9px !important;
+    font-size: 8px !important;
 }
-.gs-card-panel-divider {
-    height: 1px;
-    background: rgba(255,255,255,0.1);
-    margin: 3px 0;
+
+/* Card number label — small, just the number */
+.gs-cartela-lbl {
+    text-align: center;
+    font-size: 8px;
+    font-weight: 800;
+    color: rgba(212,169,106,0.75);
+    letter-spacing: 0.3px;
     flex-shrink: 0;
+    padding: 0;
 }
-.gs-panel-card2-slot {
+
+/* Divider between cards */
+.gs-card-panel-divider {
+    display: none;
+}
+
+/* ── Bottom action buttons ──────────────────────────────────── */
+.gs-bottom-bar {
+    display: flex;
+    gap: 7px;
+    padding: 8px 8px 10px;
+    flex-shrink: 0;
+    background: #08071a;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+.gs-action-btn {
     flex: 1;
-    min-height: 0;
+    padding: 12px 4px;
+    border: none;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.2px;
+    transition: opacity 0.15s, transform 0.1s;
 }
+.gs-action-btn:active { opacity: 0.8; transform: scale(0.97); }
+.gs-leave-btn   { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+.gs-refresh-btn { background: linear-gradient(135deg, #f97316, #ea580c); color: #fff; }
+.gs-auto-btn    { background: linear-gradient(135deg, #92400e, #78350f); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+
+/* Legacy classes kept for compat */
+.gs-call-top-row { display: none; }
+.gs-cards-row    { display: none; }
+.gs-card-wrap    { display: none; }
+.gs-ball-strip   { display: none; }
+.gs-panel-card-lbl { display: none; }
