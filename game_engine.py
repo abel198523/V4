@@ -65,6 +65,8 @@ room_states = {
         'winner_card': None,
         'prize': 0.0,
         'winners': [],
+        'cards_count': 0,
+        'prize_pool': 0.0,
     }
     for s in STAKES
 }
@@ -307,6 +309,8 @@ def add_stake(stake):
             'winner_card': None,
             'prize': 0.0,
             'winners': [],
+            'cards_count': 0,
+            'prize_pool': 0.0,
         }
         _stopped_stakes.discard(stake)
     t = threading.Thread(target=_room_loop, args=(stake,), daemon=True)
@@ -374,6 +378,9 @@ def _room_loop(stake):
             balls = list(range(1, 76))
             random.shuffle(balls)
 
+            _snap_fee = get_house_fee()
+            _snap_prize_pool = round(player_count * stake * (1 - _snap_fee), 2)
+
             with _lock:
                 room_states[stake]['status'] = 'playing'
                 room_states[stake]['launch_timer'] = 0
@@ -382,6 +389,10 @@ def _room_loop(stake):
                 room_states[stake]['winner_card'] = None
                 room_states[stake]['prize'] = 0.0
                 room_states[stake]['winners'] = []
+                # Snapshot counts at game-start so polls during playing
+                # never query the DB (active_session_id is cleared on win).
+                room_states[stake]['cards_count'] = player_count
+                room_states[stake]['prize_pool'] = _snap_prize_pool
 
             logger.info(f"Room {stake} ETB: GAME STARTED with {player_count} player(s)")
 
@@ -456,6 +467,8 @@ def _room_loop(stake):
                 room_states[stake]['winner_card'] = None
                 room_states[stake]['prize'] = 0.0
                 room_states[stake]['winners'] = []
+                room_states[stake]['cards_count'] = 0
+                room_states[stake]['prize_pool'] = 0.0
 
             logger.info(f"Room {stake} ETB: game over — starting next card-selection countdown.")
 
@@ -761,6 +774,8 @@ def reset_room_game(stake):
         room_states[stake]['winner_card'] = None
         room_states[stake]['prize'] = 0.0
         room_states[stake]['winners'] = []
+        room_states[stake]['cards_count'] = 0
+        room_states[stake]['prize_pool'] = 0.0
 
     return refunded_count, round(refunded_total, 2)
 
@@ -777,8 +792,15 @@ def get_all_room_status():
     result = {}
     for stake in STAKES:
         s = states_snapshot[stake]
-        count = _cached_card_count(stake)
-        prize_pool = round(count * stake * (1 - fee), 2)
+        if s['status'] == 'playing':
+            # Serve the values snapshotted at game-start — never touch the DB
+            # mid-game, because active_session_id is cleared the moment a
+            # winner is found and a DB query would return 0.
+            count = s.get('cards_count', 0)
+            prize_pool = s.get('prize_pool', 0.0)
+        else:
+            count = _cached_card_count(stake)
+            prize_pool = round(count * stake * (1 - fee), 2)
         result[str(stake)] = {
             'status':           s['status'],
             'launch_timer':     s['launch_timer'],
