@@ -72,7 +72,6 @@ class GameParticipant(db.Model):
     user_id       = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     session_id    = db.Column(db.Integer, db.ForeignKey('game_sessions.id'), nullable=False)
     card_number   = db.Column(db.Integer, nullable=False)
-    card_number_2 = db.Column(db.Integer, nullable=True)
     created_at    = db.Column(db.DateTime, server_default=db.func.now())
     __table_args__ = (
         db.UniqueConstraint('user_id', 'session_id', name='uq_gp_user_session'),

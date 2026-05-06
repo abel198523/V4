@@ -235,7 +235,6 @@ with app.app_context():
                 user_id INTEGER NOT NULL REFERENCES users(id),
                 session_id INTEGER NOT NULL REFERENCES game_sessions(id),
                 card_number INTEGER NOT NULL,
-                card_number_2 INTEGER,
                 created_at TIMESTAMP DEFAULT NOW(),
                 CONSTRAINT uq_gp_user_session UNIQUE (user_id, session_id)
             )

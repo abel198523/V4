@@ -45,10 +45,6 @@ function _restoreCardState(msg) {
     if (state.purchasedCard) return; // already set — no need to restore
     state.purchasedCard  = msg.restored_card_id;
     state.myGameCard     = msg.restored_card_data;
-    if (msg.restored_card_id_2) {
-        state.purchasedCard2 = msg.restored_card_id_2;
-        state.myGameCard2    = msg.restored_card_data_2;
-    }
     // If the player is already on the game screen for this room, refresh the card display
     if (currentRoom === stake) {
         renderMyGameCard();
@@ -109,8 +105,6 @@ function _showBingoDebug() {
     const wsState = wsNames[socket.readyState] || '?';
     const balls   = _dbgLastBalls || [];
     const bingo1  = state.myGameCard  ? _detectBingo(state.myGameCard,  balls.map(Number)) : null;
-    const bingo2  = state.myGameCard2 ? _detectBingo(state.myGameCard2, balls.map(Number)) : null;
-
     const row = (label, value, ok) => {
         const color = ok === true ? '#4ade80' : ok === false ? '#f87171' : '#e5e7eb';
         return `<tr><td style="color:#9ca3af;padding:3px 8px 3px 0;font-size:12px">${label}</td>
@@ -135,15 +129,12 @@ function _showBingoDebug() {
       ${row('currentRoom',   currentRoom ?? 'null',  currentRoom != null)}
       ${row('WS status',     wsState,                wsState === 'OPEN')}
       ${row('purchasedCard', state.purchasedCard ?? 'null',  state.purchasedCard != null)}
-      ${row('purchasedCard2',state.purchasedCard2 ?? 'null', state.purchasedCard2 != null)}
       ${row('myGameCard',    state.myGameCard  ? '✓ present' : 'null', state.myGameCard  != null)}
-      ${row('myGameCard2',   state.myGameCard2 ? '✓ present' : 'null', state.myGameCard2 != null)}
       ${row('bingoFlashed',        String(state.bingoFlashed),        !state.bingoFlashed)}
       ${row('autoClaimInProgress', String(state.autoClaimInProgress), !state.autoClaimInProgress)}
       ${row('balls count',   balls.length, balls.length > 0)}
       ${row('last 5 balls',  balls.slice(-5).join(', ') || '—', null)}
       ${row('detectBingo card1', bingo1 === null ? 'no card data' : String(bingo1), bingo1)}
-      ${row('detectBingo card2', bingo2 === null ? 'no card data' : String(bingo2), bingo2)}
     </table>
 
     ${_dbgLastClaimRes ? `
@@ -200,7 +191,7 @@ function _resetBingoLock() {
 
 async function _forceBingoClaim() {
     const state = getRoomState(currentRoom);
-    const card  = state.purchasedCard || state.purchasedCard2;
+    const card  = state.purchasedCard;
     _dbgPush(`Force claim — room=${currentRoom} card=${card}`);
 
     // Reset locks so the claim can go through
@@ -237,7 +228,6 @@ function getRoomState(roomId) {
     if (!roomStates[roomId]) {
         roomStates[roomId] = {
             myGameCard: null,
-            myGameCard2: null,
             currentSelectedCard: null,
             currentCardData: null,
             lastHistory: [],
@@ -247,7 +237,6 @@ function getRoomState(roomId) {
             autoClaimInProgress: false,
             bingoFlashed: false,
             purchasedCard: null,
-            purchasedCard2: null,
         };
     }
     return roomStates[roomId];
@@ -435,8 +424,6 @@ function _enterGameScreen(stake) {
     navTo('game');
     _ensureDebugBtn();
 
-    const w2 = document.getElementById('gs-card2-wrap');
-    if (w2) w2.style.display = state.myGameCard2 ? '' : 'none';
     renderMyGameCard();
 
     const myBoardEl = document.getElementById('sel-my-board-game');
@@ -457,11 +444,9 @@ function _returnToSelection(stake) {
 
     const state = getRoomState(stake);
     state.myGameCard          = null;
-    state.myGameCard2         = null;
     state.currentSelectedCard = null;
     state.currentCardData     = null;
     state.purchasedCard       = null;
-    state.purchasedCard2      = null;
     state.bingoFlashed        = false;
     state.lastHistory         = [];
     state.autoClaimInProgress = false;
@@ -470,13 +455,11 @@ function _returnToSelection(stake) {
 
     const nbBar = document.getElementById('near-bingo-bar');
     if (nbBar) { nbBar.style.display = 'none'; nbBar.className = 'near-bingo-bar'; }
-    const c2wrap = document.getElementById('gs-card2-wrap');
-    if (c2wrap) c2wrap.style.display = 'none';
     _clearPreviewSlot(1);
     _clearPreviewSlot(2);
 
     resetMasterGrid();
-    ['bingo-board', 'bingo-board-2', 'recent-balls'].forEach(id => {
+    ['bingo-board', 'recent-balls'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '';
     });
@@ -771,7 +754,6 @@ function createAvailableCards() {
     const state = getRoomState(currentRoom);
     const takenCards = state.takenCards;
     const purchasedCard = state.purchasedCard;
-    const purchasedCard2 = state.purchasedCard2;
     const availableCount = 100 - takenCards.length;
     const takenCount = takenCards.length;
     
@@ -785,7 +767,7 @@ function createAvailableCards() {
         const card = document.createElement('div');
         card.className = 'card-item';
 
-        if (i === purchasedCard || i === purchasedCard2) {
+        if (i === purchasedCard) {
             card.classList.add('taken', 'my-card');
         } else if (takenCards.includes(i)) {
             card.classList.add('taken');
@@ -806,9 +788,9 @@ function createAvailableCards() {
 async function autoBuyCard(num) {
     const state = getRoomState(currentRoom);
 
-    // Already have 2 cards → no more allowed
-    if (state.purchasedCard && state.purchasedCard2) {
-        showToast('❌ 2 ካርድ ተይዘዋል — ከ2 ካርድ በላይ አይቻልም');
+    // Already have a card → no more allowed
+    if (state.purchasedCard) {
+        showToast('❌ ካርድ ተይዟል — በአንድ ዙር 1 ካርድ ብቻ ይፈቀዳል');
         return;
     }
 
@@ -823,7 +805,7 @@ async function autoBuyCard(num) {
         return;
     }
 
-    const slot = state.purchasedCard ? 2 : 1;
+    const slot = 1;
     const cardData = getCardById(num);
 
     // Show mini preview immediately in the container
@@ -859,12 +841,6 @@ async function autoBuyCard(num) {
             if (!state.myGameCard) {
                 state.myGameCard = cardData;
                 state.purchasedCard = num;
-            } else {
-                state.myGameCard2 = cardData;
-                state.purchasedCard2 = num;
-                const w2 = document.getElementById('gs-card2-wrap');
-                if (w2) w2.style.display = '';
-                renderMyGameCard();
             }
 
             // Update balance displays
@@ -1493,16 +1469,6 @@ function renderMyGameCard() {
     const cardLabel = document.getElementById('my-card-label');
     _renderCardIntoBoard(bingoBoard, state.myGameCard, state.purchasedCard || state.currentSelectedCard, cardLabel, 'cell-');
 
-    // Render card 2 if present
-    const board2 = document.getElementById('bingo-board-2');
-    const label2 = document.getElementById('my-card-label-2');
-    const wrap2  = document.getElementById('gs-card2-wrap');
-    if (state.myGameCard2 && board2) {
-        _renderCardIntoBoard(board2, state.myGameCard2, state.purchasedCard2, label2, 'cell2-');
-        if (wrap2) wrap2.style.display = '';
-    } else if (wrap2) {
-        wrap2.style.display = 'none';
-    }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1620,8 +1586,9 @@ function updateGameUI(history) {
             }
         });
 
-        // Card 2
-        document.querySelectorAll('#bingo-board-2 [id^="cell2-"]').forEach(el => {
+        // (card 2 removed — single card per player only)
+        if (false) {
+            document.querySelectorAll('#bingo-board-2 [id^="cell2-"]').forEach(el => {
             const n = parseInt(el.id.slice(6), 10);
             const shouldMark = calledSet.has(n);
             if (!shouldMark && el.classList.contains('called')) {
@@ -1834,17 +1801,10 @@ if (confirmCard) {
             }
 
             if (data.success) {
-                // Commit card to game state (card1 first, then card2)
+                // Commit card to game state — one card per player
                 if (!state.myGameCard) {
                     state.myGameCard = state.currentCardData;
                     state.purchasedCard = state.currentSelectedCard;
-                } else {
-                    state.myGameCard2 = state.currentCardData;
-                    state.purchasedCard2 = state.currentSelectedCard;
-                    // Show card2 immediately
-                    const w2 = document.getElementById('gs-card2-wrap');
-                    if (w2) w2.style.display = '';
-                    renderMyGameCard();
                 }
 
                 // Update balance from server response
@@ -2237,7 +2197,7 @@ function _dbgRefresh() {
         if (domEl) domEl.style.color = (mg && mg.children.length === 75) ? '#34d399' : '#f87171';
 
         const rs = getRoomState(currentRoom);
-        const cardCount = (rs.myGameCard ? 1 : 0) + (rs.myGameCard2 ? 1 : 0);
+        const cardCount = rs.myGameCard ? 1 : 0;
         el('dbg-my-cards', cardCount);
 
         // Last server payload (trimmed)
@@ -2429,21 +2389,20 @@ async function checkMyCardForBingo(calledBalls) {
     }
 
     // ── Gate 2: card data check ───────────────────────────────────────────
-    if (!state.myGameCard && !state.myGameCard2) {
-        _dbgPush(`Skipped — myGameCard=null myGameCard2=null (state not restored)`);
+    if (!state.myGameCard) {
+        _dbgPush(`Skipped — myGameCard=null (state not restored)`);
         return;
     }
 
     // ── Gate 3: bingo detection ───────────────────────────────────────────
     const balls   = calledBalls.map(Number);
-    const hasBingo1 = state.myGameCard  && _detectBingo(state.myGameCard,  balls);
-    const hasBingo2 = state.myGameCard2 && _detectBingo(state.myGameCard2, balls);
-    _dbgPush(`detectBingo card1=${hasBingo1} card2=${hasBingo2} balls=${balls.length} room=${currentRoom}`);
+    const hasBingo1 = state.myGameCard && _detectBingo(state.myGameCard, balls);
+    _dbgPush(`detectBingo card1=${hasBingo1} balls=${balls.length} room=${currentRoom}`);
 
-    if (!hasBingo1 && !hasBingo2) return;
+    if (!hasBingo1) return;
 
     // ── Gate 4: card number present ───────────────────────────────────────
-    const winningCard = hasBingo1 ? state.purchasedCard : state.purchasedCard2;
+    const winningCard = state.purchasedCard;
     if (!winningCard) {
         _dbgPush(`BINGO detected but purchasedCard=null — state not restored`);
         showToast('⚠️ ካርድ ቁጥር አልተሰጠም — Debug ይክፈቱ');

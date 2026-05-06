@@ -43,8 +43,6 @@ def ws_handler(ws):
         # Look up the player's active card from game_participants
         restored_card_id   = None
         restored_card_data = None
-        restored_card_id_2   = None
-        restored_card_data_2 = None
         restored_stake     = None
 
         try:
@@ -64,9 +62,6 @@ def ws_handler(ws):
                     restored_stake     = int(room.card_price)
                     restored_card_id   = gp.card_number
                     restored_card_data = _gcd(gp.card_number)
-                    if gp.card_number_2:
-                        restored_card_id_2   = gp.card_number_2
-                        restored_card_data_2 = _gcd(gp.card_number_2)
                     break
         except Exception as lookup_err:
             _routes_logger.error(f"[WS] participant lookup error: {lookup_err}")
@@ -80,8 +75,6 @@ def ws_handler(ws):
             'username':           current_user.username,
             'restored_card_id':   restored_card_id,
             'restored_card_data': restored_card_data,
-            'restored_card_id_2':   restored_card_id_2,
-            'restored_card_data_2': restored_card_data_2,
             'restored_stake':     restored_stake,
         }))
     except Exception as e:
@@ -2335,17 +2328,17 @@ def buy_card_by_stake(stake, card_number):
             return jsonify({"success": False, "message": "Session error",
                             "detail": "get_or_create_session returned None"}), 500
 
-        # ── 2-card-per-player limit (checked against the real session id) ──
+        # ── 1-card-per-player limit (checked against the real session id) ──
         existing_txs = Transaction.query.filter_by(
             room_id=room.id,
             session_id=game_session.id,
             user_id=current_user.id
         ).all()
-        if len(existing_txs) >= 2:
+        if len(existing_txs) >= 1:
             nums = ', '.join(f'#{t.card_number}' for t in existing_txs)
             return jsonify({
                 "success": False,
-                "message": f"ካርዶች {nums} ተይዘዋል — በአንድ ዙር ከ2 ካርድ በላይ አይቻልም"
+                "message": f"ካርድ {nums} ተይዟል — በአንድ ዙር 1 ካርድ ብቻ ይፈቀዳል"
             }), 400
 
         # ── Card-number uniqueness guard (checked before insert) ──────────
@@ -2385,7 +2378,7 @@ def buy_card_by_stake(stake, card_number):
         from game_engine import _invalidate_card_count
         _invalidate_card_count(stake)
 
-        # ── Upsert game_participants for WS state-restore on reconnect ────────
+        # ── Insert game_participants for WS state-restore on reconnect ────────
         try:
             gp = GameParticipant.query.filter_by(
                 user_id=current_user.id,
@@ -2397,12 +2390,10 @@ def buy_card_by_stake(stake, card_number):
                     session_id=game_session.id,
                     card_number=card_number
                 ))
-            else:
-                gp.card_number_2 = card_number
-            db.session.commit()
+                db.session.commit()
         except Exception as gp_err:
             db.session.rollback()
-            _routes_logger.warning(f"GameParticipant upsert failed (non-fatal): {gp_err}")
+            _routes_logger.warning(f"GameParticipant insert failed (non-fatal): {gp_err}")
 
         return jsonify({"success": True, "new_balance": dep_new + bonus_new,
                         "deposit_balance": dep_new, "bonus_balance": bonus_new,
