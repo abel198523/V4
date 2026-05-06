@@ -28,7 +28,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "export PATH=\"/home/runner/workspace/.pythonlibs/bin:$PATH\" && gunicorn --bind 0.0.0.0:5000 --reuse-port --reload --config gunicorn.conf.py main:app"
+args = "bash start.sh"
 waitForPort = 5000
 
 [[ports]]

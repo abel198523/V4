@@ -1,77 +1,60 @@
-# NOVA BINGO
+# Nova Bingo
 
-A Telegram-integrated bingo game platform built with Flask and PostgreSQL.
+A Telegram-integrated bingo gambling web app where users register via a Telegram bot, manage a wallet, and join timed bingo rooms to buy cards and win prize pools.
 
-## Architecture
+## Run & Operate
 
-- **Backend**: Flask (Python 3.11) with Flask-SQLAlchemy, Flask-Login, Flask-Compress
-- **Database**: PostgreSQL (Replit-managed via `DATABASE_URL`)
-- **Auth**: Custom Telegram OTP / token-based login (no external auth provider)
-- **Bot**: Telegram bot (`pyTelegramBotAPI`) for user registration and login link delivery
-- **Frontend**: Jinja2 templates + vanilla JS + static CSS
+- **Start:** `bash start.sh` (runs gunicorn via `.pythonlibs/bin`)
+- **Required secrets:** `SESSION_SECRET`, `DATABASE_URL` (auto-provided by Replit PostgreSQL), `TELEGRAM_BOT_TOKEN` (optional — bot disabled if missing)
 
-## Project Structure
+## Stack
 
-```
-app.py           — Flask app, DB, session/auth setup, startup migrations
-main.py          — Entry point: imports app, starts Telegram bot thread conditionally
-routes.py        — All Flask route handlers and API endpoints
-models.py        — SQLAlchemy models (User, Room, GameSession, Transaction, etc.)
-game_engine.py   — Game/session logic, room timers, daily report scheduler
-bot.py           — Telegram bot (OTP/login flow, webhook vs polling logic)
-card_data.py     — Card data helpers
-cards.json       — Card data
-gunicorn.conf.py — Gunicorn runtime config (1 worker, 8 threads, post_fork timer restart)
-templates/       — Jinja2 HTML templates
-static/          — CSS, JS, images
-```
+- Python 3.11, Flask 3.1, SQLAlchemy 2.0, Flask-Login, Flask-Compress
+- PostgreSQL via psycopg2-binary
+- Gunicorn (gthread, 1 worker, 8 threads)
+- pyTelegramBotAPI for Telegram bot integration
 
-## Running the App
+## Where things live
 
-The app is started via gunicorn (PATH must include `.pythonlibs/bin`):
-```
-export PATH="/home/runner/workspace/.pythonlibs/bin:$PATH" && gunicorn --bind 0.0.0.0:5000 --reuse-port --reload --config gunicorn.conf.py main:app
-```
+- `main.py` — entry point; starts Telegram bot polling thread if token present
+- `app.py` — Flask app factory, DB init, all migrations inline
+- `routes.py` — all HTTP routes and API endpoints
+- `game_engine.py` — per-room game loop timers, winner detection/awarding
+- `models.py` — SQLAlchemy models (User, Room, GameSession, Transaction, etc.)
+- `bot.py` — Telegram bot command handlers
+- `templates/` — Jinja2 HTML templates
+- `static/` — CSS and JS (game.js polls `/api/room-status` every second)
+- `gunicorn.conf.py` — gunicorn config; starts room timers via `post_fork`
+- `start.sh` — sets PATH to `.pythonlibs/bin` then execs gunicorn
 
-## Environment Variables / Secrets
+## Architecture decisions
 
-| Key | Required | Notes |
-|-----|----------|-------|
-| `DATABASE_URL` | Yes | Auto-managed by Replit PostgreSQL |
-| `SESSION_SECRET` | Yes | Auto-managed by Replit |
-| `TELEGRAM_BOT_TOKEN` | Optional | Set to enable Telegram bot features |
+- Room game loops run in background threads started in gunicorn's `post_fork` hook so they survive forking and only run in worker processes
+- All DB migrations are run inline at startup in `app.py` (no migration framework)
+- Telegram bot runs in a daemon thread alongside gunicorn; gracefully degrades if `TELEGRAM_BOT_TOKEN` is absent
+- Session cookies set to `SameSite=None; Secure` to support Telegram Mini App iframe/WebView embedding
+- `start.sh` exports `.pythonlibs/bin` to PATH so gunicorn is found without system install
 
-## Key Features
+## Product
 
-- **Bingo rooms**: Multiple rooms with configurable card prices (ETB)
-- **Telegram login**: Users register and log in via the Telegram bot
-- **Wallet system**: Balance, bonus balance, deposits, withdrawals
-- **Referral system**: Referral codes with bonus rewards
-- **Streak tracking**: Daily play streak tracking
-- **Admin panel**: `/admin` route for managing users, rooms, deposit/withdraw requests
-- **Real-time game**: Per-room countdown timers running as background threads
+- Users register/login via Telegram bot OTP or Telegram Mini App auth
+- Wallet system: deposit, withdraw, bonus balance with expiry
+- Bingo rooms with stake tiers; users buy up to 2 cards per round during 20s selection window
+- Server-side game loop calls balls (1–75) every 3s, awards prize pool (minus 10% house fee) to winner(s)
+- Admin panel for user management, balance adjustments, revenue reporting
+- Referral system with bonus rewards
 
-## Gameplay Bug Fixes Applied
+## User preferences
 
-- **Timer double-counting**: Removed `start_all_room_timers()` from `app.py`; timers now only start via gunicorn `post_fork` (worker processes only, not master)
-- **Timer display skipping**: Changed `_syncTimers` poll interval from 2000ms → 1000ms so countdown shows every second
-- **Auto-claim bingo**: Added `Number()` coercion in `_detectBingo` to avoid type mismatch between card data and called balls
-- **Game-over cleanup**: `handleGameOverReturn` now resets `_gameStarted` and `_gameStartCDActive` flags; Leave button calls full cleanup
-- **Card layout**: Player cards moved to compact mini-strips at top (card 1) and bottom (card 2) of the game screen
+- Keep Telegram bot as optional (disabled gracefully when token missing)
 
-## Auth Flow
+## Gotchas
 
-1. User clicks "Login via Telegram" on landing page
-2. Telegram bot sends a one-time login token
-3. User clicks the login link which calls `/auth/token/<token>`
-4. Flask-Login session is established
+- `DATABASE_URL` must start with `postgresql://` not `postgres://` — `app.py` fixes this automatically
+- Room timers must be started in `post_fork`, not at module import time, to survive gunicorn forking
+- `gunicorn` binary lives in `.pythonlibs/bin` — always use `bash start.sh` or set PATH first
 
-## Telegram Bot Modes
+## Pointers
 
-- **Replit** (dev): Sets webhook to `REPLIT_DEV_DOMAIN`
-- **Render** (prod): Sets webhook to `RENDER_EXTERNAL_URL`
-- **Local**: Falls back to long polling
-
-## Database Migrations
-
-Inline migrations run at startup in `app.py` using `ALTER TABLE ... IF NOT EXISTS` patterns — safe to re-run on every boot.
+- Workflows skill: `.local/skills/workflows/SKILL.md`
+- Environment secrets skill: `.local/skills/environment-secrets/SKILL.md`
