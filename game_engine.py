@@ -141,6 +141,11 @@ def _find_and_award_winner(stake, called_set):
             db.session.remove()  # force fresh read — avoid stale session cache
             room = Room.query.filter_by(card_price=float(stake)).first()
             if not room or not room.active_session_id:
+                logger.info(
+                    f"[WINNER] stake={stake} NO room or active_session_id "
+                    f"(room={'None' if not room else room.id} "
+                    f"active_session_id={getattr(room, 'active_session_id', 'N/A')})"
+                )
                 return None
 
             session_id = room.active_session_id
@@ -174,8 +179,18 @@ def _find_and_award_winner(stake, called_set):
             ).all()
 
             if not transactions:
+                logger.warning(
+                    f"[WINNER] stake={stake} session={session_id} "
+                    f"NO transactions found for room_id={room.id}"
+                )
                 db.session.rollback()
                 return None
+
+            logger.info(
+                f"[WINNER] stake={stake} session={session_id} "
+                f"balls={len(called_set)} txs={len(transactions)} "
+                f"cards={[tx.card_number for tx in transactions]}"
+            )
 
             total_prize = len(transactions) * float(stake) * (1 - get_house_fee())
 
@@ -183,7 +198,12 @@ def _find_and_award_winner(stake, called_set):
             winning_pairs = []
             for tx in transactions:
                 card_data = get_card_data(tx.card_number)
-                if check_bingo(card_data, called_set):
+                bingo_result = check_bingo(card_data, called_set)
+                logger.info(
+                    f"[WINNER]   card={tx.card_number} bingo={bingo_result} "
+                    f"sample_balls={sorted(called_set)[:10]}"
+                )
+                if bingo_result:
                     user = db.session.query(User).with_for_update().filter_by(id=tx.user_id).first()
                     if user:
                         winning_pairs.append((user, tx.card_number, get_card_data(tx.card_number)))
