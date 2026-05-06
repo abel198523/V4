@@ -2205,16 +2205,37 @@ def api_bingo_claim(stake):
     except Exception as _db_err:
         _routes_logger.error(f"[BINGO-CLAIM] DB check error (non-fatal): {_db_err}")
 
-    # Retry loop: client may call claim before server has processed that ball.
-    # Wait up to 8 seconds (16 × 0.5s) — long enough to cover any DB latency
-    # on the game loop's _find_and_award_winner call and still fit inside the
-    # 8-second winner-display window before room_states['winners'] is cleared.
-    for attempt in range(16):
+    def _snapshot():
         with _lock:
-            state = room_states.get(stake, {})
-            winners = state.get('winners', [])
-            balls   = list(state.get('balls', []))
-            status  = state.get('status', '')
+            s = room_states.get(stake, {})
+            return (list(s.get('winners', [])),
+                    list(s.get('balls', [])),
+                    s.get('status', ''))
+
+    def _set_winners_if_empty(result):
+        """Push winner result into room_states if not already set; return winners_data."""
+        winners_data = [
+            {'username': u, 'card_number': cn, 'prize': ps, 'card_data': cd}
+            for u, cn, ps, cd in result
+        ]
+        with _lock:
+            if not room_states.get(stake, {}).get('winners'):
+                room_states[stake]['winners']     = winners_data
+                room_states[stake]['winner']      = result[0][0]
+                room_states[stake]['winner_card'] = result[0][1]
+                room_states[stake]['prize']       = result[0][2]
+        return winners_data
+
+    # ── Retry loop ──────────────────────────────────────────────────────────
+    # Each iteration: check in-memory winners first (fastest path), then
+    # actively call _find_and_award_winner every attempt (not just the first
+    # four) so that a bingo detected by the client but missed by the game loop
+    # is still awarded within the retry window.
+    # SELECT FOR UPDATE inside _find_and_award_winner ensures exactly-once
+    # awarding even when the game loop and the claim route race.
+    # Total window: 24 × 0.5 s = 12 s — covers 4 ball intervals @ 3 s each.
+    for attempt in range(24):
+        winners, balls, status = _snapshot()
 
         if winners:
             return jsonify({
@@ -2227,28 +2248,22 @@ def api_bingo_claim(stake):
                 "prize":            winners[0]['prize'],
             })
 
-        # Game not playing — nothing to claim
+        # Game ended without a winner being set — nothing left to claim
         if status != 'playing':
             break
 
-        # On the first four attempts (first ~2 s) actively trigger the winner
-        # check so the claim succeeds even if the game loop is slow.
-        # The atomic SELECT FOR UPDATE inside _find_and_award_winner guarantees
-        # only one concurrent caller (game loop or claim) can award the prize.
-        if attempt < 4 and balls:
-            result = _find_and_award_winner(stake, set(balls))
+        if balls:
+            try:
+                result = _find_and_award_winner(stake, set(balls))
+            except Exception as _fa_err:
+                _routes_logger.error(
+                    f"[BINGO-CLAIM] _find_and_award_winner raised on attempt {attempt}: {_fa_err}",
+                    exc_info=True
+                )
+                result = None
+
             if result:
-                from card_data import get_card_data as _gcd
-                winners_data = [
-                    {'username': u, 'card_number': cn, 'prize': ps, 'card_data': cd}
-                    for u, cn, ps, cd in result
-                ]
-                with _lock:
-                    if not room_states.get(stake, {}).get('winners'):
-                        room_states[stake]['winners'] = winners_data
-                        room_states[stake]['winner']      = result[0][0]
-                        room_states[stake]['winner_card']  = result[0][1]
-                        room_states[stake]['prize']        = result[0][2]
+                winners_data = _set_winners_if_empty(result)
                 return jsonify({
                     "valid":            True,
                     "winners":          winners_data,
@@ -2259,10 +2274,26 @@ def api_bingo_claim(stake):
                     "prize":            winners_data[0]['prize'],
                 })
 
+            # _find_and_award_winner returned None — this usually means the
+            # game loop beat us to it and already committed the winner.
+            # Re-check room_states immediately before sleeping so we don't
+            # spend an extra 0.5 s when the game loop just set winners.
+            winners, balls, _ = _snapshot()
+            if winners:
+                return jsonify({
+                    "valid":            True,
+                    "winners":          winners,
+                    "winner":           winners[0]['username'],
+                    "winner_card":      winners[0]['card_number'],
+                    "winner_card_data": winners[0]['card_data'],
+                    "balls":            balls,
+                    "prize":            winners[0]['prize'],
+                })
+
         _time.sleep(0.5)
 
     _routes_logger.warning(
-        f"[BINGO-CLAIM] NO WINNER after 16 attempts "
+        f"[BINGO-CLAIM] NO WINNER after 24 attempts "
         f"user={current_user.username!r} stake={stake} card={claimed_card}"
     )
     return jsonify({"valid": False, "message": "ቢንጎ ተቀባይነት አላገኘም — ዳቢ ሊጠናቀቅ ጥቂት ይጠብቁ"})

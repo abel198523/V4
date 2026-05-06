@@ -476,6 +476,15 @@ def _room_loop(stake):
                             state['prize']       = result[0][2]
                     winner_found = True
                     break
+                else:
+                    # _find_and_award_winner returned None — could mean the claim
+                    # route already awarded this session via SELECT FOR UPDATE.
+                    # Check room_states right now; if winners were set by the claim
+                    # route we can break immediately instead of calling more balls.
+                    with _lock:
+                        if room_states.get(stake, {}).get('winners'):
+                            winner_found = True
+                            break
 
                 time.sleep(BALL_INTERVAL)
 

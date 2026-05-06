@@ -2489,10 +2489,18 @@ async function checkMyCardForBingo(calledBalls) {
                 handleGameOverReturn(currentRoom);
             }, WINNER_DISPLAY_SECONDS * 1000);
         } else {
-            // valid=false — reset lock so next ball triggers a fresh retry
+            // valid=false — reset lock and auto-retry after 1.5 s without
+            // waiting for the next ball, in case the game loop needs a moment
+            // to commit the winner and set room_states['winners'].
             state.bingoFlashed = false;
-            showToast(`⚠️ ቢንጎ: ${body.message || 'ክሌም ተቀባይነት አላገኘም'}`);
+            showToast(`⚠️ ቢንጎ: ${body.message || 'ክሌም ተቀባይነት አላገኘም — ዳግም እየሞከርን...'}`);
             _showBingoDebug();
+            setTimeout(() => {
+                const rs2 = getRoomState(currentRoom);
+                if (rs2 && !rs2.winnerShown) {
+                    checkMyCardForBingo(_dbgLastBalls || []);
+                }
+            }, 1500);
         }
     } catch (e) {
         _dbgPush(`Claim network error: ${e.message}`);
