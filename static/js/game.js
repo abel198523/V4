@@ -2360,8 +2360,9 @@ async function pollGameState(stake) {
                     setTimeout(() => ab.classList.remove('ball-flash'), 600);
                 }
                 if (typeof playBallCall === 'function') playBallCall();
-                checkMyCardForBingo(data.balls);
             }
+            // Always run bingo check whenever ball count changes, regardless of latest
+            checkMyCardForBingo(data.balls);
         }
     } catch (e) {
         console.debug('[MG] poll error:', e.message);
