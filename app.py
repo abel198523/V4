@@ -37,8 +37,10 @@ app.config['COMPRESS_MIN_SIZE'] = 500
 Compress(app)
 sock = Sock(app)
 
-# Fix DATABASE_URL: postgres:// -> postgresql://
-database_url = os.environ.get("DATABASE_URL")
+# Prefer RAILWAY_DATABASE_URL if explicitly set, then fall back to DATABASE_URL.
+# This lets you point the app at a Railway-hosted PostgreSQL while Replit's
+# built-in DATABASE_URL still exists in the environment.
+database_url = os.environ.get("RAILWAY_DATABASE_URL") or os.environ.get("DATABASE_URL")
 if not database_url:
     logger.critical(
         "FATAL: DATABASE_URL environment variable is not set. "
