@@ -361,16 +361,22 @@ async function _syncTimers() {
                 return !!(s && s.classList.contains('active'));
             };
 
-            // ① playing → waiting/launching: game ended → return to selection screen
+            // ① playing → waiting: game ended → return to selection screen.
+            // Guard: only fire if the user is still on the GAME screen or the
+            // winner modal is visible.  If handleGameOverReturn already ran
+            // (e.g. claim succeeded and its 8-s timeout fired), the user will
+            // already be on the selection screen — calling it again would wipe
+            // any cards they bought for the new round.
             if (prev.status === 'playing' && info.status !== 'playing' && currentRoom == stake) {
                 _gameStarted[stake] = false;
-                // If the winner modal is already showing (poll caught the winner),
-                // let its own setTimeout handle the return so we don't interrupt it.
-                const _winModal = document.getElementById('winner-modal');
-                const _winModalActive = _winModal && _winModal.classList.contains('active');
-                if (!_winModalActive) {
+                const _winModal   = document.getElementById('winner-modal');
+                const _gameScreen = document.getElementById('game-screen');
+                const _winActive  = _winModal   && _winModal.classList.contains('active');
+                const _onGame     = _gameScreen  && _gameScreen.classList.contains('active');
+                if (_winActive || _onGame) {
                     handleGameOverReturn(stake);
                 }
+                // else: already on selection screen — no-op to preserve new round's card state
             }
 
             // ② non-playing → playing: game just started
