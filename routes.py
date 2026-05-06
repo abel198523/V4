@@ -2166,14 +2166,18 @@ def buy_card_by_stake(stake, card_number):
                 "message": f"ባላንስ አነስተኛ ነው። ያሎት: {dep + bonus:.2f} ETB"
             }), 400
 
-        # Prevent the same player from buying more than two cards per session
-        existing_txs = []
-        if room.active_session_id:
-            existing_txs = Transaction.query.filter_by(
-                room_id=room.id,
-                session_id=room.active_session_id,
-                user_id=current_user.id
-            ).all()
+        # Get-or-create the session first so all checks use the real session id
+        game_session = get_or_create_session(room.id)
+        if not game_session:
+            return jsonify({"success": False, "message": "Session error",
+                            "detail": "get_or_create_session returned None"}), 500
+
+        # ── 2-card-per-player limit (checked against the real session id) ──
+        existing_txs = Transaction.query.filter_by(
+            room_id=room.id,
+            session_id=game_session.id,
+            user_id=current_user.id
+        ).all()
         if len(existing_txs) >= 2:
             nums = ', '.join(f'#{t.card_number}' for t in existing_txs)
             return jsonify({
@@ -2181,13 +2185,12 @@ def buy_card_by_stake(stake, card_number):
                 "message": f"ካርዶች {nums} ተይዘዋል — በአንድ ዙር ከ2 ካርድ በላይ አይቻልም"
             }), 400
 
-        game_session = get_or_create_session(room.id)
-        if not game_session:
-            return jsonify({"success": False, "message": "Session error", "detail": "get_or_create_session returned None"}), 500
+        # ── Card-number uniqueness guard (checked before insert) ──────────
         if Transaction.query.filter_by(
             room_id=room.id, session_id=game_session.id, card_number=card_number
         ).first():
             return jsonify({"success": False, "message": "ይህ ካርድ ተወስዷል"}), 400
+
         # Deduct bonus_balance first, then deposit balance
         if bonus >= price:
             current_user.bonus_balance = round(bonus - price, 2)
@@ -2205,7 +2208,16 @@ def buy_card_by_stake(stake, card_number):
             amount=room.card_price,
             card_number=card_number
         ))
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as _ie:
+            db.session.rollback()
+            # A unique-constraint violation means another request just took this
+            # card in the same millisecond window — treat it as "card taken".
+            err_str = str(_ie).lower()
+            if 'unique' in err_str or 'duplicate' in err_str:
+                return jsonify({"success": False, "message": "ይህ ካርድ ተወስዷል"}), 400
+            raise  # re-raise unexpected DB errors to the outer handler
         # Invalidate the in-memory card-count cache so next poll sees fresh count
         from game_engine import _invalidate_card_count
         _invalidate_card_count(stake)

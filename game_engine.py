@@ -142,6 +142,19 @@ def _find_and_award_winner(stake, called_set):
                 return None
 
             session_id = room.active_session_id
+
+            # ── IDEMPOTENCY GUARD ─────────────────────────────────────────────
+            # If the session is already marked completed (e.g. this function was
+            # called twice due to a retry after an exception), bail out immediately
+            # so we never double-credit a winner's balance.
+            game_session = GameSession.query.get(session_id)
+            if not game_session or game_session.status == 'completed':
+                logger.warning(
+                    f"Room {stake} ETB: _find_and_award_winner called on already-completed "
+                    f"session {session_id} — skipping to prevent double-credit."
+                )
+                return None
+
             transactions = Transaction.query.filter_by(
                 room_id=room.id,
                 session_id=session_id
@@ -157,7 +170,9 @@ def _find_and_award_winner(stake, called_set):
             for tx in transactions:
                 card_data = get_card_data(tx.card_number)
                 if check_bingo(card_data, called_set):
-                    user = User.query.get(tx.user_id)
+                    # Use with_for_update() so concurrent DB connections cannot read
+                    # a stale balance and produce an incorrect credit.
+                    user = db.session.query(User).with_for_update().filter_by(id=tx.user_id).first()
                     if user:
                         winning_pairs.append((user, tx.card_number, get_card_data(tx.card_number)))
 
@@ -172,10 +187,8 @@ def _find_and_award_winner(stake, called_set):
                 user.withdrawable_balance = round(float(user.withdrawable_balance or 0) + prize_share, 2)
                 winner_list.append((user.username, card_num, prize_share, card_data))
 
-            game_session = GameSession.query.get(session_id)
-            if game_session:
-                game_session.status = 'completed'
-                game_session.winner_id = winning_pairs[0][0].id
+            game_session.status = 'completed'
+            game_session.winner_id = winning_pairs[0][0].id
             room.active_session_id = None
             db.session.commit()
 
@@ -193,7 +206,12 @@ def _find_and_award_winner(stake, called_set):
             )
             return winner_list
     except Exception as e:
-        logger.error(f"Winner check error for room {stake}: {e}")
+        logger.error(f"Winner check error for room {stake}: {e}", exc_info=True)
+        try:
+            from app import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
     return None
 
 
@@ -215,8 +233,8 @@ def _complete_session_no_winner(stake):
                 _notify_admins_game_result(
                     stake=stake,
                     cards=tx_count,
-                    winner=None,
-                    prize=0.0,
+                    winner_list=[],
+                    total_prize=0.0,
                 )
     except Exception as e:
         logger.error(f"_complete_session_no_winner error for room {stake}: {e}")
@@ -373,33 +391,51 @@ def _room_loop(stake):
 
             winner_found = False
             for ball in balls:
-                # If a bingo claim already set the winner, stop immediately
+                # ── Guard: room removed while playing? ────────────────────────
                 with _lock:
-                    if room_states[stake].get('winners'):
+                    if stake in _stopped_stakes:
+                        logger.info(f"Room {stake} ETB: stop requested mid-game — aborting ball loop.")
+                        return
+                    state = room_states.get(stake)
+                    if state is None:
+                        logger.error(f"Room {stake} ETB: room_states entry missing mid-game — aborting.")
+                        return
+                    # If winner was already set (e.g. race between two rapid polls), stop
+                    if state.get('winners'):
                         winner_found = True
                         break
-                    room_states[stake]['balls'].append(ball)
-                    called_set = set(room_states[stake]['balls'])
+                    state['balls'].append(ball)
+                    called_set = set(state['balls'])
 
                 logger.info(f"Room {stake} ETB: called ball {ball} ({len(called_set)}/75)")
 
-                result = _find_and_award_winner(stake, called_set)
+                # ── Per-ball error isolation ───────────────────────────────────
+                # A DB hiccup on one ball must NOT crash the entire game; we log
+                # the error, skip the bingo check for this ball, and continue.
+                try:
+                    result = _find_and_award_winner(stake, called_set)
+                except Exception as _e:
+                    logger.error(f"Room {stake} ETB: _find_and_award_winner raised unexpectedly "
+                                 f"on ball {ball}: {_e}", exc_info=True)
+                    result = None
+
                 if result:
-                    # result is a list of (username, card_num, prize_share, card_data)
-                    from card_data import get_card_data as _gcd
-                    winners_data = []
-                    for username, card_num, prize_share, card_data in result:
-                        winners_data.append({
+                    winners_data = [
+                        {
                             'username': username,
                             'card_number': card_num,
                             'prize': prize_share,
                             'card_data': card_data,
-                        })
+                        }
+                        for username, card_num, prize_share, card_data in result
+                    ]
                     with _lock:
-                        room_states[stake]['winners'] = winners_data
-                        room_states[stake]['winner'] = result[0][0]
-                        room_states[stake]['winner_card'] = result[0][1]
-                        room_states[stake]['prize'] = result[0][2]
+                        state = room_states.get(stake)
+                        if state is not None:
+                            state['winners']     = winners_data
+                            state['winner']      = result[0][0]
+                            state['winner_card'] = result[0][1]
+                            state['prize']       = result[0][2]
                     winner_found = True
                     break
 

@@ -211,6 +211,20 @@ with app.app_context():
         db.session.rollback()
         logger.warning(f"Migration bonus_expires_at TIMESTAMPTZ skipped: {e}")
 
+    # Migration: unique constraint — one card number per session (prevents duplicate
+    # card purchases that could slip through concurrent buy requests).
+    # Table is named 'transaction' (SQLAlchemy auto-name for Transaction model).
+    try:
+        db.session.execute(db.text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_transaction_session_card "
+            "ON \"transaction\"(session_id, card_number) WHERE session_id IS NOT NULL"
+        ))
+        db.session.commit()
+        logger.info("Migration: unique index on transaction(session_id, card_number) ready.")
+    except Exception as e:
+        db.session.rollback()
+        logger.warning(f"Migration uq_transaction_session_card skipped: {e}")
+
     # Generate referral codes for users who don't have one
     try:
         import secrets as _sec
