@@ -4,16 +4,92 @@ import traceback
 import telebot
 import random
 from flask import render_template, request, jsonify, redirect, url_for
-from app import app, db
-from models import User, Room, Transaction, GameSession, OTPStore, DepositRequest, WithdrawRequest, Setting
+import json as _json
+import logging as _logging
+from app import app, db, sock
+from models import User, Room, Transaction, GameSession, OTPStore, DepositRequest, WithdrawRequest, Setting, GameParticipant
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from bot import bot, BOT_TOKEN, BOT_USERNAME
+
+_routes_logger = _logging.getLogger('routes')
 
 # Global lock: ensures only one thread can create/fetch a session at a time.
 # This prevents the race condition where two players buying simultaneously
 # each create their own isolated session instead of sharing one.
 _session_create_lock = threading.Lock()
+
+
+# ── WebSocket endpoint ─────────────────────────────────────────────────────
+@sock.route('/ws')
+def ws_handler(ws):
+    """Short-lived WS for auth + state restore.
+    Client sends  { type: 'auth_telegram' }
+    Server replies { type: 'auth_success', restored_card_id, ... }
+    """
+    try:
+        raw = ws.receive(timeout=10)
+        if not raw:
+            return
+        msg = _json.loads(raw)
+        if msg.get('type') != 'auth_telegram':
+            ws.send(_json.dumps({'type': 'error', 'message': 'unknown message type'}))
+            return
+
+        if not current_user.is_authenticated:
+            ws.send(_json.dumps({'type': 'auth_error', 'message': 'ያልተረጋገጠ ተጠቃሚ'}))
+            return
+
+        # Look up the player's active card from game_participants
+        restored_card_id   = None
+        restored_card_data = None
+        restored_card_id_2   = None
+        restored_card_data_2 = None
+        restored_stake     = None
+
+        try:
+            rooms = Room.query.all()
+            for room in rooms:
+                if not getattr(room, 'active_session_id', None):
+                    continue
+                session_obj = GameSession.query.get(room.active_session_id)
+                if not session_obj or session_obj.status != 'active':
+                    continue
+                gp = GameParticipant.query.filter_by(
+                    user_id=current_user.id,
+                    session_id=room.active_session_id
+                ).first()
+                if gp:
+                    from card_data import get_card_data as _gcd
+                    restored_stake     = int(room.card_price)
+                    restored_card_id   = gp.card_number
+                    restored_card_data = _gcd(gp.card_number)
+                    if gp.card_number_2:
+                        restored_card_id_2   = gp.card_number_2
+                        restored_card_data_2 = _gcd(gp.card_number_2)
+                    break
+        except Exception as lookup_err:
+            _routes_logger.error(f"[WS] participant lookup error: {lookup_err}")
+
+        _routes_logger.info(
+            f"[WS] auth_success user={current_user.username} "
+            f"restored_card={restored_card_id} stake={restored_stake}"
+        )
+        ws.send(_json.dumps({
+            'type':               'auth_success',
+            'username':           current_user.username,
+            'restored_card_id':   restored_card_id,
+            'restored_card_data': restored_card_data,
+            'restored_card_id_2':   restored_card_id_2,
+            'restored_card_data_2': restored_card_data_2,
+            'restored_stake':     restored_stake,
+        }))
+    except Exception as e:
+        _routes_logger.error(f"[WS] handler exception: {e}")
+        try:
+            ws.send(_json.dumps({'type': 'error', 'message': str(e)}))
+        except Exception:
+            pass
 
 
 from werkzeug.exceptions import HTTPException
@@ -2078,8 +2154,56 @@ def api_game_state(stake):
 def api_bingo_claim(stake):
     import time as _time
     from game_engine import room_states, STAKES, _find_and_award_winner, _lock
+
+    # ── Server logging ─────────────────────────────────────────────────────
+    req_data    = request.get_json(silent=True) or {}
+    claimed_card = req_data.get('card_number')
+    with _lock:
+        _snap = room_states.get(stake, {})
+        _snap_status = _snap.get('status', 'unknown')
+        _snap_balls  = len(_snap.get('balls', []))
+    _routes_logger.info(
+        f"[BINGO-CLAIM] user={current_user.username!r} stake={stake} "
+        f"card={claimed_card} status={_snap_status} balls_called={_snap_balls}"
+    )
+
     if stake not in STAKES:
-        return jsonify({"error": "Room not found"}), 404
+        _routes_logger.warning(f"[BINGO-CLAIM] REJECTED user={current_user.username!r} — room not found")
+        return jsonify({"valid": False, "message": "ሩም አልተገኘም"}), 404
+
+    # ── Instant DB Restore: verify the claiming user holds a card this session ─
+    # (guards against claims where client state was never restored after reconnect)
+    try:
+        _room = Room.query.filter_by(card_price=float(stake)).first()
+        if _room and getattr(_room, 'active_session_id', None):
+            _db_txs = Transaction.query.filter_by(
+                user_id=current_user.id,
+                session_id=_room.active_session_id
+            ).all()
+            if not _db_txs:
+                _routes_logger.warning(
+                    f"[BINGO-CLAIM] REJECTED user={current_user.username!r} stake={stake} "
+                    f"— no transaction in DB for session {_room.active_session_id}"
+                )
+                return jsonify({
+                    "valid": False,
+                    "message": "ለዚህ ዙር ካርድ አልተገዛም — ዳቢ ውስጥ ካርዱ አልተገኘም"
+                }), 400
+            _db_card_nums = [t.card_number for t in _db_txs]
+            if claimed_card and claimed_card not in _db_card_nums:
+                _routes_logger.warning(
+                    f"[BINGO-CLAIM] card mismatch user={current_user.username!r} "
+                    f"claimed={claimed_card} db_cards={_db_card_nums} — using DB card"
+                )
+                # Override with the user's actual first card from DB
+                claimed_card = _db_card_nums[0]
+        elif _room and not getattr(_room, 'active_session_id', None):
+            _routes_logger.warning(
+                f"[BINGO-CLAIM] REJECTED user={current_user.username!r} stake={stake} — no active session"
+            )
+            return jsonify({"valid": False, "message": "ጨዋታ ገና አልጀመረም"}), 400
+    except Exception as _db_err:
+        _routes_logger.error(f"[BINGO-CLAIM] DB verify error: {_db_err}")
 
     # Retry loop: client may call claim before server has processed that ball.
     # Wait up to 8 seconds (16 × 0.5s) — long enough to cover any DB latency
@@ -2137,6 +2261,10 @@ def api_bingo_claim(stake):
 
         _time.sleep(0.5)
 
+    _routes_logger.warning(
+        f"[BINGO-CLAIM] NO WINNER after 16 attempts "
+        f"user={current_user.username!r} stake={stake} card={claimed_card}"
+    )
     return jsonify({"valid": False, "message": "ቢንጎ ተቀባይነት አላገኘም — ዳቢ ሊጠናቀቅ ጥቂት ይጠብቁ"})
 
 
@@ -2225,6 +2353,26 @@ def buy_card_by_stake(stake, card_number):
         # Invalidate the in-memory card-count cache so next poll sees fresh count
         from game_engine import _invalidate_card_count
         _invalidate_card_count(stake)
+
+        # ── Upsert game_participants for WS state-restore on reconnect ────────
+        try:
+            gp = GameParticipant.query.filter_by(
+                user_id=current_user.id,
+                session_id=game_session.id
+            ).first()
+            if not gp:
+                db.session.add(GameParticipant(
+                    user_id=current_user.id,
+                    session_id=game_session.id,
+                    card_number=card_number
+                ))
+            else:
+                gp.card_number_2 = card_number
+            db.session.commit()
+        except Exception as gp_err:
+            db.session.rollback()
+            _routes_logger.warning(f"GameParticipant upsert failed (non-fatal): {gp_err}")
+
         return jsonify({"success": True, "new_balance": dep_new + bonus_new,
                         "deposit_balance": dep_new, "bonus_balance": bonus_new,
                         "streak": current_user.current_streak})

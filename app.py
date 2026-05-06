@@ -3,6 +3,7 @@ import logging
 
 from flask import Flask
 from flask_compress import Compress
+from flask_sock import Sock
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -34,6 +35,7 @@ app.config['COMPRESS_MIMETYPES'] = [
 app.config['COMPRESS_LEVEL'] = 6
 app.config['COMPRESS_MIN_SIZE'] = 500
 Compress(app)
+sock = Sock(app)
 
 # Fix DATABASE_URL: postgres:// -> postgresql://
 database_url = os.environ.get("DATABASE_URL")
@@ -224,6 +226,25 @@ with app.app_context():
     except Exception as e:
         db.session.rollback()
         logger.warning(f"Migration uq_transaction_session_card skipped: {e}")
+
+    # game_participants: one row per player per session for WS state restore
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS game_participants (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                session_id INTEGER NOT NULL REFERENCES game_sessions(id),
+                card_number INTEGER NOT NULL,
+                card_number_2 INTEGER,
+                created_at TIMESTAMP DEFAULT NOW(),
+                CONSTRAINT uq_gp_user_session UNIQUE (user_id, session_id)
+            )
+        """))
+        db.session.commit()
+        logger.info("Migration: game_participants table ready.")
+    except Exception as e:
+        db.session.rollback()
+        logger.warning(f"Migration game_participants skipped: {e}")
 
     # Generate referral codes for users who don't have one
     try:

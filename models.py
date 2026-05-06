@@ -64,6 +64,20 @@ class Setting(db.Model):
     key = db.Column(db.String(64), primary_key=True)
     value = db.Column(db.String(256), nullable=False)
 
+class GameParticipant(db.Model):
+    """One row per player per session — card numbers they hold in that round.
+    Created/updated at card purchase; queried on WS reconnect for state restore."""
+    __tablename__ = 'game_participants'
+    id            = db.Column(db.Integer, primary_key=True)
+    user_id       = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    session_id    = db.Column(db.Integer, db.ForeignKey('game_sessions.id'), nullable=False)
+    card_number   = db.Column(db.Integer, nullable=False)
+    card_number_2 = db.Column(db.Integer, nullable=True)
+    created_at    = db.Column(db.DateTime, server_default=db.func.now())
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'session_id', name='uq_gp_user_session'),
+    )
+
 class DepositRequest(db.Model):
     __tablename__ = 'deposit_requests'
     id = db.Column(db.Integer, primary_key=True)

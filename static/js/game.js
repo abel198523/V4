@@ -1,5 +1,63 @@
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const socket = new WebSocket(`${protocol}//${window.location.host}`);
+let socket = _wsConnect();
+
+function _wsConnect() {
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+    ws.onmessage = _wsOnMessage;
+    ws.onclose   = () => { setTimeout(_wsReconnect, 3000); };
+    ws.onerror   = () => { /* onerror always followed by onclose */ };
+    return ws;
+}
+
+function _wsReconnect() {
+    socket = _wsConnect();
+    // Re-send auth once re-opened
+    socket.onopen = _wsSendAuth;
+}
+
+function _wsSendAuth() {
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'auth_telegram' }));
+    }
+}
+
+function _wsOnMessage(event) {
+    try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'auth_success') {
+            if (msg.restored_card_id && msg.restored_stake) {
+                _restoreCardState(msg);
+            }
+        } else if (msg.type === 'auth_error') {
+            console.warn('[WS] auth_error:', msg.message);
+        } else if (msg.type === 'error') {
+            console.error('[WS] server error:', msg.message);
+        }
+    } catch (e) {
+        console.error('[WS] message parse error:', e);
+    }
+}
+
+function _restoreCardState(msg) {
+    const stake = msg.restored_stake;
+    if (!stake) return;
+    const state = getRoomState(stake);
+    if (state.purchasedCard) return; // already set — no need to restore
+    state.purchasedCard  = msg.restored_card_id;
+    state.myGameCard     = msg.restored_card_data;
+    if (msg.restored_card_id_2) {
+        state.purchasedCard2 = msg.restored_card_id_2;
+        state.myGameCard2    = msg.restored_card_data_2;
+    }
+    // If the player is already on the game screen for this room, refresh the card display
+    if (currentRoom === stake) {
+        renderMyGameCard();
+        const myBoardEl = document.getElementById('sel-my-board-game');
+        if (myBoardEl) myBoardEl.innerText = `#${msg.restored_card_id}`;
+    }
+    console.log(`[WS] state restored — stake=${stake} card=${msg.restored_card_id}`);
+    showToast(`🔄 ካርድ #${msg.restored_card_id} ተመልሷል`);
+}
 const bingoBoard = document.getElementById('bingo-board');
 const activeBall = document.getElementById('active-ball');
 const recentBalls = document.getElementById('recent-balls');
@@ -1199,9 +1257,9 @@ window.onload = () => {
         if (profilePhone) profilePhone.innerText = user.phone_number || '--';
 
         if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: 'AUTH', token }));
+            socket.send(JSON.stringify({ type: 'auth_telegram' }));
         } else {
-            socket.onopen = () => socket.send(JSON.stringify({ type: 'AUTH', token }));
+            socket.onopen = _wsSendAuth;
         }
     }
 
@@ -2207,7 +2265,10 @@ async function checkMyCardForBingo(calledBalls) {
 
     // Use whichever card won (prefer card1 if both somehow win simultaneously)
     const winningCard = hasBingo1 ? state.purchasedCard : state.purchasedCard2;
-    if (!winningCard) return;
+    if (!winningCard) {
+        showToast('⚠️ ካርድ ቁጥር አልተሰጠም — ከሰርጥ ተቋርጦ ካርድ አልተመለሰም። ገጹን ዳግም ይጫኑ።');
+        return;
+    }
 
     // Lock immediately to prevent duplicate claims
     state.bingoFlashed = true;
