@@ -379,8 +379,8 @@ async function _syncTimers() {
             //    (mid-game join) without having bought a card.
             if (prev.status !== 'playing' && info.status === 'playing' && currentRoom == stake) {
                 _gameStarted[stake] = true;   // acknowledge the transition regardless
-                if (_rs.purchasedCard && _onSel() && !_gameStartCDActive) {
-                    _showGameStartCountdown(startGame);
+                if (_rs.purchasedCard && _onSel()) {
+                    startGame();
                 }
             }
 
@@ -388,9 +388,9 @@ async function _syncTimers() {
             //    Catches: card bought while game was already playing, or rapid status flip
             //    that ② missed because _gameStarted was already true from a previous cycle.
             if (info.status === 'playing' && currentRoom == stake &&
-                _rs.purchasedCard && _onSel() && !_gameStartCDActive) {
-                _gameStarted[stake] = true;   // prevent re-entry from other checks
-                _showGameStartCountdown(startGame);
+                _rs.purchasedCard && _onSel()) {
+                _gameStarted[stake] = true;
+                startGame();
             }
 
             // ── Live game screen stats ────────────────────────────────────

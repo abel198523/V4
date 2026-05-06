@@ -427,10 +427,6 @@ def _room_loop(stake):
 
             logger.info(f"Room {stake} ETB: GAME STARTED with {player_count} player(s)")
 
-            # Wait for frontend 3-2-1-Go countdown to finish before calling first ball.
-            # Frontend animation: 3×900ms + 650ms "Go!" = ~3.35s, plus 2s after "Go" = ~5.35s
-            time.sleep(6)
-
             winner_found = False
             for ball in balls:
                 # ── Guard: room removed while playing? ────────────────────────
