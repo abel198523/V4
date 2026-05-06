@@ -2448,6 +2448,8 @@ async function checkMyCardForBingo(calledBalls) {
         _dbgPush(`API response: HTTP ${res.status} valid=${body.valid} msg=${body.message || '—'}`);
 
         if (!res.ok) {
+            // Reset bingoFlashed so next ball can trigger a retry
+            state.bingoFlashed = false;
             showToast(`⚠️ ቢንጎ ክሌም: ${body.message || `HTTP ${res.status}`}`);
             _showBingoDebug();
             state.autoClaimInProgress = false;
@@ -2486,6 +2488,8 @@ async function checkMyCardForBingo(calledBalls) {
                 handleGameOverReturn(currentRoom);
             }, WINNER_DISPLAY_SECONDS * 1000);
         } else {
+            // valid=false — reset lock so next ball triggers a fresh retry
+            state.bingoFlashed = false;
             showToast(`⚠️ ቢንጎ: ${body.message || 'ክሌም ተቀባይነት አላገኘም'}`);
             _showBingoDebug();
         }

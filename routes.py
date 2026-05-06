@@ -2171,8 +2171,10 @@ def api_bingo_claim(stake):
         _routes_logger.warning(f"[BINGO-CLAIM] REJECTED user={current_user.username!r} — room not found")
         return jsonify({"valid": False, "message": "ሩም አልተገኘም"}), 404
 
-    # ── Instant DB Restore: verify the claiming user holds a card this session ─
-    # (guards against claims where client state was never restored after reconnect)
+    # ── Soft DB check: log ownership info but NEVER block the retry loop ─────
+    # active_session_id is cleared by the game loop the instant a winner is found,
+    # so a hard rejection here would wrongly block legitimate late claims.
+    # The retry loop below handles all winner detection correctly on its own.
     try:
         _room = Room.query.filter_by(card_price=float(stake)).first()
         if _room and getattr(_room, 'active_session_id', None):
@@ -2182,28 +2184,26 @@ def api_bingo_claim(stake):
             ).all()
             if not _db_txs:
                 _routes_logger.warning(
-                    f"[BINGO-CLAIM] REJECTED user={current_user.username!r} stake={stake} "
-                    f"— no transaction in DB for session {_room.active_session_id}"
+                    f"[BINGO-CLAIM] no transaction for user={current_user.username!r} "
+                    f"in session {_room.active_session_id} — continuing to retry loop"
                 )
-                return jsonify({
-                    "valid": False,
-                    "message": "ለዚህ ዙር ካርድ አልተገዛም — ዳቢ ውስጥ ካርዱ አልተገኘም"
-                }), 400
-            _db_card_nums = [t.card_number for t in _db_txs]
-            if claimed_card and claimed_card not in _db_card_nums:
-                _routes_logger.warning(
-                    f"[BINGO-CLAIM] card mismatch user={current_user.username!r} "
-                    f"claimed={claimed_card} db_cards={_db_card_nums} — using DB card"
-                )
-                # Override with the user's actual first card from DB
-                claimed_card = _db_card_nums[0]
-        elif _room and not getattr(_room, 'active_session_id', None):
-            _routes_logger.warning(
-                f"[BINGO-CLAIM] REJECTED user={current_user.username!r} stake={stake} — no active session"
+            else:
+                _db_card_nums = [t.card_number for t in _db_txs]
+                if claimed_card and claimed_card not in _db_card_nums:
+                    _routes_logger.warning(
+                        f"[BINGO-CLAIM] card mismatch user={current_user.username!r} "
+                        f"claimed={claimed_card} db_cards={_db_card_nums}"
+                    )
+        else:
+            # active_session_id is None — game loop likely already cleared it after
+            # finding a winner.  Log only; fall through to the retry loop which will
+            # pick up room_states['winners'] set by _find_and_award_winner.
+            _routes_logger.info(
+                f"[BINGO-CLAIM] active_session_id=None for stake={stake} "
+                f"user={current_user.username!r} — checking in-memory state"
             )
-            return jsonify({"valid": False, "message": "ጨዋታ ገና አልጀመረም"}), 400
     except Exception as _db_err:
-        _routes_logger.error(f"[BINGO-CLAIM] DB verify error: {_db_err}")
+        _routes_logger.error(f"[BINGO-CLAIM] DB check error (non-fatal): {_db_err}")
 
     # Retry loop: client may call claim before server has processed that ball.
     # Wait up to 8 seconds (16 × 0.5s) — long enough to cover any DB latency
