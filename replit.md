@@ -5,12 +5,13 @@ A Telegram-integrated bingo gambling web app where users register via a Telegram
 ## Run & Operate
 
 - **Start:** `bash start.sh` (runs gunicorn via `.pythonlibs/bin`)
-- **Required secrets:** `SESSION_SECRET`, `DATABASE_URL` (auto-provided by Replit PostgreSQL), `TELEGRAM_BOT_TOKEN` (optional — bot disabled if missing)
+- **Required secrets:** `SESSION_SECRET`, `DATABASE_URL` (auto-provided by Replit PostgreSQL)
+- **Optional secrets:** `TELEGRAM_BOT_TOKEN` — bot disabled gracefully if missing
 
 ## Stack
 
-- Python 3.11, Flask 3.1, SQLAlchemy 2.0, Flask-Login, Flask-Compress
-- PostgreSQL via psycopg2-binary
+- Python 3.11, Flask 3.1, SQLAlchemy 2.0, Flask-Login, Flask-Compress, Flask-Sock
+- PostgreSQL via psycopg2-binary (Replit built-in)
 - Gunicorn (gthread, 1 worker, 8 threads)
 - pyTelegramBotAPI for Telegram bot integration
 
@@ -30,7 +31,7 @@ A Telegram-integrated bingo gambling web app where users register via a Telegram
 ## Architecture decisions
 
 - Room game loops run in background threads started in gunicorn's `post_fork` hook so they survive forking and only run in worker processes
-- All DB migrations are run inline at startup in `app.py` (no migration framework)
+- All DB migrations run inline at startup in `app.py` (no migration framework)
 - Telegram bot runs in a daemon thread alongside gunicorn; gracefully degrades if `TELEGRAM_BOT_TOKEN` is absent
 - Session cookies set to `SameSite=None; Secure` to support Telegram Mini App iframe/WebView embedding
 - `start.sh` exports `.pythonlibs/bin` to PATH so gunicorn is found without system install
@@ -53,6 +54,7 @@ A Telegram-integrated bingo gambling web app where users register via a Telegram
 - `DATABASE_URL` must start with `postgresql://` not `postgres://` — `app.py` fixes this automatically
 - Room timers must be started in `post_fork`, not at module import time, to survive gunicorn forking
 - `gunicorn` binary lives in `.pythonlibs/bin` — always use `bash start.sh` or set PATH first
+- To enable the Telegram bot, set `TELEGRAM_BOT_TOKEN` as a secret in the Secrets panel
 
 ## Pointers
 

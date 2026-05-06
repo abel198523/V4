@@ -37,15 +37,11 @@ app.config['COMPRESS_MIN_SIZE'] = 500
 Compress(app)
 sock = Sock(app)
 
-# Prefer RAILWAY_DATABASE_URL if explicitly set, then fall back to DATABASE_URL.
-# This lets you point the app at a Railway-hosted PostgreSQL while Replit's
-# built-in DATABASE_URL still exists in the environment.
 database_url = os.environ.get("RAILWAY_DATABASE_URL") or os.environ.get("DATABASE_URL")
 if not database_url:
     logger.critical(
         "FATAL: DATABASE_URL environment variable is not set. "
-        "Add a PostgreSQL database to your Railway project and link it to this service, "
-        "or set DATABASE_URL manually in the Railway environment variables."
+        "Add a PostgreSQL database to your project and set DATABASE_URL."
     )
     import sys
     sys.exit(1)
@@ -67,6 +63,8 @@ engine_options = {
 if os.environ.get("RENDER") or os.environ.get("RAILWAY_ENVIRONMENT"):
     engine_options["connect_args"] = {"sslmode": "require"}
     logger.info("Production environment detected — SSL enabled for PostgreSQL.")
+else:
+    logger.info("Development environment — SSL not required for PostgreSQL.")
 
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_options
 
